@@ -287,14 +287,13 @@ void GraphicsContextRenderer::draw_image(
         throw std::invalid_argument("RGBA array must have size (m, n, 4)");
     }
     auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
-    // FIXME We can save a copy in the case where alpha = 1 and the stride is good.
     auto buf = std::make_unique<uint8_t[]>(ni * stride);
     if (alpha_) {
         for (size_t i = 0; i < ni; ++i) {
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
-                auto pix = im_raw.data(i, j, 0);
-                auto r = *(pix++), g = *(pix++), b = *(pix++), a = *(pix++);
+                auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
+                     b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
                 *(ptr++) =
                     (uint8_t(*alpha_ * 0xff) << 24) + (uint8_t(*alpha_ * r) << 16)
                     + (uint8_t(*alpha_ * g) << 8) + (uint8_t(*alpha_ * b));
@@ -304,8 +303,8 @@ void GraphicsContextRenderer::draw_image(
         for (size_t i = 0; i < ni; ++i) {
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
-                auto pix = im_raw.data(i, j, 0);
-                auto r = *(pix++), g = *(pix++), b = *(pix++), a = *(pix++);
+                auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
+                     b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
                 *(ptr++) =
                     (a << 24) + (uint8_t(a / 255. * r) << 16)
                     + (uint8_t(a / 255. * g) << 8) + (uint8_t(a / 255. * b));
