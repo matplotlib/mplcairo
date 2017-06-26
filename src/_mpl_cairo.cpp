@@ -29,8 +29,11 @@ namespace matplotlib {
     int const STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79;
 }
 
+static FT_Library FT_LIB;
+
+cairo_font_face_t* mcr_ft_font_from_prop(py::object prop);
+
 struct GraphicsContextRenderer {
-    static FT_Library ft_lib;
     static cairo_user_data_key_t constexpr ft_key = {0};
 
     cairo_t* cr_;
@@ -83,7 +86,27 @@ struct GraphicsContextRenderer {
             std::string s, py::object prop, bool ismath);
 };
 
-FT_Library GraphicsContextRenderer::ft_lib = nullptr;
+cairo_font_face_t* mcr_ft_font_from_prop(py::object prop) {
+    // It is probably not worth implementing an additional layer of caching
+    // here as findfont already has its cache and object equality needs would
+    // also need to go through Python anyways.
+    auto font_path =
+        py::module::import("matplotlib.font_manager").attr("findfont")(prop)
+        .cast<std::string>();
+    FT_Face ft_face;
+    if (FT_New_Face(FT_LIB, font_path.c_str(), 0, &ft_face)) {
+        throw std::runtime_error("FT_New_Face failed");
+    }
+    auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
+    if (cairo_font_face_set_user_data(
+                font_face, &GraphicsContextRenderer::ft_key,
+                ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
+        cairo_font_face_destroy(font_face);
+        FT_Done_Face(ft_face);
+        throw std::runtime_error("cairo_font_face_set_user_data failed");
+    }
+    return font_face;
+}
 
 GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
     cr_{nullptr}, dpi_{dpi}, alpha_{{}} {}
@@ -466,22 +489,7 @@ void GraphicsContextRenderer::draw_text(
         cairo_translate(cr_, x, y);
         cairo_rotate(cr_, -angle * M_PI / 180);
         cairo_move_to(cr_, 0, 0);
-        // FIXME Deduplicate this code, and cache the last font.
-        auto font_path =
-            py::module::import("matplotlib.font_manager").attr("findfont")(prop)
-            .cast<std::string>();
-        FT_Face ft_face;
-        if (FT_New_Face(GraphicsContextRenderer::ft_lib, font_path.c_str(), 0, &ft_face)) {
-            throw std::runtime_error("FT_New_Face failed");
-        }
-        auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
-        if (cairo_font_face_set_user_data(
-                    font_face, &GraphicsContextRenderer::ft_key,
-                    ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
-            cairo_font_face_destroy(font_face);
-            FT_Done_Face(ft_face);
-            throw std::runtime_error("cairo_font_face_set_user_data failed");
-        }
+        auto font_face = mcr_ft_font_from_prop(prop);
         cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
@@ -502,22 +510,7 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
         return {width, height, descent};
     } else {
         cairo_save(cr_);
-        // FIXME Deduplicate this code, and cache the last font.
-        auto font_path =
-            py::module::import("matplotlib.font_manager").attr("findfont")(prop)
-            .cast<std::string>();
-        FT_Face ft_face;
-        if (FT_New_Face(GraphicsContextRenderer::ft_lib, font_path.c_str(), 0, &ft_face)) {
-            throw std::runtime_error("FT_New_Face failed");
-        }
-        auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
-        if (cairo_font_face_set_user_data(
-                    font_face, &GraphicsContextRenderer::ft_key,
-                    ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
-            cairo_font_face_destroy(font_face);
-            FT_Done_Face(ft_face);
-            throw std::runtime_error("cairo_font_face_set_user_data failed");
-        }
+        auto font_face = mcr_ft_font_from_prop(prop);
         cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
@@ -533,12 +526,12 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
 PYBIND11_PLUGIN(_mpl_cairo) {
     py::module m("_mpl_cairo", "A cairo backend for matplotlib.");
 
-    if (FT_Init_FreeType(&GraphicsContextRenderer::ft_lib)) {
+    if (FT_Init_FreeType(&FT_LIB)) {
         throw std::runtime_error("FT_Init_FreeType failed");
     }
     auto clean_ft_lib = py::capsule(
             []() {
-                if (FT_Done_FreeType(GraphicsContextRenderer::ft_lib)) {
+                if (FT_Done_FreeType(FT_LIB)) {
                     throw std::runtime_error("FT_Done_FreeType failed");
                 }
             ;});
