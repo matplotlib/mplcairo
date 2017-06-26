@@ -2,23 +2,8 @@ __all__ = ["GraphicsContextRendererCairo", "install", "uninstall"]
 
 from matplotlib.backend_bases import GraphicsContextBase, RendererBase
 from matplotlib.backends import backend_cairo
-from matplotlib.font_manager import ttfFontProperty
-from matplotlib.mathtext import MathtextBackendCairo, MathTextParser
+from matplotlib.mathtext import MathTextParser
 from . import _mpl_cairo
-
-
-class MathtextBackendCairo2(MathtextBackendCairo):
-    def render_glyph(self, ox, oy, info):
-        self.glyphs.append(
-            # Convert to ttfFontProperty here.
-            (ttfFontProperty(info.font),
-             info.fontsize,
-             chr(info.num),
-             ox,
-             oy - info.offset - self.height))
-
-
-MathTextParser._backend_mapping["cairo2"] = MathtextBackendCairo2
 
 
 class GraphicsContextRendererCairo(
@@ -50,7 +35,8 @@ def _swap(class_pairs):
     for old, new in class_pairs:
         for cls in old.__subclasses__():
             idx = cls.__bases__.index(old)
-            cls.__bases__ = cls.__bases__[:idx] + (new,) + cls.__bases__[idx + 1:]
+            cls.__bases__ = (
+                cls.__bases__[:idx] + (new,) + cls.__bases__[idx + 1:])
         setattr(backend_cairo, new.__name__, new)
 
 

@@ -25,7 +25,9 @@ struct GraphicsContextRenderer {
     double dpi_;
     std::optional<double> alpha_;
 
+    // Not exposed.
     double points_to_pixels(double points);
+    rgba_t get_rgba(void);
 
     GraphicsContextRenderer(double dpi);
     ~GraphicsContextRenderer();
@@ -80,6 +82,19 @@ GraphicsContextRenderer::~GraphicsContextRenderer() {
 
 double GraphicsContextRenderer::points_to_pixels(double points) {
     return points * dpi_ / 72;
+}
+
+rgba_t GraphicsContextRenderer::get_rgba(void) {
+    double r, g, b, a;
+    auto status = cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a);
+    if (status != CAIRO_STATUS_SUCCESS) {
+        throw std::runtime_error("Could not retrieve color from pattern: "
+                + std::string{cairo_status_to_string(status)});
+    }
+    if (alpha_) {
+        a = *alpha_;
+    }
+    return {r, g, b, a};
 }
 
 int GraphicsContextRenderer::get_width(void) {
@@ -198,12 +213,7 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
 }
 
 rgb_t GraphicsContextRenderer::get_rgb(void) {
-    double r, g, b, a;
-    auto status = cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a);
-    if (status != CAIRO_STATUS_SUCCESS) {
-        throw std::runtime_error("Could not retrieve color from pattern: "
-                + std::string{cairo_status_to_string(status)});
-    }
+    auto [r, g, b, a] = get_rgba();
     return {r, g, b};
 }
 
@@ -396,86 +406,44 @@ void GraphicsContextRenderer::draw_text(
         return;
     }
     cairo_save(cr_);
-    cairo_translate(cr_, int(x), int(y));
-    cairo_rotate(cr_, -angle * M_PI / 180);
+    // FIXME If angle == 0, we need to round x and y to avoid additional
+    // aliasing on top of the one already provided by freetype.  Perhaps we
+    // should let it know about the destination subpixel position?
+    // If angle != 0, all hope is lost anyways.
+    if (angle) {
+        cairo_translate(cr_, x, y);
+        cairo_rotate(cr_, -angle * M_PI / 180);
+    } else {
+        cairo_translate(cr_, round(x), round(y));
+    }
     if (ismath) {
-
-        // // FIXME cairo2 parser
-        // auto [width, height, descent, glyphs, rects] =
-        //     py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
-        //     .cast<std::tuple<double, double, double,
-        //           std::vector<py::object>, std::vector<py::object>>>();
-        // for (auto glyph: glyphs) {
-        //     auto [prop, fontsize, c, ox, oy] = glyph
-        //         .cast<std::tuple<py::object, double, std::string, double, double>>();
-        //     cairo_move_to(cr_, ox, oy);
-        //     cairo_select_font_face(
-        //             cr_,
-        //             prop.attr("name").cast<std::string>().c_str(),
-        //             CAIRO_FONT_SLANT_NORMAL,
-        //             CAIRO_FONT_WEIGHT_NORMAL); // FIXME
-        //     cairo_set_font_size(
-        //             cr_,
-        //             points_to_pixels(fontsize));
-        //     cairo_show_text(cr_, c.c_str());
-        // }
-        // for (auto rect: rects) {
-        //     auto [ox, oy, w, h] = rect.cast<rectangle_t>();
-        //     cairo_new_path(cr_);
-        //     cairo_rectangle(cr_, ox, oy, w, h);
-        //     cairo_set_source_rgb(cr_, 0, 0, 0);
-        //     cairo_fill(cr_);
-        // }
-
-        // FIXME agg parser, two versions
         auto [ox, oy, width, height, descent, image, chars] =
             py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
             .cast<std::tuple<double, double, double, double, double,
                              py::object, py::object>>();
         auto im_raw = py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
         auto ni = im_raw.shape(0), nj = im_raw.shape(1);
-
-        // // FIXME agg parser, alpha
-        auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, nj);
-        std::unique_ptr<uint8_t[]> buf;
-        uint8_t* ptr;
-        if (stride == nj) {
-            ptr = im_raw.mutable_data(0, 0); // cairo is non-const.
-        } else {
-            auto pix = im_raw.data(0, 0);
-            buf = std::make_unique<uint8_t[]>(ni * stride);
-            for (size_t i = 0; i < ni; ++i) {
-                ptr = buf.get() + i * stride;
-                for (size_t j = 0; j < nj; ++j) {
-                    *(ptr++) = *(pix++);
-                }
+        // Recompute the colors.  Trying to use an A8 image seems just as
+        // complicated (http://cairo.cairographics.narkive.com/ijgxr19T/alpha-masks).
+        auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
+        auto pix = im_raw.data(0, 0);
+        std::unique_ptr<uint8_t[]> buf{new uint8_t[ni * stride]};
+        auto [r, g, b, a] = get_rgba();
+        for (size_t i = 0; i < ni; ++i) {
+            auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
+            for (size_t j = 0; j < nj; ++j) {
+                auto val = *(pix++);
+                *(ptr++) =
+                    (uint8_t(a * val) << 24) + (uint8_t(a * val * r) << 16)
+                    + (uint8_t(a * val * g) << 8) + (uint8_t(a * val * b));
             }
-            ptr = buf.get();
         }
         auto surface = cairo_image_surface_create_for_data(
-                ptr, CAIRO_FORMAT_A8, nj, ni, stride);
-
-        // FIXME agg parser, grayscale
-        // auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
-        // auto pix = im_raw.data(0, 0);
-        // std::unique_ptr<uint8_t[]> buf{new uint8_t[ni * stride]};
-        // for (size_t i = 0; i < ni; ++i) {
-        //     auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
-        //     for (size_t j = 0; j < nj; ++j) {
-        //         *(ptr++) = 0xff000000 + (0xff - *(pix++)) * 0x010101;
-        //     }
-        // }
-        // auto surface = cairo_image_surface_create_for_data(
-        //         buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
-
+                buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
         auto pattern = cairo_pattern_create_for_surface(surface);
         cairo_matrix_t matrix{1, 0, 0, 1, -ox, ni - oy};
         cairo_pattern_set_matrix(pattern, &matrix);
         cairo_set_source(cr_, pattern);
-
-        // // FIXME Already antialiased by freetype, don't do it twice?
-        // cairo_set_antialias(cr_, CAIRO_ANTIALIAS_NONE);
-
         cairo_paint(cr_);
         cairo_pattern_destroy(pattern);
         cairo_surface_destroy(surface);
