@@ -1,3 +1,5 @@
+import shlex
+import subprocess
 import sys
 
 from setuptools import setup, Extension
@@ -30,7 +32,14 @@ ext_modules = [
         include_dirs=[
             get_pybind_include(), get_pybind_include(user=True)
         ],
-        libraries=["cairo"],
+        extra_compile_args=shlex.split(
+            " ".join(subprocess.check_output(["pkg-config", "--cflags", lib],
+                                             universal_newlines=True)
+                     for lib in ["cairo", "freetype2"])),
+        extra_link_args=shlex.split(
+            " ".join(subprocess.check_output(["pkg-config", "--libs", lib],
+                                             universal_newlines=True)
+                     for lib in ["cairo", "freetype2"])),
     ),
 ]
 
@@ -49,7 +58,7 @@ class BuildExt(build_ext):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
         for ext in self.extensions:
-            ext.extra_compile_args = opts
+            ext.extra_compile_args = ext.extra_compile_args + opts
         build_ext.build_extensions(self)
 
 setup(

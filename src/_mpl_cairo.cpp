@@ -9,6 +9,9 @@
 #include <vector>
 
 #include <cairo/cairo.h>
+#include <cairo/cairo-ft.h>
+#include <freetype2/ft2build.h>
+#include FT_FREETYPE_H
 
 #include <pybind11/pybind11.h>
 #include <pybind11/eval.h>
@@ -27,6 +30,9 @@ namespace matplotlib {
 }
 
 struct GraphicsContextRenderer {
+    static FT_Library ft_lib;
+    static cairo_user_data_key_t constexpr ft_key = {0};
+
     cairo_t* cr_;
     double dpi_;
     std::optional<double> alpha_;
@@ -76,6 +82,8 @@ struct GraphicsContextRenderer {
     std::tuple<double, double, double> get_text_width_height_descent(
             std::string s, py::object prop, bool ismath);
 };
+
+FT_Library GraphicsContextRenderer::ft_lib = nullptr;
 
 GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
     cr_{nullptr}, dpi_{dpi}, alpha_{{}} {}
@@ -297,7 +305,7 @@ void GraphicsContextRenderer::draw_image(
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
                 auto pix = im_raw.data(i, j, 0);
-                auto r = *(pix++), g = *(pix++), b = *(pix++), a = *(pix++); 
+                auto r = *(pix++), g = *(pix++), b = *(pix++), a = *(pix++);
                 *(ptr++) =
                     (a << 24) + (uint8_t(a / 255. * r) << 16)
                     + (uint8_t(a / 255. * g) << 8) + (uint8_t(a / 255. * b));
@@ -412,17 +420,17 @@ void GraphicsContextRenderer::draw_text(
         return;
     }
     cairo_save(cr_);
-    // FIXME If angle == 0, we need to round x and y to avoid additional
-    // aliasing on top of the one already provided by freetype.  Perhaps we
-    // should let it know about the destination subpixel position?
-    // If angle != 0, all hope is lost anyways.
-    if (angle) {
-        cairo_translate(cr_, x, y);
-        cairo_rotate(cr_, -angle * M_PI / 180);
-    } else {
-        cairo_translate(cr_, round(x), round(y));
-    }
     if (ismath) {
+        // FIXME If angle == 0, we need to round x and y to avoid additional
+        // aliasing on top of the one already provided by freetype.  Perhaps
+        // we should let it know about the destination subpixel position?  If
+        // angle != 0, all hope is lost anyways.
+        if (angle) {
+            cairo_translate(cr_, x, y);
+            cairo_rotate(cr_, -angle * M_PI / 180);
+        } else {
+            cairo_translate(cr_, round(x), round(y));
+        }
         auto [ox, oy, width, height, descent, image, chars] =
             py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
             .cast<std::tuple<double, double, double, double, double,
@@ -454,15 +462,33 @@ void GraphicsContextRenderer::draw_text(
         cairo_pattern_destroy(pattern);
         cairo_surface_destroy(surface);
     } else {
-        cairo_select_font_face(
-                cr_,
-                prop.attr("get_name")().cast<std::string>().c_str(),
-                CAIRO_FONT_SLANT_NORMAL,
-                CAIRO_FONT_WEIGHT_NORMAL); // FIXME
+        // Need to set the current point (otherwise later texts will just
+        // follow, regardless of cairo_translate).
+        cairo_translate(cr_, x, y);
+        cairo_rotate(cr_, -angle * M_PI / 180);
+        cairo_move_to(cr_, 0, 0);
+        // FIXME Deduplicate this code, and cache the last font.
+        auto font_path =
+            py::module::import("matplotlib.font_manager").attr("findfont")(prop)
+            .cast<std::string>();
+        FT_Face ft_face;
+        if (FT_New_Face(GraphicsContextRenderer::ft_lib, font_path.c_str(), 0, &ft_face)) {
+            throw std::runtime_error("FT_New_Face failed");
+        }
+        auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
+        if (cairo_font_face_set_user_data(
+                    font_face, &GraphicsContextRenderer::ft_key,
+                    ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
+            cairo_font_face_destroy(font_face);
+            FT_Done_Face(ft_face);
+            throw std::runtime_error("cairo_font_face_set_user_data failed");
+        }
+        cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
                 points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
         cairo_show_text(cr_, s.c_str());
+        cairo_font_face_destroy(font_face);
     }
     cairo_restore(cr_);
 }
@@ -470,10 +496,6 @@ void GraphicsContextRenderer::draw_text(
 std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_height_descent(
         std::string s, py::object prop, bool ismath) {
     if (ismath) {
-        // auto [width, height, descent, glyphs, rects] =
-        //     py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
-        //     .cast<std::tuple<double, double, double,
-        //           std::vector<py::object>, std::vector<py::object>>>();
         auto [ox, oy, width, height, descent, image, chars] =
             py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
             .cast<std::tuple<double, double, double, double, double,
@@ -481,16 +503,29 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
         return {width, height, descent};
     } else {
         cairo_save(cr_);
-        cairo_select_font_face(
-                cr_,
-                prop.attr("get_name")().cast<std::string>().c_str(),
-                CAIRO_FONT_SLANT_NORMAL,
-                CAIRO_FONT_WEIGHT_NORMAL); // FIXME
+        // FIXME Deduplicate this code, and cache the last font.
+        auto font_path =
+            py::module::import("matplotlib.font_manager").attr("findfont")(prop)
+            .cast<std::string>();
+        FT_Face ft_face;
+        if (FT_New_Face(GraphicsContextRenderer::ft_lib, font_path.c_str(), 0, &ft_face)) {
+            throw std::runtime_error("FT_New_Face failed");
+        }
+        auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
+        if (cairo_font_face_set_user_data(
+                    font_face, &GraphicsContextRenderer::ft_key,
+                    ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
+            cairo_font_face_destroy(font_face);
+            FT_Done_Face(ft_face);
+            throw std::runtime_error("cairo_font_face_set_user_data failed");
+        }
+        cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
                 points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
         cairo_text_extents_t extents;
         cairo_text_extents(cr_, s.c_str(), &extents);
+        cairo_font_face_destroy(font_face);
         cairo_restore(cr_);
         return {extents.width, extents.height, extents.height + extents.y_bearing};
     }
@@ -498,6 +533,17 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
 
 PYBIND11_PLUGIN(_mpl_cairo) {
     py::module m("_mpl_cairo", "A cairo backend for matplotlib.");
+
+    if (FT_Init_FreeType(&GraphicsContextRenderer::ft_lib)) {
+        throw std::runtime_error("FT_Init_FreeType failed");
+    }
+    auto clean_ft_lib = py::capsule(
+            []() {
+                if (FT_Done_FreeType(GraphicsContextRenderer::ft_lib)) {
+                    throw std::runtime_error("FT_Done_FreeType failed");
+                }
+            ;});
+    m.add_object("_cleanup", clean_ft_lib);
 
     py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
 
