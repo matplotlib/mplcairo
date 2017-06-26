@@ -236,7 +236,7 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
         cairo_destroy(cr_);
     }
     if (py_surface.attr("__module__").cast<std::string>() == "cairocffi.surfaces") {
-        cairo_surface_t* surface = reinterpret_cast<cairo_surface_t*>(
+        auto surface = reinterpret_cast<cairo_surface_t*>(
                 py::module::import("cairocffi").attr("ffi").attr("cast")(
                     "int", py_surface.attr("_pointer")).cast<uintptr_t>());
         cr_ = cairo_create(surface);
@@ -288,7 +288,7 @@ void GraphicsContextRenderer::draw_image(
     }
     auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
     // FIXME We can save a copy in the case where alpha = 1 and the stride is good.
-    std::unique_ptr<uint8_t[]> buf{new uint8_t[ni * stride]};
+    auto buf = std::make_unique<uint8_t[]>(ni * stride);
     if (alpha_) {
         for (size_t i = 0; i < ni; ++i) {
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
@@ -334,18 +334,18 @@ void GraphicsContextRenderer::draw_path(
     }
     cairo_save(cr_);
     auto py_matrix = transform.attr("__array__")().cast<py::array_t<double>>();
-    cairo_matrix_t matrix{
+    auto matrix = cairo_matrix_t{
             *py_matrix.data(0, 0), -*py_matrix.data(1, 0),
             *py_matrix.data(0, 1), -*py_matrix.data(1, 1),
             *py_matrix.data(0, 2), -*py_matrix.data(1, 2) + get_height()};
     // We cannot use cairo_set_matrix, as it would also affect the linewidth (etc.).
-    auto vertices{path.attr("vertices").cast<py::array_t<double>>()};
+    auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     auto maybe_codes = path.attr("codes");
-    auto n{vertices.shape(0)};
+    auto n = vertices.shape(0);
     if (!maybe_codes.is_none()) {
-        auto codes{maybe_codes.cast<py::array_t<int>>()};
+        auto codes = maybe_codes.cast<py::array_t<int>>();
         for (size_t i = 0; i < n; ++i) {
-            double x0{*vertices.data(i, 0)}, y0{*vertices.data(i, 1)};
+            auto x0 = *vertices.data(i, 0), y0 = *vertices.data(i, 1);
             cairo_matrix_transform_point(&matrix, &x0, &y0);
             switch (*codes.data(i)) {
                 case matplotlib::MOVETO:
@@ -355,8 +355,8 @@ void GraphicsContextRenderer::draw_path(
                     cairo_line_to(cr_, x0, y0);
                     break;
                 case matplotlib::CURVE3: {
-                    double x1{*vertices.data(i, 0)}, y1{*vertices.data(i, 1)},
-                           x2{*vertices.data(i + 1, 0)}, y2{*vertices.data(i + 1, 1)};
+                    auto x1 = *vertices.data(i, 0), y1 = *vertices.data(i, 1),
+                         x2 = *vertices.data(i + 1, 0), y2 = *vertices.data(i + 1, 1);
                     cairo_matrix_transform_point(&matrix, &x1, &y1);
                     cairo_matrix_transform_point(&matrix, &x2, &y2);
                     cairo_get_current_point(cr_, &x0, &y0);
@@ -368,9 +368,9 @@ void GraphicsContextRenderer::draw_path(
                     break;
                 }
                 case matplotlib::CURVE4: {
-                    double x1{*vertices.data(i, 0)}, y1{*vertices.data(i, 1)},
-                           x2{*vertices.data(i + 1, 0)}, y2{*vertices.data(i + 1, 1)},
-                           x3{*vertices.data(i + 2, 0)}, y3{*vertices.data(i + 2, 1)};
+                    auto x1 = *vertices.data(i, 0), y1 = *vertices.data(i, 1),
+                         x2 = *vertices.data(i + 1, 0), y2 = *vertices.data(i + 1, 1),
+                         x3 = *vertices.data(i + 2, 0), y3 = *vertices.data(i + 2, 1);
                     cairo_matrix_transform_point(&matrix, &x1, &y1);
                     cairo_matrix_transform_point(&matrix, &x2, &y2);
                     cairo_matrix_transform_point(&matrix, &x3, &y3);
@@ -384,11 +384,11 @@ void GraphicsContextRenderer::draw_path(
             }
         }
     } else {
-        double x{*vertices.data(0, 0)}, y{*vertices.data(0, 1)};
+        auto x = *vertices.data(0, 0), y = *vertices.data(0, 1);
         cairo_matrix_transform_point(&matrix, &x, &y);
         cairo_move_to(cr_, x, y);
         for (size_t i = 0; i < n; ++i) {
-            double x{*vertices.data(i, 0)}, y{*vertices.data(i, 1)};
+            auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
             cairo_matrix_transform_point(&matrix, &x, &y);
             cairo_line_to(cr_, x, y);
         }
@@ -441,7 +441,7 @@ void GraphicsContextRenderer::draw_text(
         // complicated (http://cairo.cairographics.narkive.com/ijgxr19T/alpha-masks).
         auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
         auto pix = im_raw.data(0, 0);
-        std::unique_ptr<uint8_t[]> buf{new uint8_t[ni * stride]};
+        auto buf = std::make_unique<uint8_t[]>(ni * stride);
         auto [r, g, b, a] = get_rgba();
         for (size_t i = 0; i < ni; ++i) {
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
