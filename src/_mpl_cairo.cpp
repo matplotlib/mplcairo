@@ -1,3 +1,9 @@
+// Missing methods:
+//  - draw_markers
+//  - draw_path_collection
+//  - draw_quad_mesh
+//  - draw_gouraud_triangle{,s}
+
 #include <cmath>
 #include <tuple>
 #include <vector>

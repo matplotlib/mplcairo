@@ -1,7 +1,7 @@
+import sys
+
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
-import sys
-import setuptools
 
 
 __version__ = "0.0"
@@ -56,7 +56,7 @@ setup(
     name="mpl_cairo",
     version=__version__,
     author="Antony Lee",
-    description="A cairo backend for matplotlib.",
+    description="A (new) cairo backend for Matplotlib.",
     long_description="",
     ext_modules=ext_modules,
     install_requires=["pybind11"],
