@@ -199,9 +199,10 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
 
 rgb_t GraphicsContextRenderer::get_rgb(void) {
     double r, g, b, a;
-    if (cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a)
-            != CAIRO_STATUS_SUCCESS) {
-        throw std::runtime_error("Could not retrieve color from pattern");
+    auto status = cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a);
+    if (status != CAIRO_STATUS_SUCCESS) {
+        throw std::runtime_error("Could not retrieve color from pattern: "
+                + std::string{cairo_status_to_string(status)});
     }
     return {r, g, b};
 }
@@ -261,10 +262,12 @@ void GraphicsContextRenderer::draw_image(
     if (im_raw.shape(2) != 4) {
         throw std::invalid_argument("RGBA array must have size (m, n, 4)");
     }
-    std::unique_ptr<uint32_t[]> buf{new uint32_t[ni * nj]};
-    auto ptr = buf.get();
+    auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
+    // FIXME We can save a copy in the case where alpha = 1 and the stride is good.
+    std::unique_ptr<uint8_t[]> buf{new uint8_t[ni * stride]};
     if (alpha_) {
         for (size_t i = 0; i < ni; ++i) {
+            auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
                 auto pix = im_raw.data(i, j, 0);
                 auto r = *(pix++), g = *(pix++), b = *(pix++), a = *(pix++);
@@ -275,6 +278,7 @@ void GraphicsContextRenderer::draw_image(
         }
     } else {
         for (size_t i = 0; i < ni; ++i) {
+            auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
                 auto pix = im_raw.data(i, j, 0);
                 auto r = *(pix++), g = *(pix++), b = *(pix++), a = *(pix++); 
@@ -285,8 +289,7 @@ void GraphicsContextRenderer::draw_image(
         }
     }
     auto surface = cairo_image_surface_create_for_data(
-            reinterpret_cast<uint8_t*>(buf.get()), CAIRO_FORMAT_ARGB32,
-            nj, ni, nj * sizeof(*ptr));
+            buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
     auto pattern = cairo_pattern_create_for_surface(surface);
     cairo_matrix_t matrix{1, 0, 0, -1, -x, -y + get_height()};
     cairo_pattern_set_matrix(pattern, &matrix);
@@ -393,34 +396,89 @@ void GraphicsContextRenderer::draw_text(
         return;
     }
     cairo_save(cr_);
-    cairo_translate(cr_, x, y);
+    cairo_translate(cr_, int(x), int(y));
     cairo_rotate(cr_, -angle * M_PI / 180);
     if (ismath) {
-        auto [width, height, descent, glyphs, rects] =
+
+        // // FIXME cairo2 parser
+        // auto [width, height, descent, glyphs, rects] =
+        //     py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
+        //     .cast<std::tuple<double, double, double,
+        //           std::vector<py::object>, std::vector<py::object>>>();
+        // for (auto glyph: glyphs) {
+        //     auto [prop, fontsize, c, ox, oy] = glyph
+        //         .cast<std::tuple<py::object, double, std::string, double, double>>();
+        //     cairo_move_to(cr_, ox, oy);
+        //     cairo_select_font_face(
+        //             cr_,
+        //             prop.attr("name").cast<std::string>().c_str(),
+        //             CAIRO_FONT_SLANT_NORMAL,
+        //             CAIRO_FONT_WEIGHT_NORMAL); // FIXME
+        //     cairo_set_font_size(
+        //             cr_,
+        //             points_to_pixels(fontsize));
+        //     cairo_show_text(cr_, c.c_str());
+        // }
+        // for (auto rect: rects) {
+        //     auto [ox, oy, w, h] = rect.cast<rectangle_t>();
+        //     cairo_new_path(cr_);
+        //     cairo_rectangle(cr_, ox, oy, w, h);
+        //     cairo_set_source_rgb(cr_, 0, 0, 0);
+        //     cairo_fill(cr_);
+        // }
+
+        // FIXME agg parser, two versions
+        auto [ox, oy, width, height, descent, image, chars] =
             py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
-            .cast<std::tuple<double, double, double,
-                  std::vector<py::object>, std::vector<py::object>>>();
-        for (auto glyph: glyphs) {
-            auto [prop, fontsize, c, ox, oy] = glyph
-                .cast<std::tuple<py::object, double, std::string, double, double>>();
-            cairo_move_to(cr_, ox, oy);
-            cairo_select_font_face(
-                    cr_,
-                    prop.attr("name").cast<std::string>().c_str(),
-                    CAIRO_FONT_SLANT_NORMAL,
-                    CAIRO_FONT_WEIGHT_NORMAL); // FIXME
-            cairo_set_font_size(
-                    cr_,
-                    points_to_pixels(fontsize));
-            cairo_show_text(cr_, c.c_str());
+            .cast<std::tuple<double, double, double, double, double,
+                             py::object, py::object>>();
+        auto im_raw = py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
+        auto ni = im_raw.shape(0), nj = im_raw.shape(1);
+
+        // // FIXME agg parser, alpha
+        auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, nj);
+        std::unique_ptr<uint8_t[]> buf;
+        uint8_t* ptr;
+        if (stride == nj) {
+            ptr = im_raw.mutable_data(0, 0); // cairo is non-const.
+        } else {
+            auto pix = im_raw.data(0, 0);
+            buf = std::make_unique<uint8_t[]>(ni * stride);
+            for (size_t i = 0; i < ni; ++i) {
+                ptr = buf.get() + i * stride;
+                for (size_t j = 0; j < nj; ++j) {
+                    *(ptr++) = *(pix++);
+                }
+            }
+            ptr = buf.get();
         }
-        for (auto rect: rects) {
-            auto [ox, oy, w, h] = rect.cast<rectangle_t>();
-            cairo_new_path(cr_);
-            cairo_rectangle(cr_, ox, oy, w, h);
-            cairo_set_source_rgb(cr_, 0, 0, 0);
-            cairo_fill(cr_);
-        }
+        auto surface = cairo_image_surface_create_for_data(
+                ptr, CAIRO_FORMAT_A8, nj, ni, stride);
+
+        // FIXME agg parser, grayscale
+        // auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
+        // auto pix = im_raw.data(0, 0);
+        // std::unique_ptr<uint8_t[]> buf{new uint8_t[ni * stride]};
+        // for (size_t i = 0; i < ni; ++i) {
+        //     auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
+        //     for (size_t j = 0; j < nj; ++j) {
+        //         *(ptr++) = 0xff000000 + (0xff - *(pix++)) * 0x010101;
+        //     }
+        // }
+        // auto surface = cairo_image_surface_create_for_data(
+        //         buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
+
+        auto pattern = cairo_pattern_create_for_surface(surface);
+        cairo_matrix_t matrix{1, 0, 0, 1, -ox, ni - oy};
+        cairo_pattern_set_matrix(pattern, &matrix);
+        cairo_set_source(cr_, pattern);
+
+        // // FIXME Already antialiased by freetype, don't do it twice?
+        // cairo_set_antialias(cr_, CAIRO_ANTIALIAS_NONE);
+
+        cairo_paint(cr_);
+        cairo_pattern_destroy(pattern);
+        cairo_surface_destroy(surface);
     } else {
         cairo_select_font_face(
                 cr_,
@@ -438,10 +496,14 @@ void GraphicsContextRenderer::draw_text(
 std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_height_descent(
         std::string s, py::object prop, bool ismath) {
     if (ismath) {
-        auto [width, height, descent, glyphs, rects] =
+        // auto [width, height, descent, glyphs, rects] =
+        //     py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
+        //     .cast<std::tuple<double, double, double,
+        //           std::vector<py::object>, std::vector<py::object>>>();
+        auto [ox, oy, width, height, descent, image, chars] =
             py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
-            .cast<std::tuple<double, double, double,
-                  std::vector<py::object>, std::vector<py::object>>>();
+            .cast<std::tuple<double, double, double, double, double,
+                             py::object, py::object>>();
         return {width, height, descent};
     } else {
         cairo_save(cr_);

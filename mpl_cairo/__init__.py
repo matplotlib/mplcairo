@@ -27,7 +27,7 @@ class GraphicsContextRendererCairo(
         RendererBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mathtext_parser = MathTextParser("cairo2")
+        self.mathtext_parser = MathTextParser("agg")
 
 
 # Keep the two classes separate, so that we can figure out who inherits what.
