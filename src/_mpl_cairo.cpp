@@ -36,6 +36,7 @@ namespace matplotlib {
 
 static FT_Library FT_LIB;
 static cairo_user_data_key_t const FT_KEY = {0};
+static py::object UNIT_CIRCLE;
 
 namespace mcr {  // mcr: Matplotlib cairo private functions.
     cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
@@ -49,10 +50,18 @@ struct GraphicsContextRenderer {
     double dpi_;
     std::optional<double> alpha_;
 
-    // Not exposed.
+    private:
     double points_to_pixels(double points);
     rgba_t get_rgba(void);
+    bool try_draw_circles(
+            GraphicsContextRenderer& gc,
+            py::object marker_path,
+            cairo_matrix_t* marker_matrix,
+            py::object path,
+            cairo_matrix_t* matrix,
+            std::optional<py::object> rgb_fc);
 
+    public:
     GraphicsContextRenderer(double dpi);
     ~GraphicsContextRenderer();
 
@@ -207,6 +216,41 @@ rgba_t GraphicsContextRenderer::get_rgba(void) {
         a = *alpha_;
     }
     return {r, g, b, a};
+}
+
+bool GraphicsContextRenderer::try_draw_circles(
+        GraphicsContextRenderer& gc,
+        py::object marker_path,
+        cairo_matrix_t* marker_matrix,
+        py::object path,
+        cairo_matrix_t* matrix,
+        std::optional<py::object> rgb_fc) {
+    // Abuse the degenerate-segment handling by cairo to quickly draw circles.
+    // A quick profiling suggests a 2x speed improvement, but the markers seem
+    // a bit smaller?
+    if (marker_path != UNIT_CIRCLE) {
+        return false;
+    }
+    // yy = -xx due to the flipping in transform_to_matrix().
+    if ((marker_matrix->yy != -marker_matrix->xx) || marker_matrix->xy || marker_matrix->yx) {
+        return false;
+    }
+    cairo_save(cr_);
+    cairo_transform(cr_, matrix);
+    auto vertices = path.attr("vertices").cast<py::array_t<double>>();
+    // NOTE: For efficiency, we ignore codes, which is the documented behavior
+    // even though not the actual one of other backends.
+    auto n = vertices.shape(0);
+    for (size_t i = 0; i < n; ++i) {
+        auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
+        cairo_move_to(cr_, x, y);
+        cairo_close_path(cr_);
+    }
+    cairo_restore(cr_);
+    cairo_set_line_cap(cr_, CAIRO_LINE_CAP_ROUND);
+    cairo_set_line_width(cr_, 2 * std::abs(marker_matrix->xx));
+    cairo_stroke(cr_);
+    return true;
 }
 
 int GraphicsContextRenderer::get_width(void) {
@@ -509,8 +553,11 @@ void GraphicsContextRenderer::draw_markers(
     if (&gc != this) {
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
-    auto matrix = matrix_from_transform(transform, get_height());
     auto marker_matrix = matrix_from_transform(marker_transform);
+    auto matrix = matrix_from_transform(transform, get_height());
+    if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
+        return;
+    }
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     // NOTE: For efficiency, we ignore codes, which is the documented behavior
     // even though not the actual one of other backends.
@@ -646,6 +693,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
                 }
             ;});
     m.add_object("_cleanup", clean_ft_lib);
+    UNIT_CIRCLE = py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
     py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
 
