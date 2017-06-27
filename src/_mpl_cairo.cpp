@@ -1,7 +1,13 @@
+// TODO
 // Missing methods:
 //  - draw_path_collection
 //  - draw_quad_mesh
 //  - draw_gouraud_triangle{,s}
+// Optimizations:
+//  - draw_markers (check if marker_path *is* Path.unit_circle())
+// Bigger projects:
+//  - hook draw_text into e.g. libraqm.
+//  - try the gl backend.
 
 #include <cmath>
 #include <tuple>
@@ -31,9 +37,11 @@ namespace matplotlib {
 static FT_Library FT_LIB;
 static cairo_user_data_key_t const FT_KEY = {0};
 
-// mcr: Matplotlib cairo private functions.
-void mcr_load_path(cairo_t* cr, py::object path, py::object transform);
-cairo_font_face_t* mcr_ft_font_from_prop(py::object prop);
+namespace mcr {  // mcr: Matplotlib cairo private functions.
+    cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
+    void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
+    cairo_font_face_t* ft_font_from_prop(py::object prop);
+}
 
 struct GraphicsContextRenderer {
 
@@ -56,7 +64,7 @@ struct GraphicsContextRenderer {
     void set_antialiased(py::object aa); // bool, but also np.bool_.
     void set_capstyle(std::string capstyle);
     void set_clip_rectangle(std::optional<py::object> rectangle);
-    void set_clip_path(py::object path);
+    void set_clip_path(std::optional<py::object> transformed_path);
     void set_dashes(
             std::optional<double> dash_offset, std::optional<py::object> dash_list);
     void set_foreground(py::object fg, bool is_rgba);
@@ -95,13 +103,17 @@ struct GraphicsContextRenderer {
             std::string s, py::object prop, bool ismath);
 };
 
-void mcr_load_path(cairo_t* cr, py::object path, py::object transform) {
+cairo_matrix_t matrix_from_transform(py::object transform, double y0=0) {
     auto py_matrix = transform.attr("__array__")().cast<py::array_t<double>>();
-    auto matrix = cairo_matrix_t{
+    return cairo_matrix_t{
             *py_matrix.data(0, 0), -*py_matrix.data(1, 0),
             *py_matrix.data(0, 1), -*py_matrix.data(1, 1),
-            *py_matrix.data(0, 2), -*py_matrix.data(1, 2)};
-    // We cannot use cairo_set_matrix, as it would also affect the linewidth (etc.).
+            *py_matrix.data(0, 2), y0 - *py_matrix.data(1, 2)};
+}
+
+void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+    cairo_save(cr);
+    cairo_transform(cr, matrix);
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     auto maybe_codes = path.attr("codes");
     auto n = vertices.shape(0);
@@ -109,7 +121,6 @@ void mcr_load_path(cairo_t* cr, py::object path, py::object transform) {
         auto codes = maybe_codes.cast<py::array_t<int>>();
         for (size_t i = 0; i < n; ++i) {
             auto x0 = *vertices.data(i, 0), y0 = *vertices.data(i, 1);
-            cairo_matrix_transform_point(&matrix, &x0, &y0);
             switch (*codes.data(i)) {
                 case matplotlib::MOVETO:
                     cairo_move_to(cr, x0, y0);
@@ -118,26 +129,20 @@ void mcr_load_path(cairo_t* cr, py::object path, py::object transform) {
                     cairo_line_to(cr, x0, y0);
                     break;
                 case matplotlib::CURVE3: {
-                    auto x1 = *vertices.data(i, 0), y1 = *vertices.data(i, 1),
-                         x2 = *vertices.data(i + 1, 0), y2 = *vertices.data(i + 1, 1);
-                    cairo_matrix_transform_point(&matrix, &x1, &y1);
-                    cairo_matrix_transform_point(&matrix, &x2, &y2);
-                    cairo_get_current_point(cr, &x0, &y0);
+                    double x_prev, y_prev;
+                    cairo_get_current_point(cr, &x_prev, &y_prev);
+                    auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1);
                     cairo_curve_to(cr,
-                            (x0 + 2 * x1) / 3, (y0 + 2 * y1) / 3,
-                            (2 * x1 + x2) / 3, (2 * y1 + y2) / 3,
-                            x2, y2);
+                            (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
+                            (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
+                            x1, y1);
                     i += 1;
                     break;
                 }
                 case matplotlib::CURVE4: {
-                    auto x1 = *vertices.data(i, 0), y1 = *vertices.data(i, 1),
-                         x2 = *vertices.data(i + 1, 0), y2 = *vertices.data(i + 1, 1),
-                         x3 = *vertices.data(i + 2, 0), y3 = *vertices.data(i + 2, 1);
-                    cairo_matrix_transform_point(&matrix, &x1, &y1);
-                    cairo_matrix_transform_point(&matrix, &x2, &y2);
-                    cairo_matrix_transform_point(&matrix, &x3, &y3);
-                    cairo_curve_to(cr, x1, y1, x2, y2, x3, y3);
+                    auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1),
+                         x2 = *vertices.data(i + 2, 0), y2 = *vertices.data(i + 2, 1);
+                    cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
                     i += 2;
                     break;
                 }
@@ -148,17 +153,16 @@ void mcr_load_path(cairo_t* cr, py::object path, py::object transform) {
         }
     } else {
         auto x = *vertices.data(0, 0), y = *vertices.data(0, 1);
-        cairo_matrix_transform_point(&matrix, &x, &y);
         cairo_move_to(cr, x, y);
         for (size_t i = 0; i < n; ++i) {
             auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
-            cairo_matrix_transform_point(&matrix, &x, &y);
             cairo_line_to(cr, x, y);
         }
     }
+    cairo_restore(cr);
 }
 
-cairo_font_face_t* mcr_ft_font_from_prop(py::object prop) {
+cairo_font_face_t* mcr::ft_font_from_prop(py::object prop) {
     // It is probably not worth implementing an additional layer of caching
     // here as findfont already has its cache and object equality needs would
     // also need to go through Python anyways.
@@ -261,14 +265,26 @@ void GraphicsContextRenderer::set_clip_rectangle(std::optional<py::object> recta
     if (!cr_ || !rectangle) {
         return;
     }
+    // It may be technically necessary to go through one round of restore()
+    // / save() (with one save() in the constructor) to clear the previous
+    // rectangle (and similarly for set_clip_path()).  In practice, it looks
+    // like Matplotlib is careful to only clip once per Python-level context,
+    // though, so we're safe.
     auto [x, y, w, h] = rectangle->attr("bounds").cast<rectangle_t>();
     cairo_new_path(cr_);
     cairo_rectangle(cr_, x, get_height() - h - y, w, h);
     cairo_clip(cr_);
 }
 
-void GraphicsContextRenderer::set_clip_path(py::object path) {
-    // FIXME: Not implemented.
+void GraphicsContextRenderer::set_clip_path(std::optional<py::object> transformed_path) {
+    if (!cr_ || !transformed_path) {
+        return;
+    }
+    auto [path, transform] = transformed_path->attr("get_transformed_path_and_affine")()
+        .cast<std::tuple<py::object, py::object>>();
+    auto matrix = matrix_from_transform(transform, get_height());
+    mcr::load_path(cr_, path, &matrix);
+    cairo_clip(cr_);
 }
 
 void GraphicsContextRenderer::set_dashes(
@@ -352,8 +368,8 @@ cairo_surface_t* GraphicsContextRenderer::set_ctx_from_image_args(
     //         backend_cairo.cairo.ffi.cast("cairo_surface_t*", surface_ptr))
     //     surface.__class__ = backend_cairo.cairo.ImageSurface
     // where the last line ensures that the surface ultimately gets destroyed
-    // (or we can provide our own GC solution for that, e.g. by returning a
-    // proxy).
+    // (or we can provide our own garbage collection solution for that, e.g. by
+    // returning a proxy).
     if (cr_) {
         cairo_destroy(cr_);
     }
@@ -413,7 +429,7 @@ void GraphicsContextRenderer::draw_image(
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
                 auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
-                     b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
+                     b = *im_raw.data(i, j, 2)/*, a = *im_raw.data(i, j, 3)*/;
                 *(ptr++) =
                     (uint8_t(*alpha_ * 0xff) << 24) + (uint8_t(*alpha_ * r) << 16)
                     + (uint8_t(*alpha_ * g) << 8) + (uint8_t(*alpha_ * b));
@@ -455,8 +471,8 @@ void GraphicsContextRenderer::draw_path(
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
     cairo_save(cr_);
-    cairo_translate(cr_, 0, get_height());
-    mcr_load_path(cr_, path, transform);
+    auto matrix = matrix_from_transform(transform, get_height());
+    mcr::load_path(cr_, path, &matrix);
     if (rgb_fc) {
         cairo_save(cr_);
         double r, g, b, a{1};
@@ -493,12 +509,8 @@ void GraphicsContextRenderer::draw_markers(
     if (&gc != this) {
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
-    auto py_matrix = transform.attr("__array__")().cast<py::array_t<double>>();
-    auto matrix = cairo_matrix_t{
-            *py_matrix.data(0, 0), -*py_matrix.data(1, 0),
-            *py_matrix.data(0, 1), -*py_matrix.data(1, 1),
-            *py_matrix.data(0, 2), -*py_matrix.data(1, 2) + get_height()};
-    // We cannot use cairo_set_matrix, as it would also affect the linewidth (etc.).
+    auto matrix = matrix_from_transform(transform, get_height());
+    auto marker_matrix = matrix_from_transform(marker_transform);
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     // NOTE: For efficiency, we ignore codes, which is the documented behavior
     // even though not the actual one of other backends.
@@ -508,7 +520,7 @@ void GraphicsContextRenderer::draw_markers(
         cairo_matrix_transform_point(&matrix, &x, &y);
         cairo_save(cr_);
         cairo_translate(cr_, x, y);
-        mcr_load_path(cr_, marker_path, marker_transform);
+        mcr::load_path(cr_, marker_path, &marker_matrix);
         if (rgb_fc) {
             cairo_save(cr_);
             double r, g, b, a{1};
@@ -587,7 +599,7 @@ void GraphicsContextRenderer::draw_text(
         cairo_translate(cr_, x, y);
         cairo_rotate(cr_, -angle * M_PI / 180);
         cairo_move_to(cr_, 0, 0);
-        auto font_face = mcr_ft_font_from_prop(prop);
+        auto font_face = mcr::ft_font_from_prop(prop);
         cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
@@ -608,7 +620,7 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
         return {width, height, descent};
     } else {
         cairo_save(cr_);
-        auto font_face = mcr_ft_font_from_prop(prop);
+        auto font_face = mcr::ft_font_from_prop(prop);
         cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
