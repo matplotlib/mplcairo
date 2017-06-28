@@ -1,6 +1,5 @@
 // TODO
 // Missing methods:
-//  - draw_path_collection
 //  - draw_quad_mesh
 //  - draw_gouraud_triangle{,s}
 // Optimizations:
@@ -40,6 +39,8 @@ static py::object UNIT_CIRCLE;
 
 namespace mcr {  // mcr: Matplotlib cairo private functions.
     cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
+    cairo_matrix_t matrix_from_transform(
+            py::object transform, cairo_matrix_t* master_matrix);
     void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
     cairo_font_face_t* ft_font_from_prop(py::object prop);
 }
@@ -92,11 +93,6 @@ struct GraphicsContextRenderer {
     void draw_image(
             GraphicsContextRenderer& gc,
             double x, double y, py::array_t<uint8_t>);
-    void draw_path(
-            GraphicsContextRenderer& gc,
-            py::object path,
-            py::object transform,
-            std::optional<py::object> rgb_fc);
     void draw_markers(
             GraphicsContextRenderer& gc,
             py::object marker_path,
@@ -104,6 +100,25 @@ struct GraphicsContextRenderer {
             py::object path,
             py::object transform,
             std::optional<py::object> rgb_fc);
+    void draw_path(
+            GraphicsContextRenderer& gc,
+            py::object path,
+            py::object transform,
+            std::optional<py::object> rgb_fc);
+    void draw_path_collection(
+            GraphicsContextRenderer& gc,
+            py::object master_transform,
+            std::vector<py::object> paths,
+            std::vector<py::object> all_transforms,
+            std::vector<py::object> offsets,
+            py::object offset_transform,
+            std::vector<py::object> fcs,
+            std::vector<py::object> ecs,
+            std::vector<py::object> lws,
+            std::vector<py::object> dashes,
+            std::vector<py::object> aas,
+            std::vector<py::object> urls,
+            std::string offset_position);
     void draw_text(
             GraphicsContextRenderer& gc,
             double x, double y, std::string s, py::object prop, double angle,
@@ -112,12 +127,30 @@ struct GraphicsContextRenderer {
             std::string s, py::object prop, bool ismath);
 };
 
-cairo_matrix_t matrix_from_transform(py::object transform, double y0=0) {
-    auto py_matrix = transform.attr("__array__")().cast<py::array_t<double>>();
+cairo_matrix_t mcr::matrix_from_transform(py::object transform, double y0) {
+    if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
+        throw std::invalid_argument("Only affine transforms are handled");
+    }
+    auto py_matrix = transform.cast<py::array_t<double>>();
     return cairo_matrix_t{
             *py_matrix.data(0, 0), -*py_matrix.data(1, 0),
             *py_matrix.data(0, 1), -*py_matrix.data(1, 1),
             *py_matrix.data(0, 2), y0 - *py_matrix.data(1, 2)};
+}
+
+cairo_matrix_t mcr::matrix_from_transform(
+        py::object transform, cairo_matrix_t* master_matrix) {
+    if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
+        throw std::invalid_argument("Only affine transforms are handled");
+    }
+    auto py_matrix = transform.cast<py::array_t<double>>();
+    // The y flip is already handled by the master matrix.
+    auto matrix = cairo_matrix_t{
+            *py_matrix.data(0, 0), *py_matrix.data(1, 0),
+            *py_matrix.data(0, 1), *py_matrix.data(1, 1),
+            *py_matrix.data(0, 2), *py_matrix.data(1, 2)};
+    cairo_matrix_multiply(&matrix, &matrix, master_matrix);
+    return matrix;
 }
 
 void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
@@ -326,7 +359,7 @@ void GraphicsContextRenderer::set_clip_path(std::optional<py::object> transforme
     }
     auto [path, transform] = transformed_path->attr("get_transformed_path_and_affine")()
         .cast<std::tuple<py::object, py::object>>();
-    auto matrix = matrix_from_transform(transform, get_height());
+    auto matrix = mcr::matrix_from_transform(transform, get_height());
     mcr::load_path(cr_, path, &matrix);
     cairo_clip(cr_);
 }
@@ -503,39 +536,6 @@ void GraphicsContextRenderer::draw_image(
     cairo_restore(cr_);
 }
 
-void GraphicsContextRenderer::draw_path(
-        GraphicsContextRenderer& gc,
-        py::object path,
-        py::object transform,
-        std::optional<py::object> rgb_fc) {
-    if (!cr_) {
-        return;
-    }
-    if (&gc != this) {
-        throw std::invalid_argument("Non-matching GraphicsContext");
-    }
-    cairo_save(cr_);
-    auto matrix = matrix_from_transform(transform, get_height());
-    mcr::load_path(cr_, path, &matrix);
-    if (rgb_fc) {
-        cairo_save(cr_);
-        double r, g, b, a{1};
-        if (py::len(*rgb_fc) == 3) {
-            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-        } else {
-            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-        }
-        if (alpha_) {
-            a = *alpha_;
-        }
-        cairo_set_source_rgba(cr_, r, g, b, a);
-        cairo_fill_preserve(cr_);
-        cairo_restore(cr_);
-    }
-    cairo_stroke(cr_);
-    cairo_restore(cr_);
-}
-
 void GraphicsContextRenderer::draw_markers(
         GraphicsContextRenderer& gc,
         py::object marker_path,
@@ -553,8 +553,8 @@ void GraphicsContextRenderer::draw_markers(
     if (&gc != this) {
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
-    auto marker_matrix = matrix_from_transform(marker_transform);
-    auto matrix = matrix_from_transform(transform, get_height());
+    auto marker_matrix = mcr::matrix_from_transform(marker_transform);
+    auto matrix = mcr::matrix_from_transform(transform, get_height());
     if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
         return;
     }
@@ -584,6 +584,114 @@ void GraphicsContextRenderer::draw_markers(
             cairo_restore(cr_);
         }
         cairo_stroke(cr_);
+        cairo_restore(cr_);
+    }
+}
+
+void GraphicsContextRenderer::draw_path(
+        GraphicsContextRenderer& gc,
+        py::object path,
+        py::object transform,
+        std::optional<py::object> rgb_fc) {
+    if (!cr_) {
+        return;
+    }
+    if (&gc != this) {
+        throw std::invalid_argument("Non-matching GraphicsContext");
+    }
+    cairo_save(cr_);
+    auto matrix = mcr::matrix_from_transform(transform, get_height());
+    mcr::load_path(cr_, path, &matrix);
+    if (rgb_fc) {
+        cairo_save(cr_);
+        double r, g, b, a{1};
+        if (py::len(*rgb_fc) == 3) {
+            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
+        } else {
+            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
+        }
+        if (alpha_) {
+            a = *alpha_;
+        }
+        cairo_set_source_rgba(cr_, r, g, b, a);
+        cairo_fill_preserve(cr_);
+        cairo_restore(cr_);
+    }
+    cairo_stroke(cr_);
+    cairo_restore(cr_);
+}
+
+void GraphicsContextRenderer::draw_path_collection(
+        GraphicsContextRenderer& gc,
+        py::object master_transform,
+        std::vector<py::object> paths,
+        std::vector<py::object> transforms,
+        std::vector<py::object> offsets,
+        py::object offset_transform,
+        std::vector<py::object> fcs,
+        std::vector<py::object> ecs,
+        std::vector<py::object> lws,
+        std::vector<py::object> dashes,
+        std::vector<py::object> aas,
+        std::vector<py::object> urls,
+        std::string offset_position) {
+    if (!cr_) {
+        return;
+    }
+    if (&gc != this) {
+        throw std::invalid_argument("Non-matching GraphicsContext");
+    }
+    auto n_paths = paths.size(),
+         n_transforms = transforms.size(),
+         n_offsets = offsets.size(),
+         n = std::max({n_paths, n_transforms, n_offsets});
+    auto master_matrix = mcr::matrix_from_transform(master_transform, get_height());
+    std::vector<cairo_matrix_t> matrices;
+    if (n_transforms) {
+        for (size_t i = 0; i < n_transforms; ++i) {
+            matrices.push_back(mcr::matrix_from_transform(transforms[i], &master_matrix));
+        }
+    } else {
+        n_transforms = 1;
+        matrices.push_back(master_matrix);
+    }
+    auto offset_matrix = mcr::matrix_from_transform(offset_transform);
+    for (size_t i = 0; i < n; ++i) {
+        cairo_save(cr_);
+        auto path = paths[i % n_paths];
+        auto matrix = matrices[i % n_transforms];
+        auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
+        if (offset_position == "data") {
+            // NOTE: This seems to be used only by hexbin().  Perhaps the
+            // feature can be deprecated and folded into hexbin()?
+            throw std::runtime_error("Not implemented yet");
+        }
+        cairo_matrix_transform_point(&offset_matrix, &x, &y);
+        matrix.x0 += x; matrix.y0 += y;
+        mcr::load_path(cr_, path, &matrix);
+        matrix.x0 -= x; matrix.y0 -= y;
+        if (ecs.size()) {
+            set_foreground(ecs[i % ecs.size()], false); // NOTE: Why is alpha dropped?
+            cairo_stroke_preserve(cr_);
+        }
+        if (fcs.size()) {
+            auto rgb_fc = fcs[i % fcs.size()];
+            double r, g, b, a{1};
+            if (py::len(rgb_fc) == 3) {
+                std::tie(r, g, b) = rgb_fc.cast<rgb_t>();
+            } else {
+                std::tie(r, g, b, a) = rgb_fc.cast<rgba_t>();
+            }
+            if (alpha_) {
+                a = *alpha_;
+            }
+            cairo_set_source_rgba(cr_, r, g, b, a);
+            cairo_fill_preserve(cr_);
+        }
+        // NOTE: We drop antialiaseds because... really?
+        // We drop urls as they should be handled in a post-processing step
+        // anyways (cairo doesn't seem to support them?).
+        cairo_new_path(cr_);
         cairo_restore(cr_);
     }
 }
@@ -729,11 +837,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
                             cairo_format_t(format), width, height)); })
 
         .def("draw_image", &GraphicsContextRenderer::draw_image)
-        .def("draw_path", &GraphicsContextRenderer::draw_path,
-                "gc"_a, "path"_a, "transform"_a, "rgbFace"_a=nullptr)
         .def("draw_markers", &GraphicsContextRenderer::draw_markers,
                 "gc"_a, "marker_path"_a, "marker_trans"_a, "path"_a, "trans"_a,
                 "rgbFace"_a=nullptr)
+        .def("draw_path", &GraphicsContextRenderer::draw_path,
+                "gc"_a, "path"_a, "transform"_a, "rgbFace"_a=nullptr)
+        .def("draw_path_collection", &GraphicsContextRenderer::draw_path_collection)
         .def("draw_text", &GraphicsContextRenderer::draw_text,
                 "gc"_a, "x"_a, "y"_a, "s"_a, "prop"_a, "angle"_a,
                 "ismath"_a=false, "mtext"_a=nullptr)
