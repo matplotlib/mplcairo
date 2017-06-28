@@ -1,9 +1,13 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
-This is a new implementation of a Cairo backend for Matplotlib.  Currently, it
-is designed to be used with the qt-cairo backend proposed in Matplotlib's
-PR #8771.
+This is a new, fairly complete implementation of a Cairo backend for
+Matplotlib.  Currently, it is designed to be used with the qt-cairo backend
+proposed in Matplotlib's PR #8771.
+
+Depending on the specific test, the backend can be as fast as Agg (drawing
+lines) or no more than twice slower (drawing markers, which is done much more
+accurately -- this was one of the original motivations for this work).
 
 Installation
 ------------
@@ -44,6 +48,20 @@ For example, run::
    plt.show()
 
 and compare the marker position with the default ``qt5agg`` backend.
+
+Missing features
+----------------
+
+- Hatching.
+- Snapping.
+- ``hexbin`` essentially requires its own implementation (due to the use of the
+  ``offset_position`` parameter).  This should be fixed on Matplotlib's side.
+
+Missing optimizations
+---------------------
+
+- Path simplification.
+- Marker stamping.
 
 What about the already existing cairo (gtk3cairo) backend?
 ----------------------------------------------------------
