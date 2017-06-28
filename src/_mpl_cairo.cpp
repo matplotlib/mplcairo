@@ -165,29 +165,51 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
         auto codes = maybe_codes.cast<py::array_t<int>>();
         for (size_t i = 0; i < n; ++i) {
             auto x0 = *vertices.data(i, 0), y0 = *vertices.data(i, 1);
+            auto isfinite = std::isfinite(x0) && std::isfinite(y0);
             switch (*codes.data(i)) {
                 case matplotlib::MOVETO:
-                    cairo_move_to(cr, x0, y0);
+                    if (isfinite) {
+                        cairo_move_to(cr, x0, y0);
+                    } else {
+                        cairo_new_sub_path(cr);
+                    }
                     break;
                 case matplotlib::LINETO:
-                    cairo_line_to(cr, x0, y0);
+                    if (isfinite) {
+                        cairo_line_to(cr, x0, y0);
+                    } else {
+                        cairo_new_sub_path(cr);
+                    }
                     break;
+                // NOTE: The semantics of nonfinite control points seem
+                // undocumented.  Here, we ignore the entire curve element.
                 case matplotlib::CURVE3: {
-                    double x_prev, y_prev;
-                    cairo_get_current_point(cr, &x_prev, &y_prev);
                     auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1);
-                    cairo_curve_to(cr,
-                            (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
-                            (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
-                            x1, y1);
                     i += 1;
+                    isfinite &= std::isfinite(x1) && std::isfinite(y1);
+                    if (isfinite && cairo_has_current_point(cr)) {
+                        double x_prev, y_prev;
+                        cairo_get_current_point(cr, &x_prev, &y_prev);
+                        cairo_curve_to(cr,
+                                (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
+                                (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
+                                x1, y1);
+                    } else {
+                        cairo_new_sub_path(cr);
+                    }
                     break;
                 }
                 case matplotlib::CURVE4: {
                     auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1),
                          x2 = *vertices.data(i + 2, 0), y2 = *vertices.data(i + 2, 1);
-                    cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
                     i += 2;
+                    isfinite &= std::isfinite(x1) && std::isfinite(y1)
+                        && std::isfinite(x2) && std::isfinite(y2);
+                    if (isfinite && cairo_has_current_point(cr)) {
+                        cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
+                    } else {
+                        cairo_new_sub_path(cr);
+                    }
                     break;
                 }
                 case matplotlib::CLOSEPOLY:
@@ -196,11 +218,14 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
             }
         }
     } else {
-        auto x = *vertices.data(0, 0), y = *vertices.data(0, 1);
-        cairo_move_to(cr, x, y);
         for (size_t i = 0; i < n; ++i) {
             auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
-            cairo_line_to(cr, x, y);
+            auto isfinite = std::isfinite(x) && std::isfinite(y);
+            if (isfinite) {
+                cairo_line_to(cr, x, y);
+            } else {
+                cairo_new_sub_path(cr);
+            }
         }
     }
     cairo_restore(cr);
