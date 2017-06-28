@@ -16,16 +16,22 @@ Run::
    $ python -mvenv /path/to/venv
    $ source /path/to/venv/bin/activate
    $ git clone https://github.com/matplotlib/matplotlib.git
+   $ cd matplotlib
    $ git pull origin pull/8771/head:pr/8771
    $ git checkout pr/8771
    $ pip install -ve .
+   $ cd ..
    $ git clone https://github.com/anntzer/mpl_cairo.git
-   $ pip install .
+   $ cd mpl_cairo
+   $ pip install -ve .
 
-Then, run, e.g.::
+Then, the backend can be selected by setting the ``MPLBACKEND`` environment
+variable to ``module://mpl_cairo.qt``.
 
-   import mpl_cairo; mpl_cairo.install()
-   import matplotlib; matplotlib.use("qt5cairo")
+For example, run::
+
+   import os; os.environ["MPLBACKEND"] = "module://mpl_cairo.qt"
+   from matplotlib import pyplot as plt
 
    data = [[0.5, 0.525, 0.55, 0.575, 0.6, 0.625],
            [0.5, 0.501, 0.502, 0.503, 0.504, 0.505]]
@@ -35,6 +41,7 @@ Then, run, e.g.::
        left=0.01, right=0.99, bottom=0.01, top=0.99, hspace=0, wspace=0)
    ax.set(xlim=(0, 1), ylim=(0, 1))
    ax.scatter(data[0], data[1], s=25)
+   plt.show()
 
 and compare the marker position with the default ``qt5agg`` backend.
 

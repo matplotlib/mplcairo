@@ -50,6 +50,7 @@ struct GraphicsContextRenderer {
     cairo_t* cr_;
     double dpi_;
     std::optional<double> alpha_;
+    py::object mathtext_parser_;
 
     private:
     double points_to_pixels(double points);
@@ -84,7 +85,8 @@ struct GraphicsContextRenderer {
     rgb_t get_rgb(void);
 
     void set_ctx_from_surface(py::object surface);
-    cairo_surface_t* set_ctx_from_image_args(cairo_format_t format, int width, int height);
+    void set_ctx_from_image_args(int format, int width, int height);
+    uintptr_t get_data_address();
 
     GraphicsContextRenderer& new_gc(void);
     void copy_properties(GraphicsContextRenderer& other);
@@ -226,7 +228,11 @@ cairo_font_face_t* mcr::ft_font_from_prop(py::object prop) {
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
-    cr_{nullptr}, dpi_{dpi}, alpha_{{}} {}
+    cr_{nullptr},
+    dpi_{dpi},
+    alpha_{{}},
+    mathtext_parser_{
+        py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")} {}
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
     if (cr_) {
@@ -432,27 +438,27 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
     }
 }
 
-cairo_surface_t* GraphicsContextRenderer::set_ctx_from_image_args(
-        cairo_format_t format, int width, int height) {
+void GraphicsContextRenderer::set_ctx_from_image_args(
+        int format, int width, int height) {
+    // NOTE The first argument is an int rather than a cairo_format_t because
+    // pybind11 is strict with enum conversions.
     // NOTE This API will ultimately be favored over set_ctx_from_surface as
     // it bypasses the need to construct a surface in the Python-level using
     // yet another cairo wrapper (in particular, cairocffi (which relies on
     // dlopen() prevents the use of cairo-trace (which relies on LD_PRELOAD).
-    // Python client code should ultimately look like
-    //     surface_ptr = self._renderer.set_ctx_from_image_args(
-    //         backend_cairo.cairo.FORMAT_ARGB32, width, height)
-    //     surface = backend_cairo.cairo.Surface(
-    //         backend_cairo.cairo.ffi.cast("cairo_surface_t*", surface_ptr))
-    //     surface.__class__ = backend_cairo.cairo.ImageSurface
-    // where the last line ensures that the surface ultimately gets destroyed
-    // (or we can provide our own garbage collection solution for that, e.g. by
-    // returning a proxy).
     if (cr_) {
         cairo_destroy(cr_);
     }
-    auto surface = cairo_image_surface_create(format, width, height);
+    auto surface = cairo_image_surface_create(
+            static_cast<cairo_format_t>(format), width, height);
     cr_ = cairo_create(surface);
-    return surface;
+}
+
+uintptr_t GraphicsContextRenderer::get_data_address() {
+    auto surface = cairo_get_target(cr_);
+    // FIXME Check the stride to ensure that the array is contiguous.
+    auto buf = cairo_image_surface_get_data(surface);
+    return reinterpret_cast<uintptr_t>(buf);
 }
 
 GraphicsContextRenderer& GraphicsContextRenderer::new_gc(void) {
@@ -719,7 +725,7 @@ void GraphicsContextRenderer::draw_text(
             cairo_translate(cr_, round(x), round(y));
         }
         auto [ox, oy, width, height, descent, image, chars] =
-            py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
+            mathtext_parser_.attr("parse")(s, dpi_, prop)
             .cast<std::tuple<double, double, double, double, double,
                              py::object, py::object>>();
         auto im_raw = py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
@@ -769,7 +775,7 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
         std::string s, py::object prop, bool ismath) {
     if (ismath) {
         auto [ox, oy, width, height, descent, image, chars] =
-            py::cast(this).attr("mathtext_parser").attr("parse")(s, dpi_, prop)
+            mathtext_parser_.attr("parse")(s, dpi_, prop)
             .cast<std::tuple<double, double, double, double, double,
                              py::object, py::object>>();
         return {width, height, descent};
@@ -824,17 +830,13 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
         .def("get_rgb", &GraphicsContextRenderer::get_rgb)
 
+        .def("set_ctx_from_surface", &GraphicsContextRenderer::set_ctx_from_surface)
+        .def("set_ctx_from_image_args", &GraphicsContextRenderer::set_ctx_from_image_args)
+        .def("get_data_address", &GraphicsContextRenderer::get_data_address)
+
         .def("new_gc", &GraphicsContextRenderer::new_gc)
         .def("copy_properties", &GraphicsContextRenderer::copy_properties)
         .def("restore", &GraphicsContextRenderer::restore)
-
-        .def("set_ctx_from_surface", &GraphicsContextRenderer::set_ctx_from_surface)
-        .def("set_ctx_from_image_args",
-                [](GraphicsContextRenderer& self,
-                    int format, int width, int height) {
-                return reinterpret_cast<uintptr_t>(
-                        self.set_ctx_from_image_args(
-                            cairo_format_t(format), width, height)); })
 
         .def("draw_image", &GraphicsContextRenderer::draw_image)
         .def("draw_markers", &GraphicsContextRenderer::draw_markers,
