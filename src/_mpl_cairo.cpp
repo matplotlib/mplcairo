@@ -44,6 +44,7 @@ struct GraphicsContextRenderer {
 
     private:
     double points_to_pixels(double points);
+    double pixels_to_points(double pixels);
     rgba_t get_rgba(void);
     bool try_draw_circles(
             GraphicsContextRenderer& gc,
@@ -72,6 +73,7 @@ struct GraphicsContextRenderer {
     void set_joinstyle(std::string js);
     void set_linewidth(double lw);
 
+    double get_linewidth();
     rgb_t get_rgb(void);
 
     void set_ctx_from_surface(py::object surface);
@@ -257,6 +259,10 @@ GraphicsContextRenderer::~GraphicsContextRenderer() {
 
 double GraphicsContextRenderer::points_to_pixels(double points) {
     return points * dpi_ / 72;
+}
+
+double GraphicsContextRenderer::pixels_to_points(double pixels) {
+    return pixels / (dpi_ / 72);
 }
 
 rgba_t GraphicsContextRenderer::get_rgba(void) {
@@ -452,6 +458,10 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
         return;
     }
     cairo_set_line_width(cr_, points_to_pixels(lw));
+}
+
+double GraphicsContextRenderer::get_linewidth() {
+    return pixels_to_points(cairo_get_line_width(cr_));
 }
 
 rgb_t GraphicsContextRenderer::get_rgb(void) {
@@ -863,7 +873,9 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         .def("set_joinstyle", &GraphicsContextRenderer::set_joinstyle)
         .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
 
-        .def("get_rgb", &GraphicsContextRenderer::get_rgb)
+        // Needed by the default impl. of draw_quad_mesh.
+        .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
+        // .def("get_rgb", &GraphicsContextRenderer::get_rgb)  NOTE: Not needed?
 
         .def("set_ctx_from_surface", &GraphicsContextRenderer::set_ctx_from_surface)
         .def("set_ctx_from_image_args", &GraphicsContextRenderer::set_ctx_from_image_args)
