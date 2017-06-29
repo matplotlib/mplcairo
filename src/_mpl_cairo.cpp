@@ -289,9 +289,9 @@ bool GraphicsContextRenderer::try_draw_circles(
         py::object path,
         cairo_matrix_t* matrix,
         std::optional<py::object> rgb_fc) {
-    // Abuse the degenerate-segment handling by cairo to quickly draw circles.
-    // A quick profiling suggests a 2x speed improvement, but the markers seem
-    // a bit smaller?
+    // Abuse the degenerate-segment handling by cairo to quickly draw fully
+    // opaque circles.  A quick profiling suggests a 2x speed improvement, but
+    // the markers seem a bit smaller?
     if (marker_path != UNIT_CIRCLE) {
         return false;
     }
@@ -300,6 +300,23 @@ bool GraphicsContextRenderer::try_draw_circles(
         return false;
     }
     cairo_save(cr_);
+    if (rgb_fc) {
+        double r, g, b, a{1};
+        if (py::len(*rgb_fc) == 3) {
+            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
+        } else {
+            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
+        }
+        if (alpha_) {
+            a = *alpha_;
+        }
+        cairo_set_source_rgba(cr_, r, g, b, a);
+    }
+    auto [r, g, b, a] = get_rgba();
+    if (a != 1) {
+        cairo_restore(cr_);
+        return false;
+    }
     cairo_transform(cr_, matrix);
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     // NOTE: For efficiency, we ignore codes, which is the documented behavior
@@ -311,9 +328,11 @@ bool GraphicsContextRenderer::try_draw_circles(
         cairo_close_path(cr_);
     }
     cairo_restore(cr_);
+    cairo_save(cr_);
     cairo_set_line_cap(cr_, CAIRO_LINE_CAP_ROUND);
     cairo_set_line_width(cr_, 2 * std::abs(marker_matrix->xx));
     cairo_stroke(cr_);
+    cairo_restore(cr_);
     return true;
 }
 
