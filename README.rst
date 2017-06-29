@@ -53,8 +53,6 @@ Missing features
 - ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
   redirects to ``draw_path_collection``), ``draw_gouraud_triangle{,s}``.
 - ``copy_from_bbox``, ``restore_region``
-- Extra edges seem to be drawn for triangulations?  See last plot of
-  ``tripcolor_demo.py``.
 - xkcd-style plots fail because of the lack of the private ``_text2path``.
 
 Possible optimizations

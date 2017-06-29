@@ -153,6 +153,7 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     auto maybe_codes = path.attr("codes");
     auto n = vertices.shape(0);
+    cairo_new_path(cr);
     if (!maybe_codes.is_none()) {
         auto codes = maybe_codes.cast<py::array_t<int>>();
         for (size_t i = 0; i < n; ++i) {
@@ -759,16 +760,16 @@ void GraphicsContextRenderer::draw_text(
     }
     cairo_save(cr_);
     if (ismath) {
-        // FIXME: If angle == 0, we need to round x and y to avoid additional
+        // FIXME: If angle % 90 == 0, we can round x and y to avoid additional
         // aliasing on top of the one already provided by freetype.  Perhaps
         // we should let it know about the destination subpixel position?  If
-        // angle != 0, all hope is lost anyways.
-        if (angle) {
+        // angle % 90 != 0, all hope is lost anyways.
+        if (fmod(angle, 90) != 0) {
             cairo_translate(cr_, x, y);
-            cairo_rotate(cr_, -angle * M_PI / 180);
         } else {
             cairo_translate(cr_, round(x), round(y));
         }
+        cairo_rotate(cr_, -angle * M_PI / 180);
         auto [ox, oy, width, height, descent, image, chars] =
             mathtext_parser_.attr("parse")(s, dpi_, prop)
             .cast<std::tuple<double, double, double, double, double,
