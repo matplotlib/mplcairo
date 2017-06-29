@@ -29,6 +29,7 @@ class FigureCanvasQTCairo(FigureCanvasQT):
         self._renderer.set_ctx_from_image_args(
             FORMAT_ARGB32, self.width(), self.height())
         self.figure.draw(self._renderer)
+        super().draw()
 
     def paintEvent(self, event):
         buf = sip.voidptr(self._renderer.get_data_address())

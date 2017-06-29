@@ -1,13 +1,3 @@
-// TODO
-// Missing methods:
-//  - draw_quad_mesh
-//  - draw_gouraud_triangle{,s}
-// Optimizations:
-//  - draw_markers (check if marker_path *is* Path.unit_circle())
-// Bigger projects:
-//  - hook draw_text into e.g. libraqm.
-//  - try the gl backend.
-
 #include <cmath>
 #include <tuple>
 #include <vector>
@@ -314,6 +304,7 @@ bool GraphicsContextRenderer::try_draw_circles(
     }
     auto [r, g, b, a] = get_rgba();
     if (a != 1) {
+        // Alpha overlay would be mishandled.
         cairo_restore(cr_);
         return false;
     }

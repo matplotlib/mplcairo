@@ -32,24 +32,8 @@ Run::
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable to ``module://mpl_cairo.qt``.
 
-For example, run
-
-.. code:: python
-
-   import os; os.environ["MPLBACKEND"] = "module://mpl_cairo.qt"
-   from matplotlib import pyplot as plt
-
-   data = [[0.5, 0.525, 0.55, 0.575, 0.6, 0.625],
-           [0.5, 0.501, 0.502, 0.503, 0.504, 0.505]]
-
-   fig, ax = plt.subplots(figsize=(3.5, 3.5))
-   fig.subplots_adjust(
-       left=0.01, right=0.99, bottom=0.01, top=0.99, hspace=0, wspace=0)
-   ax.set(xlim=(0, 1), ylim=(0, 1))
-   ax.scatter(data[0], data[1], s=25)
-   plt.show()
-
-and compare the marker position with the default ``qt5agg`` backend.
+The ``examples`` folder contains a few cases where the output of this backend
+is arguably more accurate (due to the lack of marker stamping).
 
 Benchmarks
 ----------
@@ -61,16 +45,31 @@ Install (in the virtualenv) ``pytest-benchmark`` and call (e.g.)::
 Missing features
 ----------------
 
+- The current "optimized" circle stamper draws circles too small.
 - Hatching.
 - Snapping.
 - ``hexbin`` essentially requires its own implementation (due to the use of the
   ``offset_position`` parameter).  This should be fixed on Matplotlib's side.
+- ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
+  redirects to ``draw_path_collection``), ``draw_gouraud_triangle{,s}``.
+- ``copy_from_bbox``, ``restore_region``
+- Extra edges seem to be drawn for triangulations?  See last plot of
+  ``tripcolor_demo.py``.
+- xkcd-style plots fail because of the lack of the private ``_text2path``.
 
-Missing optimizations
----------------------
+Possible optimizations
+----------------------
 
-- Path simplification.
+- Path simplification (although cairo appears to use Douglas-Peucker
+  internally).
 - Marker stamping (but not at the cost of accuracy).
+- Use QtOpenGLWidget and the cairo-gl backend.
+
+Other ideas
+-----------
+
+- Native mathtext backend (to optimize antialiasing).
+- Complex text layout (e.g. using libraqm).
 
 What about the already existing cairo (gtk3cairo) backend?
 ----------------------------------------------------------
