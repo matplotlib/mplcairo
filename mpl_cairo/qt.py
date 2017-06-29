@@ -25,13 +25,14 @@ class FigureCanvasQTCairo(FigureCanvasQT):
         super(FigureCanvasQTCairo, self).__init__(figure=figure)
         self._renderer = GraphicsContextRendererCairo(self.figure.dpi)
 
-    def paintEvent(self, event):
-        width = self.width()
-        height = self.height()
-        self._renderer.set_ctx_from_image_args(FORMAT_ARGB32, width, height)
+    def draw(self):
+        self._renderer.set_ctx_from_image_args(
+            FORMAT_ARGB32, self.width(), self.height())
         self.figure.draw(self._renderer)
+
+    def paintEvent(self, event):
         buf = sip.voidptr(self._renderer.get_data_address())
-        qimage = QtGui.QImage(buf, width, height,
+        qimage = QtGui.QImage(buf, self.width(), self.height(),
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         # Adjust the buf reference count to work around a memory leak bug
         # in QImage under PySide on Python 3.

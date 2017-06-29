@@ -5,8 +5,8 @@ This is a new, fairly complete implementation of a Cairo backend for
 Matplotlib.  Currently, it is designed to be used with the qt-cairo backend
 proposed in Matplotlib's PR #8771.
 
-Depending on the specific test, the backend can be as fast as Agg (drawing
-lines) or no more than twice slower (drawing markers, which is done much more
+Depending on the specific task, the backend can be as fast as Agg, or no more
+than twice slower (especially for drawing markers, which is done much more
 accurately -- this was one of the original motivations for this work).
 
 Installation
@@ -32,7 +32,9 @@ Run::
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable to ``module://mpl_cairo.qt``.
 
-For example, run::
+For example, run
+
+.. code:: python
 
    import os; os.environ["MPLBACKEND"] = "module://mpl_cairo.qt"
    from matplotlib import pyplot as plt
@@ -49,6 +51,13 @@ For example, run::
 
 and compare the marker position with the default ``qt5agg`` backend.
 
+Benchmarks
+----------
+
+Install (in the virtualenv) ``pytest-benchmark`` and call (e.g.)::
+
+   $ pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
+
 Missing features
 ----------------
 
@@ -61,7 +70,7 @@ Missing optimizations
 ---------------------
 
 - Path simplification.
-- Marker stamping.
+- Marker stamping (but not at the cost of accuracy).
 
 What about the already existing cairo (gtk3cairo) backend?
 ----------------------------------------------------------
