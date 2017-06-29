@@ -552,7 +552,7 @@ void GraphicsContextRenderer::draw_image(
         throw std::invalid_argument("RGBA array must have size (m, n, 4)");
     }
     auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
-    auto buf = std::make_unique<uint8_t[]>(ni * stride);
+    auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
     if (alpha_) {
         for (size_t i = 0; i < ni; ++i) {
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
@@ -560,8 +560,8 @@ void GraphicsContextRenderer::draw_image(
                 auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
                      b = *im_raw.data(i, j, 2)/*, a = *im_raw.data(i, j, 3)*/;
                 *(ptr++) =
-                    (uint8_t(*alpha_ * 0xff) << 24) + (uint8_t(*alpha_ * r) << 16)
-                    + (uint8_t(*alpha_ * g) << 8) + (uint8_t(*alpha_ * b));
+                    (uint8_t(*alpha_ * 0xff) << 24) | (uint8_t(*alpha_ * r) << 16)
+                    | (uint8_t(*alpha_ * g) << 8) | (uint8_t(*alpha_ * b));
             }
         }
     } else {
@@ -571,8 +571,8 @@ void GraphicsContextRenderer::draw_image(
                 auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
                      b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
                 *(ptr++) =
-                    (a << 24) + (uint8_t(a / 255. * r) << 16)
-                    + (uint8_t(a / 255. * g) << 8) + (uint8_t(a / 255. * b));
+                    (a << 24) | (uint8_t(a / 255. * r) << 16)
+                    | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
             }
         }
     }
@@ -780,7 +780,7 @@ void GraphicsContextRenderer::draw_text(
         // complicated (http://cairo.cairographics.narkive.com/ijgxr19T/alpha-masks).
         auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
         auto pix = im_raw.data(0, 0);
-        auto buf = std::make_unique<uint8_t[]>(ni * stride);
+        auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
         auto [r, g, b, a] = get_rgba();
         for (size_t i = 0; i < ni; ++i) {
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
