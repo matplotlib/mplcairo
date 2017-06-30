@@ -69,7 +69,7 @@ struct GraphicsContextRenderer {
     void set_clip_path(std::optional<py::object> transformed_path);
     void set_dashes(
             std::optional<double> dash_offset, std::optional<py::object> dash_list);
-    void set_foreground(py::object fg, bool is_rgba);
+    void set_foreground(py::object fg, bool /* is_rgba */=false);
     void set_joinstyle(std::string js);
     void set_linewidth(double lw);
 
@@ -428,15 +428,13 @@ void GraphicsContextRenderer::set_dashes(
     }
 }
 
-void GraphicsContextRenderer::set_foreground(py::object fg, bool is_rgba) {
+void GraphicsContextRenderer::set_foreground(py::object fg, bool /* is_rgba */) {
     auto [r, g, b, a] = py::module::import("matplotlib.colors").attr("to_rgba")(fg)
         .cast<rgba_t>();
-    if (is_rgba) {
-        *alpha_ = a;
-        cairo_set_source_rgba(cr_, r, g, b, a);
-    } else {
-        cairo_set_source_rgb(cr_, r, g, b);
+    if (alpha_) {
+        a = *alpha_;
     }
+    cairo_set_source_rgba(cr_, r, g, b, a);
 }
 
 void GraphicsContextRenderer::set_joinstyle(std::string joinstyle) {
@@ -723,7 +721,7 @@ void GraphicsContextRenderer::draw_path_collection(
         mcr::load_path(cr_, path, &matrix);
         matrix.x0 -= x; matrix.y0 -= y;
         if (ecs.size()) {
-            set_foreground(ecs[i % ecs.size()], false); // NOTE: Why is alpha dropped?
+            set_foreground(ecs[i % ecs.size()]);
             cairo_stroke_preserve(cr_);
         }
         if (fcs.size()) {
