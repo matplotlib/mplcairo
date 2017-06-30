@@ -42,9 +42,10 @@ struct GraphicsContextRenderer {
     std::optional<double> alpha_;
     py::object mathtext_parser_;
 
-    private:
     double points_to_pixels(double points);
     double pixels_to_points(double pixels);
+    int get_width(void);
+    int get_height(void);
     rgba_t get_rgba(void);
     bool try_draw_circles(
             GraphicsContextRenderer& gc,
@@ -58,9 +59,9 @@ struct GraphicsContextRenderer {
     GraphicsContextRenderer(double dpi);
     ~GraphicsContextRenderer();
 
-    int get_width(void);
-    int get_height(void);
-    std::tuple<int, int> get_canvas_width_height(void);
+    void set_ctx_from_surface(py::object surface);
+    void set_ctx_from_image_args(int format, int width, int height);
+    uintptr_t get_data_address();
 
     void set_alpha(std::optional<double> alpha);
     void set_antialiased(py::object aa); // bool, but also np.bool_.
@@ -76,13 +77,11 @@ struct GraphicsContextRenderer {
     double get_linewidth();
     rgb_t get_rgb(void);
 
-    void set_ctx_from_surface(py::object surface);
-    void set_ctx_from_image_args(int format, int width, int height);
-    uintptr_t get_data_address();
-
     GraphicsContextRenderer& new_gc(void);
     void copy_properties(GraphicsContextRenderer& other);
     void restore(void);
+
+    std::tuple<int, int> get_canvas_width_height(void);
 
     void draw_image(
             GraphicsContextRenderer& gc,
@@ -245,25 +244,26 @@ cairo_font_face_t* mcr::ft_font_from_prop(py::object prop) {
     return font_face;
 }
 
-GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
-    cr_{nullptr},
-    dpi_{dpi},
-    alpha_{{}},
-    mathtext_parser_{
-        py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")} {}
-
-GraphicsContextRenderer::~GraphicsContextRenderer() {
-    if (cr_) {
-        cairo_destroy(cr_);
-    }
-}
-
 double GraphicsContextRenderer::points_to_pixels(double points) {
     return points * dpi_ / 72;
 }
 
 double GraphicsContextRenderer::pixels_to_points(double pixels) {
     return pixels / (dpi_ / 72);
+}
+
+int GraphicsContextRenderer::get_width(void) {
+    if (!cr_) {
+        return 0;
+    }
+    return cairo_image_surface_get_width(cairo_get_target(cr_));
+}
+
+int GraphicsContextRenderer::get_height(void) {
+    if (!cr_) {
+        return 0;
+    }
+    return cairo_image_surface_get_height(cairo_get_target(cr_));
 }
 
 rgba_t GraphicsContextRenderer::get_rgba(void) {
@@ -334,22 +334,54 @@ bool GraphicsContextRenderer::try_draw_circles(
     return true;
 }
 
-int GraphicsContextRenderer::get_width(void) {
-    if (!cr_) {
-        return 0;
+GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
+    cr_{nullptr},
+    dpi_{dpi},
+    alpha_{{}},
+    mathtext_parser_{
+        py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")} {}
+
+GraphicsContextRenderer::~GraphicsContextRenderer() {
+    if (cr_) {
+        cairo_destroy(cr_);
     }
-    return cairo_image_surface_get_width(cairo_get_target(cr_));
 }
 
-int GraphicsContextRenderer::get_height(void) {
-    if (!cr_) {
-        return 0;
+void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
+    if (cr_) {
+        cairo_destroy(cr_);
     }
-    return cairo_image_surface_get_height(cairo_get_target(cr_));
+    if (py_surface.attr("__module__").cast<std::string>() == "cairocffi.surfaces") {
+        auto surface = reinterpret_cast<cairo_surface_t*>(
+                py::module::import("cairocffi").attr("ffi").attr("cast")(
+                    "int", py_surface.attr("_pointer")).cast<uintptr_t>());
+        cr_ = cairo_create(surface);
+    } else {
+        throw std::invalid_argument("Could not convert argument to cairo_surface_t*");
+    }
 }
 
-std::tuple<int, int> GraphicsContextRenderer::get_canvas_width_height(void) {
-    return {get_width(), get_height()};
+void GraphicsContextRenderer::set_ctx_from_image_args(
+        int format, int width, int height) {
+    // NOTE The first argument is an int rather than a cairo_format_t because
+    // pybind11 is strict with enum conversions.
+    // NOTE This API will ultimately be favored over set_ctx_from_surface as
+    // it bypasses the need to construct a surface in the Python-level using
+    // yet another cairo wrapper (in particular, cairocffi (which relies on
+    // dlopen() prevents the use of cairo-trace (which relies on LD_PRELOAD).
+    if (cr_) {
+        cairo_destroy(cr_);
+    }
+    auto surface = cairo_image_surface_create(
+            static_cast<cairo_format_t>(format), width, height);
+    cr_ = cairo_create(surface);
+}
+
+uintptr_t GraphicsContextRenderer::get_data_address() {
+    auto surface = cairo_get_target(cr_);
+    // FIXME Check the stride to ensure that the array is contiguous.
+    auto buf = cairo_image_surface_get_data(surface);
+    return reinterpret_cast<uintptr_t>(buf);
 }
 
 void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
@@ -468,43 +500,6 @@ rgb_t GraphicsContextRenderer::get_rgb(void) {
     return {r, g, b};
 }
 
-void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
-    if (cr_) {
-        cairo_destroy(cr_);
-    }
-    if (py_surface.attr("__module__").cast<std::string>() == "cairocffi.surfaces") {
-        auto surface = reinterpret_cast<cairo_surface_t*>(
-                py::module::import("cairocffi").attr("ffi").attr("cast")(
-                    "int", py_surface.attr("_pointer")).cast<uintptr_t>());
-        cr_ = cairo_create(surface);
-    } else {
-        throw std::invalid_argument("Could not convert argument to cairo_surface_t*");
-    }
-}
-
-void GraphicsContextRenderer::set_ctx_from_image_args(
-        int format, int width, int height) {
-    // NOTE The first argument is an int rather than a cairo_format_t because
-    // pybind11 is strict with enum conversions.
-    // NOTE This API will ultimately be favored over set_ctx_from_surface as
-    // it bypasses the need to construct a surface in the Python-level using
-    // yet another cairo wrapper (in particular, cairocffi (which relies on
-    // dlopen() prevents the use of cairo-trace (which relies on LD_PRELOAD).
-    if (cr_) {
-        cairo_destroy(cr_);
-    }
-    auto surface = cairo_image_surface_create(
-            static_cast<cairo_format_t>(format), width, height);
-    cr_ = cairo_create(surface);
-}
-
-uintptr_t GraphicsContextRenderer::get_data_address() {
-    auto surface = cairo_get_target(cr_);
-    // FIXME Check the stride to ensure that the array is contiguous.
-    auto buf = cairo_image_surface_get_data(surface);
-    return reinterpret_cast<uintptr_t>(buf);
-}
-
 GraphicsContextRenderer& GraphicsContextRenderer::new_gc(void) {
     if (!cr_) {
         return *this;
@@ -533,6 +528,10 @@ void GraphicsContextRenderer::restore(void) {
         return;
     }
     cairo_restore(cr_);
+}
+
+std::tuple<int, int> GraphicsContextRenderer::get_canvas_width_height(void) {
+    return {get_width(), get_height()};
 }
 
 void GraphicsContextRenderer::draw_image(
@@ -857,10 +856,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
         .def(py::init<double>())
 
-        .def_property_readonly("width", &GraphicsContextRenderer::get_width)
-        .def_property_readonly("height", &GraphicsContextRenderer::get_height)
-        .def("get_canvas_width_height", &GraphicsContextRenderer::get_canvas_width_height)
+        // Backend-specific API.
+        .def("set_ctx_from_surface", &GraphicsContextRenderer::set_ctx_from_surface)
+        .def("set_ctx_from_image_args", &GraphicsContextRenderer::set_ctx_from_image_args)
+        .def("get_data_address", &GraphicsContextRenderer::get_data_address)
 
+        // GraphicsContext API.
         .def("set_alpha", &GraphicsContextRenderer::set_alpha)
         .def("set_antialiased", &GraphicsContextRenderer::set_antialiased)
         .def("set_capstyle", &GraphicsContextRenderer::set_capstyle)
@@ -876,13 +877,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
         // .def("get_rgb", &GraphicsContextRenderer::get_rgb)  NOTE: Not needed?
 
-        .def("set_ctx_from_surface", &GraphicsContextRenderer::set_ctx_from_surface)
-        .def("set_ctx_from_image_args", &GraphicsContextRenderer::set_ctx_from_image_args)
-        .def("get_data_address", &GraphicsContextRenderer::get_data_address)
-
         .def("new_gc", &GraphicsContextRenderer::new_gc)
         .def("copy_properties", &GraphicsContextRenderer::copy_properties)
         .def("restore", &GraphicsContextRenderer::restore)
+
+        // Renderer API.
+        .def("get_canvas_width_height", &GraphicsContextRenderer::get_canvas_width_height)
 
         .def("draw_image", &GraphicsContextRenderer::draw_image)
         .def("draw_markers", &GraphicsContextRenderer::draw_markers,
