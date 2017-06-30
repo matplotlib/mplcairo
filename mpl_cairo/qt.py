@@ -33,7 +33,9 @@ class FigureCanvasQTCairo(FigureCanvasQT):
 
     def paintEvent(self, event):
         buf = sip.voidptr(self._renderer.get_data_address())
-        qimage = QtGui.QImage(buf, self.width(), self.height(),
+        # These may have changed since the draw(), if the user is resizing.
+        width, height = self._renderer.get_canvas_width_height()
+        qimage = QtGui.QImage(buf, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         # Adjust the buf reference count to work around a memory leak bug
         # in QImage under PySide on Python 3.
