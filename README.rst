@@ -53,7 +53,7 @@ Missing features
 - ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
   redirects to ``draw_path_collection``), ``draw_gouraud_triangle{,s}``.
 - ``copy_from_bbox``, ``restore_region``
-- xkcd-style plots fail because of the lack of the private ``_text2path``.
+- Sketching (i.e. xkcd-style plots).
 
 Possible optimizations
 ----------------------

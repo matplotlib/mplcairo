@@ -41,11 +41,10 @@ struct GraphicsContextRenderer {
     double dpi_;
     std::optional<double> alpha_;
     py::object mathtext_parser_;
+    py::object text2path_;
 
     double points_to_pixels(double points);
     double pixels_to_points(double pixels);
-    int get_width(void);
-    int get_height(void);
     rgba_t get_rgba(void);
     bool try_draw_circles(
             GraphicsContextRenderer& gc,
@@ -82,6 +81,8 @@ struct GraphicsContextRenderer {
     void restore(void);
 
     std::tuple<int, int> get_canvas_width_height(void);
+    int get_width(void);
+    int get_height(void);
 
     void draw_image(
             GraphicsContextRenderer& gc,
@@ -252,20 +253,6 @@ double GraphicsContextRenderer::pixels_to_points(double pixels) {
     return pixels / (dpi_ / 72);
 }
 
-int GraphicsContextRenderer::get_width(void) {
-    if (!cr_) {
-        return 0;
-    }
-    return cairo_image_surface_get_width(cairo_get_target(cr_));
-}
-
-int GraphicsContextRenderer::get_height(void) {
-    if (!cr_) {
-        return 0;
-    }
-    return cairo_image_surface_get_height(cairo_get_target(cr_));
-}
-
 rgba_t GraphicsContextRenderer::get_rgba(void) {
     double r, g, b, a;
     auto status = cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a);
@@ -339,7 +326,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
     dpi_{dpi},
     alpha_{{}},
     mathtext_parser_{
-        py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")} {}
+        py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")},
+    text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {}
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
     if (cr_) {
@@ -533,6 +521,21 @@ void GraphicsContextRenderer::restore(void) {
 std::tuple<int, int> GraphicsContextRenderer::get_canvas_width_height(void) {
     return {get_width(), get_height()};
 }
+
+int GraphicsContextRenderer::get_width(void) {
+    if (!cr_) {
+        return 0;
+    }
+    return cairo_image_surface_get_width(cairo_get_target(cr_));
+}
+
+int GraphicsContextRenderer::get_height(void) {
+    if (!cr_) {
+        return 0;
+    }
+    return cairo_image_surface_get_height(cairo_get_target(cr_));
+}
+
 
 void GraphicsContextRenderer::draw_image(
         GraphicsContextRenderer& gc, double x, double y, py::array_t<uint8_t> im) {
@@ -875,14 +878,21 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
         // Needed by the default impl. of draw_quad_mesh.
         .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
-        // .def("get_rgb", &GraphicsContextRenderer::get_rgb)  NOTE: Not needed?
+        // Needed for patheffects.
+        .def("get_rgb", &GraphicsContextRenderer::get_rgb)
 
         .def("new_gc", &GraphicsContextRenderer::new_gc)
         .def("copy_properties", &GraphicsContextRenderer::copy_properties)
         .def("restore", &GraphicsContextRenderer::restore)
 
         // Renderer API.
+        // Needed for patheffects.
+        .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
+
         .def("get_canvas_width_height", &GraphicsContextRenderer::get_canvas_width_height)
+        // Needed for patheffects.
+        .def_property_readonly("width", &GraphicsContextRenderer::get_width)
+        .def_property_readonly("height", &GraphicsContextRenderer::get_height)
 
         .def("draw_image", &GraphicsContextRenderer::draw_image)
         .def("draw_markers", &GraphicsContextRenderer::draw_markers,
