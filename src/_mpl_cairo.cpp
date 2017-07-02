@@ -84,6 +84,11 @@ struct GraphicsContextRenderer {
     int get_width(void);
     int get_height(void);
 
+    void draw_gouraud_triangles(
+            GraphicsContextRenderer& gc,
+            py::array_t<double> triangles,
+            py::array_t<double> colors,
+            py::object transform);
     void draw_image(
             GraphicsContextRenderer& gc,
             double x, double y, py::array_t<uint8_t>);
@@ -536,6 +541,49 @@ int GraphicsContextRenderer::get_height(void) {
     return cairo_image_surface_get_height(cairo_get_target(cr_));
 }
 
+void GraphicsContextRenderer::draw_gouraud_triangles(
+        GraphicsContextRenderer& gc,
+        py::array_t<double> triangles,
+        py::array_t<double> colors,
+        py::object transform) {
+    if (!cr_) {
+        return;
+    }
+    if (&gc != this) {
+        throw std::invalid_argument("Non-matching GraphicsContext");
+    }
+    auto matrix = mcr::matrix_from_transform(transform, get_height());
+    cairo_save(cr_);
+    auto tri_raw = triangles.unchecked<3>();
+    auto col_raw = colors.unchecked<3>();
+    auto n = tri_raw.shape(0);
+    if ((n != col_raw.shape(0))
+            || (tri_raw.shape(1) != 3)
+            || (tri_raw.shape(2) != 2)
+            || (col_raw.shape(1) != 3)
+            || (col_raw.shape(2) != 4)) {
+        throw std::invalid_argument("Non-matching shapes");
+    }
+    auto pattern = cairo_pattern_create_mesh();
+    for (size_t i = 0; i < n; ++i) {
+        cairo_mesh_pattern_begin_patch(pattern);
+        for (size_t j = 0; j < 3; ++j) {
+            cairo_mesh_pattern_line_to(
+                    pattern, *tri_raw.data(i, j, 0), *tri_raw.data(i, j, 1));
+            cairo_mesh_pattern_set_corner_color_rgba(
+                    pattern, j,
+                    *col_raw.data(i, j, 0), *col_raw.data(i, j, 1),
+                    *col_raw.data(i, j, 2), *col_raw.data(i, j, 3));
+        }
+        cairo_mesh_pattern_end_patch(pattern);
+    }
+    cairo_matrix_invert(&matrix);
+    cairo_pattern_set_matrix(pattern, &matrix);
+    cairo_set_source(cr_, pattern);
+    cairo_paint(cr_);
+    cairo_pattern_destroy(pattern);
+    cairo_restore(cr_);
+}
 
 void GraphicsContextRenderer::draw_image(
         GraphicsContextRenderer& gc, double x, double y, py::array_t<uint8_t> im) {
@@ -894,6 +942,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         .def_property_readonly("width", &GraphicsContextRenderer::get_width)
         .def_property_readonly("height", &GraphicsContextRenderer::get_height)
 
+        .def("draw_gouraud_triangles", &GraphicsContextRenderer::draw_gouraud_triangles)
         .def("draw_image", &GraphicsContextRenderer::draw_image)
         .def("draw_markers", &GraphicsContextRenderer::draw_markers,
                 "gc"_a, "marker_path"_a, "marker_trans"_a, "path"_a, "trans"_a,

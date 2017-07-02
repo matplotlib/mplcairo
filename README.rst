@@ -51,7 +51,7 @@ Missing features
 - ``hexbin`` essentially requires its own implementation (due to the use of the
   ``offset_position`` parameter).  This should be fixed on Matplotlib's side.
 - ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
-  redirects to ``draw_path_collection``), ``draw_gouraud_triangle{,s}``.
+  redirects to ``draw_path_collection``).
 - ``copy_from_bbox``, ``restore_region``
 - Sketching (i.e. xkcd-style plots).
 
