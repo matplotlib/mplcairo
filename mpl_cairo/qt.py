@@ -1,5 +1,3 @@
-import sip
-
 from matplotlib import rcsetup
 from matplotlib.backend_bases import GraphicsContextBase, RendererBase
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
@@ -31,14 +29,14 @@ class FigureCanvasQTCairo(FigureCanvasQT):
         super().draw()
 
     def paintEvent(self, event):
-        buf = sip.voidptr(self._renderer.get_data_address())
+        buf_address = self._renderer.get_data_address()
         # These may have changed since the draw(), if the user is resizing.
         width, height = self._renderer.get_canvas_width_height()
-        qimage = QtGui.QImage(buf, width, height,
+        qimage = QtGui.QImage(buf_address, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         # Adjust the buf reference count to work around a memory leak bug
         # in QImage under PySide on Python 3.
-        if QT_API == 'PySide' and six.PY3:
+        if QT_API == "PySide" and six.PY3:
             ctypes.c_long.from_address(id(buf)).value = 1
         painter = QtGui.QPainter(self)
         painter.drawImage(0, 0, qimage)
