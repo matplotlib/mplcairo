@@ -957,5 +957,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
                 &GraphicsContextRenderer::get_text_width_height_descent,
                 "s"_a, "prop"_a, "ismath"_a);
 
+    m.attr("FORMAT_ARGB32") = static_cast<int>(CAIRO_FORMAT_ARGB32);
+
     return m.ptr();
 }

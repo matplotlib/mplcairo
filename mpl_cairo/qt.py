@@ -9,7 +9,6 @@ from . import _mpl_cairo
 
 
 rcsetup.interactive_bk += ["module://mpl_cairo.qt"]  # NOTE: Should be fixed in Mpl.
-FORMAT_ARGB32 = 0  # FIXME: We should export the values from the header.
 
 
 class GraphicsContextRendererCairo(
@@ -27,7 +26,7 @@ class FigureCanvasQTCairo(FigureCanvasQT):
 
     def draw(self):
         self._renderer.set_ctx_from_image_args(
-            FORMAT_ARGB32, self.width(), self.height())
+            _mpl_cairo.FORMAT_ARGB32, self.width(), self.height())
         self.figure.draw(self._renderer)
         super().draw()
 
