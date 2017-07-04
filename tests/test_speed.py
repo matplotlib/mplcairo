@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from mpl_cairo.qt import FigureCanvasQTCairo
 
 
+_canvas_classes = [FigureCanvasQTAgg, FigureCanvasQTCairo]
 pytest.fixture(autouse=True)(mpl_test_settings)
 
 
@@ -35,15 +36,13 @@ def sample_image():
     return np.random.RandomState(0).random_sample((100, 100))
 
 
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
+@pytest.mark.parametrize("canvas_cls", _canvas_classes)
 def test_axes(benchmark, canvas_cls, axes):
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
 
 
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
+@pytest.mark.parametrize("canvas_cls", _canvas_classes)
 def test_line(benchmark, canvas_cls, axes, sample_vector):
     axes.plot(sample_vector)
     despine(axes)
@@ -51,48 +50,30 @@ def test_line(benchmark, canvas_cls, axes, sample_vector):
     benchmark(axes.figure.canvas.draw)
 
 
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_circles_stamped(benchmark, canvas_cls, axes, sample_vector):
-    mpl.rcParams["path.simplify_threshold"] = 1 / 8
-    axes.plot(sample_vector, "o")
+@pytest.mark.parametrize("canvas_cls", _canvas_classes)
+@pytest.mark.parametrize("threshold", [1 / 8, 0])
+@pytest.mark.parametrize("alpha", [.99, 1])
+def test_circles_stamped(
+        benchmark, canvas_cls, threshold, alpha, axes, sample_vector):
+    mpl.rcParams["path.simplify_threshold"] = threshold
+    axes.plot(sample_vector, "o", alpha=alpha)
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
 
 
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_circles_exact(benchmark, canvas_cls, axes, sample_vector):
-    mpl.rcParams["path.simplify_threshold"] = 0
-    axes.plot(sample_vector, "o")
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
-
-
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_squares_stamped(benchmark, canvas_cls, axes, sample_vector):
-    mpl.rcParams["path.simplify_threshold"] = 1 / 8
+@pytest.mark.parametrize("canvas_cls", _canvas_classes)
+@pytest.mark.parametrize("threshold", [1 / 8, 0])
+def test_squares_stamped(
+        benchmark, canvas_cls, threshold, axes, sample_vector):
+    mpl.rcParams["path.simplify_threshold"] = threshold
     axes.plot(sample_vector, "s")
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
 
 
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_squares_exact(benchmark, canvas_cls, axes, sample_vector):
-    mpl.rcParams["path.simplify_threshold"] = 0
-    axes.plot(sample_vector, "s")
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
-
-
-@pytest.mark.parametrize(
-    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
+@pytest.mark.parametrize("canvas_cls", _canvas_classes)
 def test_image(benchmark, canvas_cls, axes, sample_image):
     axes.imshow(sample_image)
     despine(axes)
