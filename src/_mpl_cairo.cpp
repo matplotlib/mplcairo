@@ -665,6 +665,12 @@ void GraphicsContextRenderer::draw_markers(
     if (&gc != this) {
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
+
+    auto vertices = path.attr("vertices").cast<py::array_t<double>>();
+    // NOTE: For efficiency, we ignore codes, which is the documented behavior
+    // even though not the actual one of other backends.
+    auto n_vertices = vertices.shape(0);
+
     auto marker_matrix = mcr::matrix_from_transform(marker_transform);
     auto matrix = mcr::matrix_from_transform(transform, get_height());
 
@@ -704,10 +710,14 @@ void GraphicsContextRenderer::draw_markers(
 
     double simplify_threshold = py::module::import("matplotlib").attr("rcParams")[
         "path.simplify_threshold"].cast<double>();
-    size_t n_subpix = std::ceil(1 / simplify_threshold);
-    auto patterns = simplify_threshold >= 1. / 16 ?  // Don't let memory explode.
-        std::unique_ptr<cairo_pattern_t*[]>(new cairo_pattern_t*[n_subpix * n_subpix]) :
-        nullptr;
+    std::unique_ptr<cairo_pattern_t*[]> patterns;
+    size_t n_subpix = 0;
+    if (simplify_threshold >= 1. / 16) {
+        n_subpix = std::ceil(1 / simplify_threshold);
+        if (n_subpix * n_subpix < n_vertices) {
+            patterns.reset(new cairo_pattern_t*[n_subpix * n_subpix]);
+        }
+    }
 
     if (patterns) {
         for (size_t i = 0; i < n_subpix; ++i) {
@@ -729,13 +739,9 @@ void GraphicsContextRenderer::draw_markers(
         }
     }
 
-    auto vertices = path.attr("vertices").cast<py::array_t<double>>();
-    // NOTE: For efficiency, we ignore codes, which is the documented behavior
-    // even though not the actual one of other backends.
-    auto n = vertices.shape(0);
     if (patterns) {
         cairo_save(cr_);
-        for (size_t i = 0; i < n; ++i) {
+        for (size_t i = 0; i < n_vertices; ++i) {
             auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
             cairo_matrix_transform_point(&matrix, &x, &y);
             auto target_x = x + x0, target_y = y + y0;
@@ -754,7 +760,7 @@ void GraphicsContextRenderer::draw_markers(
         if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
             return;
         }
-        for (size_t i = 0; i < n; ++i) {
+        for (size_t i = 0; i < n_vertices; ++i) {
             cairo_save(cr_);
             auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
             cairo_matrix_transform_point(&matrix, &x, &y);
