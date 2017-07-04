@@ -27,8 +27,8 @@ def despine(ax):
 
 
 @pytest.fixture
-def sample_vector():
-    return np.random.RandomState(0).random_sample(10000)
+def sample_vectors():
+    return np.random.RandomState(0).random_sample((2, 10000))
 
 
 @pytest.fixture
@@ -43,8 +43,9 @@ def test_axes(benchmark, canvas_cls, axes):
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
-def test_line(benchmark, canvas_cls, axes, sample_vector):
-    axes.plot(sample_vector)
+@pytest.mark.parametrize("antialiased", [False, True])
+def test_line(benchmark, canvas_cls, antialiased, axes, sample_vectors):
+    axes.plot(*sample_vectors, antialiased=antialiased)
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
@@ -53,10 +54,10 @@ def test_line(benchmark, canvas_cls, axes, sample_vector):
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
 @pytest.mark.parametrize("alpha", [.99, 1])
-def test_circles_stamped(
-        benchmark, canvas_cls, threshold, alpha, axes, sample_vector):
+def test_circles(
+        benchmark, canvas_cls, threshold, alpha, axes, sample_vectors):
     mpl.rcParams["path.simplify_threshold"] = threshold
-    axes.plot(sample_vector, "o", alpha=alpha)
+    axes.plot(*sample_vectors, "o", alpha=alpha)
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
@@ -64,10 +65,10 @@ def test_circles_stamped(
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
-def test_squares_stamped(
-        benchmark, canvas_cls, threshold, axes, sample_vector):
+def test_squares(
+        benchmark, canvas_cls, threshold, axes, sample_vectors):
     mpl.rcParams["path.simplify_threshold"] = threshold
-    axes.plot(sample_vector, "s")
+    axes.plot(*sample_vectors, "s")
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)

@@ -386,12 +386,12 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
         int format, int width, int height) {
-    // NOTE The first argument is an int rather than a cairo_format_t because
+    // NOTE: The first argument is an int rather than a cairo_format_t because
     // pybind11 is strict with enum conversions.
-    // NOTE This API will ultimately be favored over set_ctx_from_surface as
+    // NOTE: This API will ultimately be favored over set_ctx_from_surface as
     // it bypasses the need to construct a surface in the Python-level using
-    // yet another cairo wrapper (in particular, cairocffi (which relies on
-    // dlopen() prevents the use of cairo-trace (which relies on LD_PRELOAD).
+    // yet another cairo wrapper.  In particular, cairocffi (which relies on
+    // dlopen()) prevents the use of cairo-trace (which relies on LD_PRELOAD).
     if (cr_) {
         cairo_destroy(cr_);
     }
@@ -401,8 +401,9 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
 }
 
 uintptr_t GraphicsContextRenderer::get_data_address() {
+    // NOTE: The image buffer is not necessarily contiguous; see
+    // cairo_image_surface_get_stride().
     auto surface = cairo_get_target(cr_);
-    // FIXME Check the stride to ensure that the array is contiguous.
     auto buf = cairo_image_surface_get_data(surface);
     return reinterpret_cast<uintptr_t>(buf);
 }
@@ -636,7 +637,7 @@ void GraphicsContextRenderer::draw_image(
             auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
             for (size_t j = 0; j < nj; ++j) {
                 auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
-                     b = *im_raw.data(i, j, 2)/*, a = *im_raw.data(i, j, 3)*/;
+                     b = *im_raw.data(i, j, 2)/*, a = *im_raw.data(i, j, 3) */;
                 *(ptr++) =
                     (uint8_t(*alpha_ * 0xff) << 24) | (uint8_t(*alpha_ * r) << 16)
                     | (uint8_t(*alpha_ * g) << 8) | (uint8_t(*alpha_ * b));
@@ -699,6 +700,7 @@ void GraphicsContextRenderer::draw_markers(
             a = *alpha_;
         }
     }
+
     // Recording surfaces are quite slow, so just call a lambda instead.
     auto draw_one_marker = [&](cairo_t* cr) {
         mcr::load_path(cr, marker_path, &marker_matrix);
@@ -710,17 +712,6 @@ void GraphicsContextRenderer::draw_markers(
         }
         cairo_stroke(cr);
     };
-
-    // Get the extent of the marker.
-    auto recording_surface = cairo_recording_surface_create(
-            CAIRO_CONTENT_COLOR_ALPHA, nullptr);
-    auto recording_cr = cairo_create(recording_surface);
-    mcr::copy_for_marker_stamping(cr_, recording_cr);
-    draw_one_marker(recording_cr);
-    double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
-    cairo_destroy(recording_cr);
-    cairo_surface_destroy(recording_surface);
 
     double simplify_threshold = py::module::import("matplotlib").attr("rcParams")[
         "path.simplify_threshold"].cast<double>();
@@ -734,6 +725,17 @@ void GraphicsContextRenderer::draw_markers(
     }
 
     if (patterns) {
+        // Get the extent of the marker.
+        auto recording_surface = cairo_recording_surface_create(
+                CAIRO_CONTENT_COLOR_ALPHA, nullptr);
+        auto recording_cr = cairo_create(recording_surface);
+        mcr::copy_for_marker_stamping(cr_, recording_cr);
+        draw_one_marker(recording_cr);
+        double x0, y0, width, height;
+        cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+        cairo_destroy(recording_cr);
+        cairo_surface_destroy(recording_surface);
+
         for (size_t i = 0; i < n_subpix; ++i) {
             for (size_t j = 0; j < n_subpix; ++j) {
                 auto raster_surface = cairo_surface_create_similar_image(
@@ -742,7 +744,8 @@ void GraphicsContextRenderer::draw_markers(
                 auto raster_cr = cairo_create(raster_surface);
                 mcr::copy_for_marker_stamping(cr_, raster_cr);
                 cairo_translate(
-                        raster_cr, -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
+                        raster_cr,
+                        -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
                 draw_one_marker(recording_cr);
                 auto pattern = cairo_pattern_create_for_surface(raster_surface);
                 cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
@@ -751,9 +754,7 @@ void GraphicsContextRenderer::draw_markers(
                 cairo_surface_destroy(raster_surface);
             }
         }
-    }
 
-    if (patterns) {
         cairo_save(cr_);
         for (size_t i = 0; i < n_vertices; ++i) {
             auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
@@ -770,6 +771,12 @@ void GraphicsContextRenderer::draw_markers(
             cairo_paint(cr_);
         }
         cairo_restore(cr_);
+
+        // Cleanup.
+        for (size_t i = 0; i < n_subpix * n_subpix; ++i) {
+            cairo_pattern_destroy(patterns[i]);
+        }
+
     } else {
         if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
             return;
@@ -781,13 +788,6 @@ void GraphicsContextRenderer::draw_markers(
             cairo_translate(cr_, x, y);
             draw_one_marker(cr_);
             cairo_restore(cr_);
-        }
-    }
-
-    // Cleanup.
-    if (patterns) {
-        for (size_t i = 0; i < n_subpix * n_subpix; ++i) {
-            cairo_pattern_destroy(patterns[i]);
         }
     }
 }
@@ -833,7 +833,8 @@ void GraphicsContextRenderer::draw_path(
         cairo_set_source_rgba(hatch_cr, r, g, b, a);
         cairo_set_line_width(hatch_cr, points_to_pixels(
                 py::cast(this).attr("get_hatch_linewidth")().cast<double>()));
-        auto hatch_matrix = cairo_matrix_t{dpi, 0, 0, -dpi, 0, dpi};
+        auto hatch_matrix = cairo_matrix_t{
+            double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
         mcr::load_path(hatch_cr, hatch_path, &hatch_matrix);
         cairo_fill_preserve(hatch_cr);
         cairo_stroke(hatch_cr);
@@ -871,6 +872,17 @@ void GraphicsContextRenderer::draw_path_collection(
     if (&gc != this) {
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
+    if (offset_position == "data") {
+        // NOTE: This seems to be used only by hexbin().  Perhaps the feature
+        // can be deprecated and folded into hexbin()?  For now, we can just
+        // fall back to the slow implementation.
+        py::module::import("matplotlib.backend_bases")
+            .attr("RendererBase").attr("draw_path_collection")(
+                    this, gc, master_transform,
+                    paths, transforms, offsets, offset_transform,
+                    fcs, ecs, lws, dashes, aas, urls, offset_position);
+        return;
+    }
     auto n_paths = paths.size(),
          n_transforms = transforms.size(),
          n_offsets = offsets.size(),
@@ -891,22 +903,9 @@ void GraphicsContextRenderer::draw_path_collection(
         auto path = paths[i % n_paths];
         auto matrix = matrices[i % n_transforms];
         auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
-        if (offset_position == "data") {
-            // NOTE: This seems to be used only by hexbin().  Perhaps the
-            // feature can be deprecated and folded into hexbin()?
-            // For now, we can just fall back to the slow implementation.
-            py::module::import("matplotlib.backend_bases")
-                .attr("RendererBase").attr("draw_path_collection")(
-                        this, gc, master_transform,
-                        paths, transforms, offsets, offset_transform,
-                        fcs, ecs, lws, dashes, aas, urls,
-                        offset_position);
-            return;
-        }
         cairo_matrix_transform_point(&offset_matrix, &x, &y);
-        matrix.x0 += x; matrix.y0 += y;
+        cairo_translate(cr_, x, y);
         mcr::load_path(cr_, path, &matrix);
-        matrix.x0 -= x; matrix.y0 -= y;
         if (ecs.size()) {
             set_foreground(ecs[i % ecs.size()]);
             cairo_stroke_preserve(cr_);
@@ -1052,7 +1051,7 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
 void GraphicsContextRenderer::restore_region(Region& region) {
     auto [bbox, buf] = region;
     auto [x0, y0, width, height] = bbox;
-    int x1 = x0 + width, y1 = y0 + height;
+    int /* x1 = x0 + width, */ y1 = y0 + height;
     auto surface = cairo_get_target(cr_);
     auto raw = cairo_image_surface_get_data(surface);
     auto stride = cairo_image_surface_get_stride(surface);

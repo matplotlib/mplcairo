@@ -5,15 +5,16 @@ This is a new, fairly complete implementation of a Cairo backend for
 Matplotlib.  Currently, it is designed to be used with the qt-cairo backend
 proposed in Matplotlib's PR #8771.
 
-Depending on the specific task, the backend can be as fast as Agg, or no more
-than twice slower (especially for drawing markers, which is done much more
-accurately -- this was one of the original motivations for this work).
+Depending on the specific task, the backend can bea anywhere from ~2x faster
+(e.g., stamping markers) to ~3x slower (e.g., drawing lines) than Agg.
 
 Installation
 ------------
 
-Only Python 3 is supported.  A very recent C++ compiler, with support for C++17
-(e.g., GCC 7.1) is required.
+Dependencies:
+- Python 3
+- cairo >=1.10
+- a C++ compiler with C++17 support, e.g. GCC≥7.1.
 
 Run::
 
@@ -39,7 +40,8 @@ an accuracy controlled by the ``path.simplify_threshold`` rcparam).
 Benchmarks
 ----------
 
-Install (in the virtualenv) ``pytest-benchmark`` and call (e.g.)::
+Install (in the virtualenv) ``pytest>=3.1.0`` and ``pytest-benchmark``, then
+call (e.g.)::
 
    $ pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
 
@@ -68,10 +70,12 @@ Known issues
 Possible optimizations
 ----------------------
 
+- Marker caching in ``draw_path_collection`` (for scatter plots with multiple
+  colors/sizes).
 - ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
   redirects to ``draw_path_collection``).
-- Path simplification (although cairo appears to use Douglas-Peucker
-  internally).
+- Path simplification (although cairo appears to use vertex reduction and
+  Douglas-Peucker internally?).
 - Use QtOpenGLWidget and the cairo-gl backend.
 - ``hexbin`` currently falls back on the slow implementation due to its use of
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's

@@ -50,8 +50,10 @@ class FigureCanvasQTCairo(FigureCanvasQT):
         if self._renderer is None:
             self.draw()
         buf_address = self._renderer.get_data_address()
-        # These may have changed since the draw(), if the user is resizing.
         width, height = self._renderer.get_canvas_width_height()
+        # The image buffer is not necessarily contiguous, but the padding in
+        # the ARGB32 case (each scanline is 32-bit aligned) happens to match
+        # what QImage requires.
         qimage = QtGui.QImage(buf_address, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         # Adjust the buf reference count to work around a memory leak bug
