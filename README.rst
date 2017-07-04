@@ -43,6 +43,16 @@ Install (in the virtualenv) ``pytest-benchmark`` and call (e.g.)::
 
    $ pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
 
+Notes
+-----
+
+- ``path.simplify_threshold`` is also used to control the accuracy of marker
+  stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
+  than that will use the exact (slower) marker drawing path.
+- ``draw_markers`` draws a marker at each control point of the given path,
+  which is the documented behavior, even though all builtin renderers only draw
+  markers at straight or Bézier segment ends.
+
 Missing features
 ----------------
 

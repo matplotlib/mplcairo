@@ -609,15 +609,17 @@ void GraphicsContextRenderer::draw_markers(
     auto matrix = mcr::matrix_from_transform(transform, get_height());
 
     double r, g, b, a{1};
-    if (py::len(*rgb_fc) == 3) {
-        std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-    } else {
-        std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
+    if (rgb_fc) {
+        if (py::len(*rgb_fc) == 3) {
+            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
+        } else {
+            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
+        }
+        if (alpha_) {
+            a = *alpha_;
+        }
     }
-    if (alpha_) {
-        a = *alpha_;
-    }
-    // Recording surfaces are quite slow, so just call our lambda instead.
+    // Recording surfaces are quite slow, so just call a lambda instead.
     auto draw_one_marker = [&](cairo_t* cr) {
         mcr::load_path(cr, marker_path, &marker_matrix);
         if (rgb_fc) {
@@ -671,11 +673,11 @@ void GraphicsContextRenderer::draw_markers(
     // NOTE: For efficiency, we ignore codes, which is the documented behavior
     // even though not the actual one of other backends.
     auto n = vertices.shape(0);
-    cairo_save(cr_);
-    for (size_t i = 0; i < n; ++i) {
-        auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
-        cairo_matrix_transform_point(&matrix, &x, &y);
-        if (patterns) {
+    if (patterns) {
+        cairo_save(cr_);
+        for (size_t i = 0; i < n; ++i) {
+            auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
+            cairo_matrix_transform_point(&matrix, &x, &y);
             auto target_x = x + x0, target_y = y + y0;
             auto i_target_x = std::floor(target_x), i_target_y = std::floor(target_y);
             auto f_target_x = target_x - i_target_x, f_target_y = target_y - i_target_y;
@@ -686,14 +688,18 @@ void GraphicsContextRenderer::draw_markers(
             cairo_pattern_set_matrix(pattern, &pattern_matrix);
             cairo_set_source(cr_, pattern);
             cairo_paint(cr_);
-        } else {
+        }
+        cairo_restore(cr_);
+    } else {
+        for (size_t i = 0; i < n; ++i) {
             cairo_save(cr_);
+            auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
+            cairo_matrix_transform_point(&matrix, &x, &y);
             cairo_translate(cr_, x, y);
             draw_one_marker(cr_);
             cairo_restore(cr_);
         }
     }
-    cairo_restore(cr_);
 
     // Cleanup.
     if (patterns) {
