@@ -52,8 +52,17 @@ def test_line(benchmark, canvas_cls, axes, sample_vector):
 
 @pytest.mark.parametrize(
     "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_circles(benchmark, canvas_cls, axes, sample_vector):
+def test_circles_fast(benchmark, canvas_cls, axes, sample_vector):
     axes.plot(sample_vector, "o")
+    despine(axes)
+    axes.figure.canvas = canvas_cls(axes.figure)
+    benchmark(axes.figure.canvas.draw)
+
+
+@pytest.mark.parametrize(
+    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
+def test_circles(benchmark, canvas_cls, axes, sample_vector):
+    axes.plot(sample_vector, "o", alpha=.99)
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)

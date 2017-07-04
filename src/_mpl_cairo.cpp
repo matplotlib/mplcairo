@@ -31,6 +31,7 @@ namespace mcr {  // mcr: Matplotlib cairo private functions.
     cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
     cairo_matrix_t matrix_from_transform(
             py::object transform, cairo_matrix_t* master_matrix);
+    void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
     void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
     cairo_font_face_t* ft_font_from_prop(py::object prop);
 }
@@ -150,6 +151,23 @@ cairo_matrix_t mcr::matrix_from_transform(
             *py_matrix.data(0, 2), *py_matrix.data(1, 2)};
     cairo_matrix_multiply(&matrix, &matrix, master_matrix);
     return matrix;
+}
+
+void mcr::copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
+    cairo_set_antialias(dest, cairo_get_antialias(orig));
+    cairo_set_line_cap(dest, cairo_get_line_cap(orig));
+    cairo_set_line_join(dest, cairo_get_line_join(orig));
+    cairo_set_line_width(dest, cairo_get_line_width(orig));
+
+    auto dash_count = cairo_get_dash_count(orig);
+    auto dashes = std::unique_ptr<double[]>(new double[dash_count]);
+    double offset;
+    cairo_get_dash(orig, dashes.get(), &offset);
+    cairo_set_dash(dest, dashes.get(), dash_count, offset);
+
+    double r, g, b, a;
+    cairo_pattern_get_rgba(cairo_get_source(orig), &r, &g, &b, &a);
+    cairo_set_source_rgba(dest, r, g, b, a);
 }
 
 void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
@@ -627,7 +645,7 @@ void GraphicsContextRenderer::draw_image(
     auto surface = cairo_image_surface_create_for_data(
             buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
     auto pattern = cairo_pattern_create_for_surface(surface);
-    cairo_matrix_t matrix{1, 0, 0, -1, -x, -y + get_height()};
+    auto matrix = cairo_matrix_t{1, 0, 0, -1, -x, -y + get_height()};
     cairo_pattern_set_matrix(pattern, &matrix);
     cairo_set_source(cr_, pattern);
     cairo_paint(cr_);
@@ -643,10 +661,6 @@ void GraphicsContextRenderer::draw_markers(
         py::object path,
         py::object transform,
         std::optional<py::object> rgb_fc) {
-    // FIXME: It would be preferable to rasterize to an intermediate surface,
-    // but that would require copying the whole context.  Using groups is not
-    // an option as the markers will often get clipped out and the clip path
-    // cannot be reset temporarily.
     if (!cr_) {
         return;
     }
@@ -655,6 +669,42 @@ void GraphicsContextRenderer::draw_markers(
     }
     auto marker_matrix = mcr::matrix_from_transform(marker_transform);
     auto matrix = mcr::matrix_from_transform(transform, get_height());
+
+    // Get the extent of the marker.
+    auto recording_surface = cairo_recording_surface_create(
+            CAIRO_CONTENT_COLOR_ALPHA, nullptr);
+    auto recording_cr = cairo_create(recording_surface);
+    mcr::copy_for_marker_stamping(cr_, recording_cr);
+    mcr::load_path(recording_cr, marker_path, &marker_matrix);
+    if (rgb_fc) {
+        cairo_save(recording_cr);
+        double r, g, b, a{1};
+        if (py::len(*rgb_fc) == 3) {
+            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
+        } else {
+            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
+        }
+        if (alpha_) {
+            a = *alpha_;
+        }
+        cairo_set_source_rgba(recording_cr, r, g, b, a);
+        cairo_fill_preserve(recording_cr);
+        cairo_restore(recording_cr);
+    }
+    cairo_stroke(recording_cr);
+    double x0, y0, width, height;
+    cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+
+    // Rasterize.
+    auto raster_surface = cairo_surface_create_similar_image(
+            cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
+            std::ceil(width), std::ceil(height));
+    auto raster_cr = cairo_create(raster_surface);
+    cairo_set_source_surface(raster_cr, recording_surface, -x0, -y0);
+    cairo_paint(raster_cr);
+    auto pattern = cairo_pattern_create_for_surface(raster_surface);
+    cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
+
     if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
         return;
     }
@@ -662,30 +712,24 @@ void GraphicsContextRenderer::draw_markers(
     // NOTE: For efficiency, we ignore codes, which is the documented behavior
     // even though not the actual one of other backends.
     auto n = vertices.shape(0);
+    cairo_save(cr_);
     for (size_t i = 0; i < n; ++i) {
         auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
         cairo_matrix_transform_point(&matrix, &x, &y);
-        cairo_save(cr_);
-        cairo_translate(cr_, x, y);
-        mcr::load_path(cr_, marker_path, &marker_matrix);
-        if (rgb_fc) {
-            cairo_save(cr_);
-            double r, g, b, a{1};
-            if (py::len(*rgb_fc) == 3) {
-                std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-            } else {
-                std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-            }
-            if (alpha_) {
-                a = *alpha_;
-            }
-            cairo_set_source_rgba(cr_, r, g, b, a);
-            cairo_fill_preserve(cr_);
-            cairo_restore(cr_);
-        }
-        cairo_stroke(cr_);
-        cairo_restore(cr_);
+        // Offsetting by get_height() is already taken care of by matrix.
+        auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -(x + x0), -(y + y0)};
+        cairo_pattern_set_matrix(pattern, &pattern_matrix);
+        cairo_set_source(cr_, pattern);
+        cairo_paint(cr_);
     }
+    cairo_restore(cr_);
+
+    // Cleanup.
+    cairo_pattern_destroy(pattern);
+    cairo_destroy(raster_cr);
+    cairo_surface_destroy(raster_surface);
+    cairo_destroy(recording_cr);
+    cairo_surface_destroy(recording_surface);
 }
 
 void GraphicsContextRenderer::draw_path(
@@ -842,7 +886,7 @@ void GraphicsContextRenderer::draw_text(
         auto surface = cairo_image_surface_create_for_data(
                 buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
         auto pattern = cairo_pattern_create_for_surface(surface);
-        cairo_matrix_t matrix{1, 0, 0, 1, -ox, ni - oy};
+        auto matrix = cairo_matrix_t{1, 0, 0, 1, -ox, ni - oy};
         cairo_pattern_set_matrix(pattern, &matrix);
         cairo_set_source(cr_, pattern);
         cairo_paint(cr_);
