@@ -894,7 +894,14 @@ void GraphicsContextRenderer::draw_path_collection(
         if (offset_position == "data") {
             // NOTE: This seems to be used only by hexbin().  Perhaps the
             // feature can be deprecated and folded into hexbin()?
-            throw std::runtime_error("Not implemented yet");
+            // For now, we can just fall back to the slow implementation.
+            py::module::import("matplotlib.backend_bases")
+                .attr("RendererBase").attr("draw_path_collection")(
+                        this, gc, master_transform,
+                        paths, transforms, offsets, offset_transform,
+                        fcs, ecs, lws, dashes, aas, urls,
+                        offset_position);
+            return;
         }
         cairo_matrix_transform_point(&offset_matrix, &x, &y);
         matrix.x0 += x; matrix.y0 += y;

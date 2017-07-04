@@ -57,10 +57,6 @@ Missing features
 ----------------
 
 - Snapping.
-- ``hexbin`` essentially requires its own implementation (due to the use of the
-  ``offset_position`` parameter).  This should be fixed on Matplotlib's side.
-- ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
-  redirects to ``draw_path_collection``).
 - Sketching (i.e. xkcd-style plots).
 
 Known issues
@@ -72,9 +68,14 @@ Known issues
 Possible optimizations
 ----------------------
 
+- ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
+  redirects to ``draw_path_collection``).
 - Path simplification (although cairo appears to use Douglas-Peucker
   internally).
 - Use QtOpenGLWidget and the cairo-gl backend.
+- ``hexbin`` currently falls back on the slow implementation due to its use of
+  the ``offset_position`` parameter.  This should be fixed on Matplotlib's
+  side.
 
 Other ideas
 -----------
