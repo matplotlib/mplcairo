@@ -1,144 +1,14 @@
-#include <cmath>
-#include <tuple>
-#include <vector>
+#include "_mpl_cairo.h"
 
-#include <cairo/cairo.h>
-#include <cairo/cairo-ft.h>
-#include <freetype2/ft2build.h>
-#include FT_FREETYPE_H
+namespace mpl_cairo {
 
-#include <pybind11/pybind11.h>
-#include <pybind11/eval.h>
-#include <pybind11/numpy.h>
-#include <pybind11/stl.h>
-
-namespace py = pybind11;
 using namespace pybind11::literals;
-
-using rgb_t = std::tuple<double, double, double>;
-using rgba_t = std::tuple<double, double, double, double>;
-using rectangle_t = std::tuple<double, double, double, double>;
-
-namespace matplotlib {
-    int const STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79;
-}
 
 static FT_Library FT_LIB;
 static cairo_user_data_key_t const FT_KEY = {0};
 static py::object UNIT_CIRCLE;
 
-namespace mcr {  // mcr: Matplotlib cairo private functions.
-    cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
-    cairo_matrix_t matrix_from_transform(
-            py::object transform, cairo_matrix_t* master_matrix);
-    void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
-    void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
-    cairo_font_face_t* ft_font_from_prop(py::object prop);
-}
-
-struct Region {
-    cairo_rectangle_int_t bbox;
-    std::shared_ptr<char[]> buf;
-
-    Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf);
-};
-
-struct GraphicsContextRenderer {
-
-    cairo_t* cr_;
-    double dpi_;
-    std::optional<double> alpha_;
-    py::object mathtext_parser_;
-    py::object text2path_;
-
-    private:
-    double points_to_pixels(double points);
-    double pixels_to_points(double pixels);
-    rgba_t get_rgba(void);
-    bool try_draw_circles(
-            GraphicsContextRenderer& gc,
-            py::object marker_path,
-            cairo_matrix_t* marker_matrix,
-            py::object path,
-            cairo_matrix_t* matrix,
-            std::optional<py::object> rgb_fc);
-
-    public:
-    GraphicsContextRenderer(double dpi);
-    ~GraphicsContextRenderer();
-
-    void set_ctx_from_surface(py::object surface);
-    void set_ctx_from_image_args(int format, int width, int height);
-    uintptr_t get_data_address();
-
-    void set_alpha(std::optional<double> alpha);
-    void set_antialiased(py::object aa); // bool, but also np.bool_.
-    void set_capstyle(std::string capstyle);
-    void set_clip_rectangle(std::optional<py::object> rectangle);
-    void set_clip_path(std::optional<py::object> transformed_path);
-    void set_dashes(
-            std::optional<double> dash_offset, std::optional<py::object> dash_list);
-    void set_foreground(py::object fg, bool /* is_rgba */=false);
-    void set_joinstyle(std::string js);
-    void set_linewidth(double lw);
-
-    double get_linewidth();
-    rgb_t get_rgb(void);
-
-    GraphicsContextRenderer& new_gc(void);
-    void copy_properties(GraphicsContextRenderer& other);
-    void restore(void);
-
-    std::tuple<int, int> get_canvas_width_height(void);
-    int get_width(void);
-    int get_height(void);
-
-    void draw_gouraud_triangles(
-            GraphicsContextRenderer& gc,
-            py::array_t<double> triangles,
-            py::array_t<double> colors,
-            py::object transform);
-    void draw_image(
-            GraphicsContextRenderer& gc,
-            double x, double y, py::array_t<uint8_t>);
-    void draw_markers(
-            GraphicsContextRenderer& gc,
-            py::object marker_path,
-            py::object marker_transform,
-            py::object path,
-            py::object transform,
-            std::optional<py::object> rgb_fc);
-    void draw_path(
-            GraphicsContextRenderer& gc,
-            py::object path,
-            py::object transform,
-            std::optional<py::object> rgb_fc);
-    void draw_path_collection(
-            GraphicsContextRenderer& gc,
-            py::object master_transform,
-            std::vector<py::object> paths,
-            std::vector<py::object> all_transforms,
-            std::vector<py::object> offsets,
-            py::object offset_transform,
-            std::vector<py::object> fcs,
-            std::vector<py::object> ecs,
-            std::vector<py::object> lws,
-            std::vector<py::object> dashes,
-            std::vector<py::object> aas,
-            std::vector<py::object> urls,
-            std::string offset_position);
-    void draw_text(
-            GraphicsContextRenderer& gc,
-            double x, double y, std::string s, py::object prop, double angle,
-            bool ismath, py::object mtext);
-    std::tuple<double, double, double> get_text_width_height_descent(
-            std::string s, py::object prop, bool ismath);
-
-    Region copy_from_bbox(py::object bbox);
-    void restore_region(Region& region);
-};
-
-cairo_matrix_t mcr::matrix_from_transform(py::object transform, double y0) {
+cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
     if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
         throw std::invalid_argument("Only affine transforms are handled");
     }
@@ -149,7 +19,7 @@ cairo_matrix_t mcr::matrix_from_transform(py::object transform, double y0) {
             *py_matrix.data(0, 2), y0 - *py_matrix.data(1, 2)};
 }
 
-cairo_matrix_t mcr::matrix_from_transform(
+cairo_matrix_t matrix_from_transform(
         py::object transform, cairo_matrix_t* master_matrix) {
     if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
         throw std::invalid_argument("Only affine transforms are handled");
@@ -164,7 +34,7 @@ cairo_matrix_t mcr::matrix_from_transform(
     return matrix;
 }
 
-void mcr::copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
+void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
     cairo_set_antialias(dest, cairo_get_antialias(orig));
     cairo_set_line_cap(dest, cairo_get_line_cap(orig));
     cairo_set_line_join(dest, cairo_get_line_join(orig));
@@ -181,7 +51,7 @@ void mcr::copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
     cairo_set_source_rgba(dest, r, g, b, a);
 }
 
-void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
     cairo_save(cr);
     cairo_transform(cr, matrix);
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
@@ -193,15 +63,17 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
         for (size_t i = 0; i < n; ++i) {
             auto x0 = *vertices.data(i, 0), y0 = *vertices.data(i, 1);
             auto isfinite = std::isfinite(x0) && std::isfinite(y0);
-            switch (*codes.data(i)) {
-                case matplotlib::MOVETO:
+            switch (static_cast<PathCode>(*codes.data(i))) {
+                case PathCode::STOP:
+                    break;
+                case PathCode::MOVETO:
                     if (isfinite) {
                         cairo_move_to(cr, x0, y0);
                     } else {
                         cairo_new_sub_path(cr);
                     }
                     break;
-                case matplotlib::LINETO:
+                case PathCode::LINETO:
                     if (isfinite) {
                         cairo_line_to(cr, x0, y0);
                     } else {
@@ -210,7 +82,7 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
                     break;
                 // NOTE: The semantics of nonfinite control points seem
                 // undocumented.  Here, we ignore the entire curve element.
-                case matplotlib::CURVE3: {
+                case PathCode::CURVE3: {
                     auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1);
                     i += 1;
                     isfinite &= std::isfinite(x1) && std::isfinite(y1);
@@ -226,7 +98,7 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
                     }
                     break;
                 }
-                case matplotlib::CURVE4: {
+                case PathCode::CURVE4: {
                     auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1),
                          x2 = *vertices.data(i + 2, 0), y2 = *vertices.data(i + 2, 1);
                     i += 2;
@@ -239,7 +111,7 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
                     }
                     break;
                 }
-                case matplotlib::CLOSEPOLY:
+                case PathCode::CLOSEPOLY:
                     cairo_close_path(cr);
                     break;
             }
@@ -258,7 +130,7 @@ void mcr::load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
     cairo_restore(cr);
 }
 
-cairo_font_face_t* mcr::ft_font_from_prop(py::object prop) {
+cairo_font_face_t* ft_font_from_prop(py::object prop) {
     // It is probably not worth implementing an additional layer of caching
     // here as findfont already has its cache and object equality needs would
     // also need to go through Python anyways.
@@ -463,8 +335,8 @@ void GraphicsContextRenderer::set_clip_path(std::optional<py::object> transforme
     }
     auto [path, transform] = transformed_path->attr("get_transformed_path_and_affine")()
         .cast<std::tuple<py::object, py::object>>();
-    auto matrix = mcr::matrix_from_transform(transform, get_height());
-    mcr::load_path(cr_, path, &matrix);
+    auto matrix = matrix_from_transform(transform, get_height());
+    load_path(cr_, path, &matrix);
     cairo_clip(cr_);
 }
 
@@ -583,7 +455,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     if (&gc != this) {
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
-    auto matrix = mcr::matrix_from_transform(transform, get_height());
+    auto matrix = matrix_from_transform(transform, get_height());
     cairo_save(cr_);
     auto tri_raw = triangles.unchecked<3>();
     auto col_raw = colors.unchecked<3>();
@@ -686,8 +558,8 @@ void GraphicsContextRenderer::draw_markers(
     // even though not the actual one of other backends.
     auto n_vertices = vertices.shape(0);
 
-    auto marker_matrix = mcr::matrix_from_transform(marker_transform);
-    auto matrix = mcr::matrix_from_transform(transform, get_height());
+    auto marker_matrix = matrix_from_transform(marker_transform);
+    auto matrix = matrix_from_transform(transform, get_height());
 
     double r, g, b, a{1};
     if (rgb_fc) {
@@ -703,7 +575,7 @@ void GraphicsContextRenderer::draw_markers(
 
     // Recording surfaces are quite slow, so just call a lambda instead.
     auto draw_one_marker = [&](cairo_t* cr) {
-        mcr::load_path(cr, marker_path, &marker_matrix);
+        load_path(cr, marker_path, &marker_matrix);
         if (rgb_fc) {
             cairo_save(cr);
             cairo_set_source_rgba(cr, r, g, b, a);
@@ -729,7 +601,7 @@ void GraphicsContextRenderer::draw_markers(
         auto recording_surface = cairo_recording_surface_create(
                 CAIRO_CONTENT_COLOR_ALPHA, nullptr);
         auto recording_cr = cairo_create(recording_surface);
-        mcr::copy_for_marker_stamping(cr_, recording_cr);
+        copy_for_marker_stamping(cr_, recording_cr);
         draw_one_marker(recording_cr);
         double x0, y0, width, height;
         cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
@@ -742,7 +614,7 @@ void GraphicsContextRenderer::draw_markers(
                         cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
                         std::ceil(width + 1), std::ceil(height + 1));
                 auto raster_cr = cairo_create(raster_surface);
-                mcr::copy_for_marker_stamping(cr_, raster_cr);
+                copy_for_marker_stamping(cr_, raster_cr);
                 cairo_translate(
                         raster_cr,
                         -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
@@ -804,8 +676,8 @@ void GraphicsContextRenderer::draw_path(
         throw std::invalid_argument("Non-matching GraphicsContext");
     }
     cairo_save(cr_);
-    auto matrix = mcr::matrix_from_transform(transform, get_height());
-    mcr::load_path(cr_, path, &matrix);
+    auto matrix = matrix_from_transform(transform, get_height());
+    load_path(cr_, path, &matrix);
     if (rgb_fc) {
         cairo_save(cr_);
         double r, g, b, a{1};
@@ -835,7 +707,7 @@ void GraphicsContextRenderer::draw_path(
                 py::cast(this).attr("get_hatch_linewidth")().cast<double>()));
         auto hatch_matrix = cairo_matrix_t{
             double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
-        mcr::load_path(hatch_cr, hatch_path, &hatch_matrix);
+        load_path(hatch_cr, hatch_path, &hatch_matrix);
         cairo_fill_preserve(hatch_cr);
         cairo_stroke(hatch_cr);
         auto hatch_pattern = cairo_pattern_create_for_surface(hatch_surface);
@@ -887,17 +759,17 @@ void GraphicsContextRenderer::draw_path_collection(
          n_transforms = transforms.size(),
          n_offsets = offsets.size(),
          n = std::max({n_paths, n_transforms, n_offsets});
-    auto master_matrix = mcr::matrix_from_transform(master_transform, get_height());
+    auto master_matrix = matrix_from_transform(master_transform, get_height());
     std::vector<cairo_matrix_t> matrices;
     if (n_transforms) {
         for (size_t i = 0; i < n_transforms; ++i) {
-            matrices.push_back(mcr::matrix_from_transform(transforms[i], &master_matrix));
+            matrices.push_back(matrix_from_transform(transforms[i], &master_matrix));
         }
     } else {
         n_transforms = 1;
         matrices.push_back(master_matrix);
     }
-    auto offset_matrix = mcr::matrix_from_transform(offset_transform);
+    auto offset_matrix = matrix_from_transform(offset_transform);
     for (size_t i = 0; i < n; ++i) {
         cairo_save(cr_);
         auto path = paths[i % n_paths];
@@ -905,7 +777,7 @@ void GraphicsContextRenderer::draw_path_collection(
         auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
         cairo_matrix_transform_point(&offset_matrix, &x, &y);
         cairo_translate(cr_, x, y);
-        mcr::load_path(cr_, path, &matrix);
+        load_path(cr_, path, &matrix);
         if (ecs.size()) {
             set_foreground(ecs[i % ecs.size()]);
             cairo_stroke_preserve(cr_);
@@ -990,7 +862,7 @@ void GraphicsContextRenderer::draw_text(
         cairo_translate(cr_, x, y);
         cairo_rotate(cr_, -angle * M_PI / 180);
         cairo_move_to(cr_, 0, 0);
-        auto font_face = mcr::ft_font_from_prop(prop);
+        auto font_face = ft_font_from_prop(prop);
         cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
@@ -1011,7 +883,7 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
         return {width, height, descent};
     } else {
         cairo_save(cr_);
-        auto font_face = mcr::ft_font_from_prop(prop);
+        auto font_face = ft_font_from_prop(prop);
         cairo_set_font_face(cr_, font_face);
         cairo_set_font_size(
                 cr_,
@@ -1142,4 +1014,6 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     m.attr("FORMAT_ARGB32") = static_cast<int>(CAIRO_FORMAT_ARGB32);
 
     return m.ptr();
+}
+
 }
