@@ -608,30 +608,37 @@ void GraphicsContextRenderer::draw_markers(
     auto marker_matrix = mcr::matrix_from_transform(marker_transform);
     auto matrix = mcr::matrix_from_transform(transform, get_height());
 
+    double r, g, b, a{1};
+    if (py::len(*rgb_fc) == 3) {
+        std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
+    } else {
+        std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
+    }
+    if (alpha_) {
+        a = *alpha_;
+    }
+    // Recording surfaces are quite slow, so just call our lambda instead.
+    auto draw_one_marker = [&](cairo_t* cr) {
+        mcr::load_path(cr, marker_path, &marker_matrix);
+        if (rgb_fc) {
+            cairo_save(cr);
+            cairo_set_source_rgba(cr, r, g, b, a);
+            cairo_fill_preserve(cr);
+            cairo_restore(cr);
+        }
+        cairo_stroke(cr);
+    };
+
     // Get the extent of the marker.
     auto recording_surface = cairo_recording_surface_create(
             CAIRO_CONTENT_COLOR_ALPHA, nullptr);
     auto recording_cr = cairo_create(recording_surface);
     mcr::copy_for_marker_stamping(cr_, recording_cr);
-    mcr::load_path(recording_cr, marker_path, &marker_matrix);
-    if (rgb_fc) {
-        cairo_save(recording_cr);
-        double r, g, b, a{1};
-        if (py::len(*rgb_fc) == 3) {
-            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-        } else {
-            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-        }
-        if (alpha_) {
-            a = *alpha_;
-        }
-        cairo_set_source_rgba(recording_cr, r, g, b, a);
-        cairo_fill_preserve(recording_cr);
-        cairo_restore(recording_cr);
-    }
-    cairo_stroke(recording_cr);
+    draw_one_marker(recording_cr);
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+    cairo_destroy(recording_cr);
+    cairo_surface_destroy(recording_surface);
 
     double simplify_threshold = py::module::import("matplotlib").attr("rcParams")[
         "path.simplify_threshold"].cast<double>();
@@ -647,10 +654,10 @@ void GraphicsContextRenderer::draw_markers(
                         cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
                         std::ceil(width + 1), std::ceil(height + 1));
                 auto raster_cr = cairo_create(raster_surface);
-                cairo_set_source_surface(
-                        raster_cr, recording_surface,
-                        -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
-                cairo_paint(raster_cr);
+                mcr::copy_for_marker_stamping(cr_, raster_cr);
+                cairo_translate(
+                        raster_cr, -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
+                draw_one_marker(recording_cr);
                 auto pattern = cairo_pattern_create_for_surface(raster_surface);
                 cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
                 patterns[i * n_subpix + j] = pattern;
@@ -668,20 +675,23 @@ void GraphicsContextRenderer::draw_markers(
     for (size_t i = 0; i < n; ++i) {
         auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
         cairo_matrix_transform_point(&matrix, &x, &y);
-        // Offsetting by get_height() is already taken care of by matrix.
-        auto target_x = x + x0, target_y = y + y0;
         if (patterns) {
+            auto target_x = x + x0, target_y = y + y0;
             auto i_target_x = std::floor(target_x), i_target_y = std::floor(target_y);
             auto f_target_x = target_x - i_target_x, f_target_y = target_y - i_target_y;
             auto idx = int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
             auto pattern = patterns[idx];
+            // Offsetting by get_height() is already taken care of by matrix.
             auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
             cairo_pattern_set_matrix(pattern, &pattern_matrix);
             cairo_set_source(cr_, pattern);
+            cairo_paint(cr_);
         } else {
-            cairo_set_source_surface(cr_, recording_surface, target_x, target_y);
+            cairo_save(cr_);
+            cairo_translate(cr_, x, y);
+            draw_one_marker(cr_);
+            cairo_restore(cr_);
         }
-        cairo_paint(cr_);
     }
     cairo_restore(cr_);
 
@@ -691,8 +701,6 @@ void GraphicsContextRenderer::draw_markers(
             cairo_pattern_destroy(patterns[i]);
         }
     }
-    cairo_destroy(recording_cr);
-    cairo_surface_destroy(recording_surface);
 }
 
 void GraphicsContextRenderer::draw_path(
