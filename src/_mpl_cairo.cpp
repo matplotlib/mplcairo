@@ -36,6 +36,13 @@ namespace mcr {  // mcr: Matplotlib cairo private functions.
     cairo_font_face_t* ft_font_from_prop(py::object prop);
 }
 
+struct Region {
+    cairo_rectangle_int_t bbox;
+    std::shared_ptr<char[]> buf;
+
+    Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf);
+};
+
 struct GraphicsContextRenderer {
 
     cairo_t* cr_;
@@ -44,6 +51,7 @@ struct GraphicsContextRenderer {
     py::object mathtext_parser_;
     py::object text2path_;
 
+    private:
     double points_to_pixels(double points);
     double pixels_to_points(double pixels);
     rgba_t get_rgba(void);
@@ -125,6 +133,9 @@ struct GraphicsContextRenderer {
             bool ismath, py::object mtext);
     std::tuple<double, double, double> get_text_width_height_descent(
             std::string s, py::object prop, bool ismath);
+
+    Region copy_from_bbox(py::object bbox);
+    void restore_region(Region& region);
 };
 
 cairo_matrix_t mcr::matrix_from_transform(py::object transform, double y0) {
@@ -267,6 +278,9 @@ cairo_font_face_t* mcr::ft_font_from_prop(py::object prop) {
     }
     return font_face;
 }
+
+Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
+    bbox{bbox}, buf{buf} {}
 
 double GraphicsContextRenderer::points_to_pixels(double points) {
     return points * dpi_ / 72;
@@ -978,6 +992,46 @@ std::tuple<double, double, double> GraphicsContextRenderer::get_text_width_heigh
     }
 }
 
+Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
+    // Use ints to avoid a bunch of warnings below.
+    int x0 = std::floor(bbox.attr("x0").cast<double>()),
+        x1 = std::ceil(bbox.attr("x1").cast<double>()),
+        y0 = std::floor(bbox.attr("y0").cast<double>()),
+        y1 = std::ceil(bbox.attr("y1").cast<double>());
+    if (!((0 <= x0) && (x0 <= x1) && (x1 < get_width())
+                && (0 <= y0) && (y0 <= y1) && (y1 < get_height()))) {
+        throw std::invalid_argument("Invalid bbox");
+    }
+    auto width = x1 - x0, height = y1 - y0;
+    // Assuming 4 bytes per pixel throughout.
+    auto buf = std::shared_ptr<char[]>(new char[4 * width * height]);
+    auto surface = cairo_get_target(cr_);
+    auto raw = cairo_image_surface_get_data(surface);
+    auto stride = cairo_image_surface_get_stride(surface);
+    for (int y = y0; y < y1; ++y) {
+        std::memcpy(
+                buf.get() + (y - y0) * 4 * width, raw + y * stride + 4 * x0,
+                4 * width);
+    }
+    return {{x0, y0, width, height}, buf};
+}
+
+void GraphicsContextRenderer::restore_region(Region& region) {
+    auto [bbox, buf] = region;
+    auto [x0, y0, width, height] = bbox;
+    int x1 = x0 + width, y1 = y0 + height;
+    auto surface = cairo_get_target(cr_);
+    auto raw = cairo_image_surface_get_data(surface);
+    auto stride = cairo_image_surface_get_stride(surface);
+    cairo_surface_flush(surface);
+    for (int y = y0; y < y1; ++y) {
+        std::memcpy(
+                raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width,
+                4 * width);
+    }
+    cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
+}
+
 PYBIND11_PLUGIN(_mpl_cairo) {
     py::module m("_mpl_cairo", "A cairo backend for matplotlib.");
 
@@ -992,6 +1046,8 @@ PYBIND11_PLUGIN(_mpl_cairo) {
             ;});
     m.add_object("_cleanup", clean_ft_lib);
     UNIT_CIRCLE = py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+
+    py::class_<Region>(m, "_Region");
 
     py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
 
@@ -1045,7 +1101,11 @@ PYBIND11_PLUGIN(_mpl_cairo) {
                 "ismath"_a=false, "mtext"_a=nullptr)
         .def("get_text_width_height_descent",
                 &GraphicsContextRenderer::get_text_width_height_descent,
-                "s"_a, "prop"_a, "ismath"_a);
+                "s"_a, "prop"_a, "ismath"_a)
+
+        // Canvas API.
+        .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)
+        .def("restore_region", &GraphicsContextRenderer::restore_region);
 
     m.attr("FORMAT_ARGB32") = static_cast<int>(CAIRO_FORMAT_ARGB32);
 

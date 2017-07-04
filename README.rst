@@ -62,8 +62,13 @@ Missing features
   ``offset_position`` parameter).  This should be fixed on Matplotlib's side.
 - ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
   redirects to ``draw_path_collection``).
-- ``copy_from_bbox``, ``restore_region``
 - Sketching (i.e. xkcd-style plots).
+
+Known issues
+------------
+
+- Blitting-based animation leaves small artefacts at the edges of the blitted
+  region.
 
 Possible optimizations
 ----------------------
