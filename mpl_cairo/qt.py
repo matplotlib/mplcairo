@@ -1,4 +1,4 @@
-from matplotlib import rcsetup
+from matplotlib import colors, rcsetup, rcParams
 from matplotlib.backend_bases import GraphicsContextBase, RendererBase
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
 from matplotlib.backends.qt_compat import QT_API
@@ -14,7 +14,13 @@ class GraphicsContextRendererCairo(
         # Fill in the missing methods.
         GraphicsContextBase,
         RendererBase):
-    pass
+    def __init__(self, *args, **kwargs):
+        _mpl_cairo.GraphicsContextRendererCairo.__init__(self, *args, **kwargs)
+        # Define the hatch-related attributes from GraphicsContextBase.
+        # Everything else lives directly at the C-level.
+        self._hatch = None
+        self._hatch_color = colors.to_rgba(rcParams['hatch.color'])
+        self._hatch_linewidth = rcParams['hatch.linewidth']
 
 
 class FigureCanvasQTCairo(FigureCanvasQT):

@@ -56,7 +56,6 @@ Notes
 Missing features
 ----------------
 
-- Hatching.
 - Snapping.
 - ``hexbin`` essentially requires its own implementation (due to the use of the
   ``offset_position`` parameter).  This should be fixed on Matplotlib's side.

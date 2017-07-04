@@ -821,6 +821,32 @@ void GraphicsContextRenderer::draw_path(
         cairo_fill_preserve(cr_);
         cairo_restore(cr_);
     }
+    py::object hatch_path = py::cast(this).attr("get_hatch_path")();
+    if (!hatch_path.is_none()) {
+        cairo_save(cr_);
+        auto dpi = int(dpi_);  // Truncating is good enough.
+        auto hatch_surface = cairo_image_surface_create(
+                CAIRO_FORMAT_ARGB32, dpi, dpi);
+        auto hatch_cr = cairo_create(hatch_surface);
+        auto [r, g, b, a] = py::module::import("matplotlib.colors").attr("to_rgba")(
+                py::cast(this).attr("get_hatch_color")()).cast<rgba_t>();
+        cairo_set_source_rgba(hatch_cr, r, g, b, a);
+        cairo_set_line_width(hatch_cr, points_to_pixels(
+                py::cast(this).attr("get_hatch_linewidth")().cast<double>()));
+        auto hatch_matrix = cairo_matrix_t{dpi, 0, 0, -dpi, 0, dpi};
+        mcr::load_path(hatch_cr, hatch_path, &hatch_matrix);
+        cairo_fill_preserve(hatch_cr);
+        cairo_stroke(hatch_cr);
+        auto hatch_pattern = cairo_pattern_create_for_surface(hatch_surface);
+        cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
+        cairo_set_source(cr_, hatch_pattern);
+        cairo_clip_preserve(cr_);
+        cairo_paint(cr_);
+        cairo_pattern_destroy(hatch_pattern);
+        cairo_destroy(hatch_cr);
+        cairo_surface_destroy(hatch_surface);
+        cairo_restore(cr_);
+    }
     cairo_stroke(cr_);
     cairo_restore(cr_);
 }
