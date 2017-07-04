@@ -47,13 +47,6 @@ struct GraphicsContextRenderer {
     double points_to_pixels(double points);
     double pixels_to_points(double pixels);
     rgba_t get_rgba(void);
-    bool try_draw_circles(
-            GraphicsContextRenderer& gc,
-            py::object marker_path,
-            cairo_matrix_t* marker_matrix,
-            py::object path,
-            cairo_matrix_t* matrix,
-            std::optional<py::object> rgb_fc);
 
     public:
     GraphicsContextRenderer(double dpi);
@@ -287,61 +280,6 @@ rgba_t GraphicsContextRenderer::get_rgba(void) {
         a = *alpha_;
     }
     return {r, g, b, a};
-}
-
-bool GraphicsContextRenderer::try_draw_circles(
-        GraphicsContextRenderer& gc,
-        py::object marker_path,
-        cairo_matrix_t* marker_matrix,
-        py::object path,
-        cairo_matrix_t* matrix,
-        std::optional<py::object> rgb_fc) {
-    // Abuse the degenerate-segment handling by cairo to quickly draw fully
-    // opaque circles.  A quick profiling suggests a 2x speed improvement, but
-    // the markers seem a bit smaller?
-    if (marker_path != UNIT_CIRCLE) {
-        return false;
-    }
-    // yy = -xx due to the flipping in transform_to_matrix().
-    if ((marker_matrix->yy != -marker_matrix->xx) || marker_matrix->xy || marker_matrix->yx) {
-        return false;
-    }
-    cairo_save(cr_);
-    if (rgb_fc) {
-        double r, g, b, a{1};
-        if (py::len(*rgb_fc) == 3) {
-            std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-        } else {
-            std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-        }
-        if (alpha_) {
-            a = *alpha_;
-        }
-        cairo_set_source_rgba(cr_, r, g, b, a);
-    }
-    auto [r, g, b, a] = get_rgba();
-    if (a != 1) {
-        // Alpha overlay would be mishandled.
-        cairo_restore(cr_);
-        return false;
-    }
-    cairo_transform(cr_, matrix);
-    auto vertices = path.attr("vertices").cast<py::array_t<double>>();
-    // NOTE: For efficiency, we ignore codes, which is the documented behavior
-    // even though not the actual one of other backends.
-    auto n = vertices.shape(0);
-    for (size_t i = 0; i < n; ++i) {
-        auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
-        cairo_move_to(cr_, x, y);
-        cairo_close_path(cr_);
-    }
-    cairo_restore(cr_);
-    cairo_save(cr_);
-    cairo_set_line_cap(cr_, CAIRO_LINE_CAP_ROUND);
-    cairo_set_line_width(cr_, 2 * std::abs(marker_matrix->xx));
-    cairo_stroke(cr_);
-    cairo_restore(cr_);
-    return true;
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
@@ -695,19 +633,33 @@ void GraphicsContextRenderer::draw_markers(
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
 
-    // Rasterize.
-    auto raster_surface = cairo_surface_create_similar_image(
-            cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
-            std::ceil(width), std::ceil(height));
-    auto raster_cr = cairo_create(raster_surface);
-    cairo_set_source_surface(raster_cr, recording_surface, -x0, -y0);
-    cairo_paint(raster_cr);
-    auto pattern = cairo_pattern_create_for_surface(raster_surface);
-    cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
+    double simplify_threshold = py::module::import("matplotlib").attr("rcParams")[
+        "path.simplify_threshold"].cast<double>();
+    size_t n_subpix = std::ceil(1 / simplify_threshold);
+    auto patterns = simplify_threshold >= 1. / 16 ?  // Don't let memory explode.
+        std::unique_ptr<cairo_pattern_t*[]>(new cairo_pattern_t*[n_subpix * n_subpix]) :
+        nullptr;
 
-    if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
-        return;
+    if (patterns) {
+        for (size_t i = 0; i < n_subpix; ++i) {
+            for (size_t j = 0; j < n_subpix; ++j) {
+                auto raster_surface = cairo_surface_create_similar_image(
+                        cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
+                        std::ceil(width + 1), std::ceil(height + 1));
+                auto raster_cr = cairo_create(raster_surface);
+                cairo_set_source_surface(
+                        raster_cr, recording_surface,
+                        -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
+                cairo_paint(raster_cr);
+                auto pattern = cairo_pattern_create_for_surface(raster_surface);
+                cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
+                patterns[i * n_subpix + j] = pattern;
+                cairo_destroy(raster_cr);
+                cairo_surface_destroy(raster_surface);
+            }
+        }
     }
+
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
     // NOTE: For efficiency, we ignore codes, which is the documented behavior
     // even though not the actual one of other backends.
@@ -717,17 +669,28 @@ void GraphicsContextRenderer::draw_markers(
         auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
         cairo_matrix_transform_point(&matrix, &x, &y);
         // Offsetting by get_height() is already taken care of by matrix.
-        auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -(x + x0), -(y + y0)};
-        cairo_pattern_set_matrix(pattern, &pattern_matrix);
-        cairo_set_source(cr_, pattern);
+        auto target_x = x + x0, target_y = y + y0;
+        if (patterns) {
+            auto i_target_x = std::floor(target_x), i_target_y = std::floor(target_y);
+            auto f_target_x = target_x - i_target_x, f_target_y = target_y - i_target_y;
+            auto idx = int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
+            auto pattern = patterns[idx];
+            auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
+            cairo_pattern_set_matrix(pattern, &pattern_matrix);
+            cairo_set_source(cr_, pattern);
+        } else {
+            cairo_set_source_surface(cr_, recording_surface, target_x, target_y);
+        }
         cairo_paint(cr_);
     }
     cairo_restore(cr_);
 
     // Cleanup.
-    cairo_pattern_destroy(pattern);
-    cairo_destroy(raster_cr);
-    cairo_surface_destroy(raster_surface);
+    if (patterns) {
+        for (size_t i = 0; i < n_subpix * n_subpix; ++i) {
+            cairo_pattern_destroy(patterns[i]);
+        }
+    }
     cairo_destroy(recording_cr);
     cairo_surface_destroy(recording_surface);
 }

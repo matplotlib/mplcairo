@@ -1,5 +1,6 @@
 import pytest
 
+import matplotlib as mpl
 from matplotlib.testing.conftest import mpl_test_settings
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5 import QtGui
@@ -52,7 +53,8 @@ def test_line(benchmark, canvas_cls, axes, sample_vector):
 
 @pytest.mark.parametrize(
     "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_circles_fast(benchmark, canvas_cls, axes, sample_vector):
+def test_circles_stamped(benchmark, canvas_cls, axes, sample_vector):
+    mpl.rcParams["path.simplify_threshold"] = 1 / 8
     axes.plot(sample_vector, "o")
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
@@ -61,8 +63,9 @@ def test_circles_fast(benchmark, canvas_cls, axes, sample_vector):
 
 @pytest.mark.parametrize(
     "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_circles(benchmark, canvas_cls, axes, sample_vector):
-    axes.plot(sample_vector, "o", alpha=.99)
+def test_circles_exact(benchmark, canvas_cls, axes, sample_vector):
+    mpl.rcParams["path.simplify_threshold"] = 0
+    axes.plot(sample_vector, "o")
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
@@ -70,7 +73,18 @@ def test_circles(benchmark, canvas_cls, axes, sample_vector):
 
 @pytest.mark.parametrize(
     "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
-def test_squares(benchmark, canvas_cls, axes, sample_vector):
+def test_squares_stamped(benchmark, canvas_cls, axes, sample_vector):
+    mpl.rcParams["path.simplify_threshold"] = 1 / 8
+    axes.plot(sample_vector, "s")
+    despine(axes)
+    axes.figure.canvas = canvas_cls(axes.figure)
+    benchmark(axes.figure.canvas.draw)
+
+
+@pytest.mark.parametrize(
+    "canvas_cls", [FigureCanvasQTAgg, FigureCanvasQTCairo])
+def test_squares_exact(benchmark, canvas_cls, axes, sample_vector):
+    mpl.rcParams["path.simplify_threshold"] = 0
     axes.plot(sample_vector, "s")
     despine(axes)
     axes.figure.canvas = canvas_cls(axes.figure)

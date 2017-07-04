@@ -33,7 +33,8 @@ Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable to ``module://mpl_cairo.qt``.
 
 The ``examples`` folder contains a few cases where the output of this backend
-is arguably more accurate (due to the lack of marker stamping).
+is arguably more accurate (thanks to the use of subpixel marker stamping, with
+an accuracy controlled by the ``path.simplify_threshold`` rcparam).
 
 Benchmarks
 ----------
@@ -45,7 +46,6 @@ Install (in the virtualenv) ``pytest-benchmark`` and call (e.g.)::
 Missing features
 ----------------
 
-- The current "optimized" circle stamper draws circles too small.
 - Hatching.
 - Snapping.
 - ``hexbin`` essentially requires its own implementation (due to the use of the
@@ -60,7 +60,6 @@ Possible optimizations
 
 - Path simplification (although cairo appears to use Douglas-Peucker
   internally).
-- Marker stamping (but not at the cost of accuracy).
 - Use QtOpenGLWidget and the cairo-gl backend.
 
 Other ideas
