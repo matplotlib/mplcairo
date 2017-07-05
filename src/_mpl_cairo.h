@@ -63,7 +63,7 @@ struct GraphicsContextRenderer {
   ~GraphicsContextRenderer();
 
   void set_ctx_from_surface(py::object surface);
-  void set_ctx_from_image_args(int format, int width, int height);
+  void set_ctx_from_image_args(cairo_format_t format, int width, int height);
   uintptr_t get_data_address();
 
   void set_alpha(std::optional<double> alpha);

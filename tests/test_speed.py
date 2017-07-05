@@ -7,7 +7,7 @@ from matplotlib.backends.backend_qt5 import QtGui
 import numpy as np
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from mpl_cairo._mpl_cairo import cairo_antialias_t
+from mpl_cairo import antialias_t
 from mpl_cairo.qt import FigureCanvasQTCairo
 
 
@@ -47,10 +47,10 @@ def test_axes(benchmark, canvas_cls, axes):
     "canvas_cls,antialiased",
     [(FigureCanvasQTAgg, False),
      (FigureCanvasQTAgg, True),
-     (FigureCanvasQTCairo, cairo_antialias_t.NONE),
-     (FigureCanvasQTCairo, cairo_antialias_t.FAST),
-     (FigureCanvasQTCairo, cairo_antialias_t.GOOD),
-     (FigureCanvasQTCairo, cairo_antialias_t.BEST)])
+     (FigureCanvasQTCairo, antialias_t.NONE),
+     (FigureCanvasQTCairo, antialias_t.FAST),
+     (FigureCanvasQTCairo, antialias_t.GOOD),
+     (FigureCanvasQTCairo, antialias_t.BEST)])
 @pytest.mark.parametrize("joinstyle", ["miter", "round", "bevel"])
 def test_line(
         benchmark, canvas_cls, antialiased, joinstyle, axes, sample_vectors):

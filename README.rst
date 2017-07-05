@@ -12,8 +12,8 @@ Installation
 ------------
 
 Dependencies:
-- Python 3
-- cairo >=1.10
+- Python 3,
+- cairo >=1.12,
 - a C++ compiler with C++17 support, e.g. GCC≥7.1.
 
 Run::
@@ -49,9 +49,9 @@ Notes
 -----
 
 - Antialiasing uses ``CAIRO_ANTIALIAS_FAST`` by default.  The ``antialiased``
-  artist property can also take the ``mpl_cairo._mpl_cairo.cairo_antialias_t.GOOD``
-  (or ``BEST``, etc.) value for additional control.  ``GOOD``/``BEST``
-  antialiasing of lines is ~3x slower than using Agg.
+  artist property can also take the ``mpl_cairo.antialias_t.GOOD`` (or
+  ``BEST``, etc.) value for additional control.  ``GOOD``/``BEST`` antialiasing
+  of lines is ~3x slower than using Agg.
 - ``path.simplify_threshold`` is also used to control the accuracy of marker
   stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
   than that will use the exact (slower) marker drawing path.

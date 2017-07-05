@@ -258,9 +258,7 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
 }
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
-    int format, int width, int height) {
-  // NOTE: The first argument is an int rather than a cairo_format_t because
-  // pybind11 is strict with enum conversions.
+    cairo_format_t format, int width, int height) {
   // NOTE: This API will ultimately be favored over set_ctx_from_surface as
   // it bypasses the need to construct a surface in the Python-level using
   // yet another cairo wrapper.  In particular, cairocffi (which relies on
@@ -268,8 +266,7 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   if (cr_) {
     cairo_destroy(cr_);
   }
-  auto surface = cairo_image_surface_create(
-      static_cast<cairo_format_t>(format), width, height);
+  auto surface = cairo_image_surface_create(format, width, height);
   cr_ = cairo_create(surface);
 }
 
@@ -939,7 +936,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
   m.add_object("_cleanup", clean_ft_lib);
   UNIT_CIRCLE = py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
-  py::enum_<cairo_antialias_t>(m, "cairo_antialias_t")
+  py::enum_<cairo_antialias_t>(m, "antialias_t")
     .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
     .value("NONE", CAIRO_ANTIALIAS_NONE)
     .value("GRAY", CAIRO_ANTIALIAS_GRAY)
@@ -947,6 +944,14 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .value("FAST", CAIRO_ANTIALIAS_FAST)
     .value("GOOD", CAIRO_ANTIALIAS_GOOD)
     .value("BEST", CAIRO_ANTIALIAS_BEST);
+  py::enum_<cairo_format_t>(m, "format_t")
+    .value("INVALID", CAIRO_FORMAT_INVALID)
+    .value("ARGB32", CAIRO_FORMAT_ARGB32)
+    .value("RGB24", CAIRO_FORMAT_RGB24)
+    .value("A8", CAIRO_FORMAT_A8)
+    .value("A1", CAIRO_FORMAT_A1)
+    .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
+    .value("RGB30", CAIRO_FORMAT_RGB30);
 
   py::class_<Region>(m, "_Region");
 
@@ -1009,8 +1014,6 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     // Canvas API.
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)
     .def("restore_region", &GraphicsContextRenderer::restore_region);
-
-  m.attr("FORMAT_ARGB32") = static_cast<int>(CAIRO_FORMAT_ARGB32);
 
   return m.ptr();
 }
