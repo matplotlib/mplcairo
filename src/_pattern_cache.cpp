@@ -1,7 +1,5 @@
 #include "_pattern_cache.h"
 
-#include "_util.h"
-
 namespace mpl_cairo {
 
 dash_t convert_dash(cairo_t* cr) {
@@ -41,6 +39,10 @@ void set_dashes(cairo_t* cr, dash_t dash) {
       offset);
 }
 
+size_t PatternCache::Hash::operator()(py::object const& path) const {
+  return std::hash<void*>{}(path.ptr());
+}
+
 size_t PatternCache::Hash::operator()(CacheKey const& key) const {
   // std::tuple is not hashable by default.  Reuse boost::hash_combine.
   size_t hashes[] = {
@@ -68,7 +70,8 @@ bool PatternCache::EqualTo::operator()(CacheKey const& lhs, CacheKey const& rhs)
     && (lhs.linewidth == rhs.linewidth) && (lhs.dash == rhs.dash);
 }
 
-PatternCache::PatternCache(double threshold) {
+PatternCache::PatternCache(double threshold) :
+  threshold_{threshold} {
   if (threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
     n_subpix_ = std::ceil(1 / threshold);
   } else {
@@ -77,12 +80,11 @@ PatternCache::PatternCache(double threshold) {
 }
 
 PatternCache::~PatternCache() {
-  for (auto& [key, entry]: cache_) {
+  for (auto& [key, entry]: patterns_) {
     for (size_t i = 0; i < n_subpix_ * n_subpix_; ++i) {
       cairo_pattern_destroy(entry.patterns[i]);
     }
   }
-  cache_.clear();
 }
 
 void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
@@ -96,8 +98,41 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     cairo_restore(cr);
     return;
   }
-  auto it = cache_.find(key);
-  if (it == cache_.end()) {
+  // Get the path bbox.
+  auto it_bboxes = bboxes_.find(key.path);
+  if (it_bboxes == bboxes_.end()) {
+    auto recording_surface =
+      cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
+    auto recording_cr = cairo_create(recording_surface);
+    auto id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
+    load_path(recording_cr, key.path, &id);
+    key.draw_func(recording_cr);
+    double x0, y0, width, height;
+    cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+    bool ok;
+    std::tie(it_bboxes, ok) =
+      bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, width, height});
+    if (!ok) {
+      throw std::runtime_error("Unexpected insertion failure into cache");
+    }
+  }
+  // Approximate ("quantize") the transform matrix, so that the transformed
+  // path is within 3 x (thresholds/3) of the path transformed by the original
+  // matrix.  1 x threshold will be added by the patterns_ cache.
+  auto& bbox = it_bboxes->second;
+  auto eps = threshold_ / 3;
+  auto xstep = eps / std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
+       ystep = eps / std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height)),
+       xx_q = std::round(key.matrix.xx / xstep) * xstep,
+       yx_q = std::round(key.matrix.yx / xstep) * xstep,
+       xy_q = std::round(key.matrix.xy / ystep) * ystep,
+       yy_q = std::round(key.matrix.yy / ystep) * ystep,
+       x0_q = std::round(key.matrix.x0 / eps) * eps,
+       y0_q = std::round(key.matrix.y0 / eps) * eps;
+  key.matrix = {xx_q, yx_q, xy_q, yy_q, x0_q, y0_q};
+  // Get the patterns.
+  auto it_patterns = patterns_.find(key);
+  if (it_patterns == patterns_.end()) {
     auto recording_surface =
       cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
     auto recording_cr = cairo_create(recording_surface);
@@ -110,37 +145,38 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     // Must be nullptr-initialized.
     auto patterns = std::make_unique<cairo_pattern_t*[]>(n_subpix_ * n_subpix_);
     bool ok;
-    std::tie(it, ok) =
-      cache_.emplace(key, CacheEntry{x0, y0, width, height, std::move(patterns)});
+    std::tie(it_patterns, ok) =
+      patterns_.emplace(key, PatternEntry{x0, y0, width, height, std::move(patterns)});
     if (!ok) {
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
   }
-  auto& entry = it->second;  // Reference, as we have a unique_ptr.
-  auto target_x = x + entry.x0, target_y = y + entry.y0;
+  auto& entry = it_patterns->second;  // Reference, as we have a unique_ptr.
+  auto target_x = x + entry.x, target_y = y + entry.y;
   auto i_target_x = std::floor(target_x), i_target_y = std::floor(target_y);
   auto f_target_x = target_x - i_target_x, f_target_y = target_y - i_target_y;
   auto i = int(n_subpix_ * f_target_x), j = int(n_subpix_ * f_target_y);
   auto idx = i * n_subpix_ + j;
-  if (!entry.patterns[idx]) {
+  auto& pattern = entry.patterns[idx];
+  if (!pattern) {
     auto raster_surface = cairo_image_surface_create(
         CAIRO_FORMAT_A8, std::ceil(entry.width + 1), std::ceil(entry.height + 1));
     auto raster_cr = cairo_create(raster_surface);
     cairo_translate(
-        raster_cr, -entry.x0 + double(i) / n_subpix_, -entry.y0 + double(j) / n_subpix_);
+        raster_cr, -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
     load_path(raster_cr, key.path, &key.matrix);
     cairo_set_line_width(raster_cr, key.linewidth);
     set_dashes(raster_cr, key.dash);
     key.draw_func(raster_cr);
-    auto pattern = cairo_pattern_create_for_surface(raster_surface);
+    pattern = cairo_pattern_create_for_surface(raster_surface);
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
-    entry.patterns[idx] = pattern;
     cairo_destroy(raster_cr);
     cairo_surface_destroy(raster_surface);
   }
+  // Draw using the pattern.
   auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
-  cairo_pattern_set_matrix(entry.patterns[idx], &pattern_matrix);
-  cairo_mask(cr, entry.patterns[idx]);
+  cairo_pattern_set_matrix(pattern, &pattern_matrix);
+  cairo_mask(cr, pattern);
 }
 
 }

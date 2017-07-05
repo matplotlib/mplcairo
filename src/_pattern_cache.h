@@ -9,6 +9,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include "_util.h"
+
 namespace mpl_cairo {
 
 namespace py = pybind11;
@@ -28,19 +30,25 @@ class PatternCache {
     dash_t dash;
   };
   struct Hash {
-    size_t operator()(CacheKey const&) const;
+    size_t operator()(py::object const& path) const;
+    size_t operator()(CacheKey const& key) const;
   };
   struct EqualTo {
-    bool operator()(CacheKey const&, CacheKey const&) const;
+    bool operator()(CacheKey const& lhs, CacheKey const& rhs) const;
   };
 
-  struct CacheEntry {
-    double x0, y0, width, height;
+  struct PatternEntry {
+    // Bounds of the transformed path.
+    double x, y, width, height;
     std::unique_ptr<cairo_pattern_t*[]> patterns;
   };
 
+  double threshold_;
   size_t n_subpix_;
-  std::unordered_map<CacheKey, CacheEntry, Hash, EqualTo> cache_;
+  // Bounds of the non-transformed path.
+  std::unordered_map<py::object, cairo_rectangle_t, Hash> bboxes_;
+  // Bounds of the transformed path, and patterns.
+  std::unordered_map<CacheKey, PatternEntry, Hash, EqualTo> patterns_;
 
   public:
   PatternCache(double threshold);

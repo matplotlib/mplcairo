@@ -16,9 +16,9 @@ namespace mpl_cairo {
 
 namespace py = pybind11;
 
+using rectangle_t = std::tuple<double, double, double, double>;
 using rgb_t = std::tuple<double, double, double>;
 using rgba_t = std::tuple<double, double, double, double>;
-using rectangle_t = std::tuple<double, double, double, double>;
 
 struct Region {
   cairo_rectangle_int_t bbox;
