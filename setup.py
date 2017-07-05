@@ -28,6 +28,7 @@ ext_modules = [
     Extension(
         "mpl_cairo._mpl_cairo",
         ["src/_mpl_cairo.cpp"],
+        depends=["src/_mpl_cairo.h"],
         language="c++",
         include_dirs=[
             get_pybind_include(), get_pybind_include(user=True)
