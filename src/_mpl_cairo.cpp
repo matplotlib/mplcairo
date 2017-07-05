@@ -833,29 +833,15 @@ void GraphicsContextRenderer::draw_text(
           double, double, double, double, double, py::object, py::object>>();
     auto im_raw = py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
     auto ni = im_raw.shape(0), nj = im_raw.shape(1);
-    // Recompute the colors.  Trying to use an A8 image seems just as
-    // complicated (http://cairo.cairographics.narkive.com/ijgxr19T/alpha-masks).
-    auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
-    auto pix = im_raw.data(0, 0);
+    auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, nj);
+    // 1 byte per pixel!
     auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
-    auto [r, g, b, a] = get_rgba();
     for (size_t i = 0; i < ni; ++i) {
-      auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
-      for (size_t j = 0; j < nj; ++j) {
-        auto val = *(pix++);
-        *(ptr++) =
-          (uint8_t(a * val) << 24) + (uint8_t(a * val * r) << 16)
-          + (uint8_t(a * val * g) << 8) + (uint8_t(a * val * b));
-      }
+      std::memcpy(buf.get() + i * stride, im_raw.data(0, 0) + i * nj, nj);
     }
     auto surface = cairo_image_surface_create_for_data(
-        buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
-    auto pattern = cairo_pattern_create_for_surface(surface);
-    auto matrix = cairo_matrix_t{1, 0, 0, 1, -ox, ni - oy};
-    cairo_pattern_set_matrix(pattern, &matrix);
-    cairo_set_source(cr_, pattern);
-    cairo_paint(cr_);
-    cairo_pattern_destroy(pattern);
+        buf.get(), CAIRO_FORMAT_A8, nj, ni, stride);
+    cairo_mask_surface(cr_, surface, ox, oy - ni);
     cairo_surface_destroy(surface);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
@@ -907,7 +893,7 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
     throw std::invalid_argument("Invalid bbox");
   }
   auto width = x1 - x0, height = y1 - y0;
-  // Assuming 4 bytes per pixel throughout.
+  // 4 bytes per pixel throughout!
   auto buf = std::shared_ptr<char[]>(new char[4 * width * height]);
   auto surface = cairo_get_target(cr_);
   auto raw = cairo_image_surface_get_data(surface);
@@ -926,6 +912,7 @@ void GraphicsContextRenderer::restore_region(Region& region) {
   auto raw = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
   cairo_surface_flush(surface);
+  // 4 bytes per pixel!
   for (int y = y0; y < y1; ++y) {
     std::memcpy(raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width, 4 * width);
   }
