@@ -293,11 +293,17 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
   cairo_set_source_rgba(cr_, r, g, b, *alpha);
 }
 
+void GraphicsContextRenderer::set_antialiased(cairo_antialias_t aa) {
+  if (!cr_) {
+    return;
+  }
+  cairo_set_antialias(cr_, aa);
+}
 void GraphicsContextRenderer::set_antialiased(py::object aa) {
   if (!cr_) {
     return;
   }
-  cairo_set_antialias(cr_, aa ? CAIRO_ANTIALIAS_GOOD : CAIRO_ANTIALIAS_NONE);
+  cairo_set_antialias(cr_, aa.cast<bool>() ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
 }
 
 void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
@@ -933,6 +939,15 @@ PYBIND11_PLUGIN(_mpl_cairo) {
   m.add_object("_cleanup", clean_ft_lib);
   UNIT_CIRCLE = py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
+  py::enum_<cairo_antialias_t>(m, "cairo_antialias_t")
+    .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
+    .value("NONE", CAIRO_ANTIALIAS_NONE)
+    .value("GRAY", CAIRO_ANTIALIAS_GRAY)
+    .value("SUBPIXEL", CAIRO_ANTIALIAS_SUBPIXEL)
+    .value("FAST", CAIRO_ANTIALIAS_FAST)
+    .value("GOOD", CAIRO_ANTIALIAS_GOOD)
+    .value("BEST", CAIRO_ANTIALIAS_BEST);
+
   py::class_<Region>(m, "_Region");
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
@@ -945,7 +960,10 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)
-    .def("set_antialiased", &GraphicsContextRenderer::set_antialiased)
+    .def("set_antialiased",
+        py::overload_cast<cairo_antialias_t>(&GraphicsContextRenderer::set_antialiased))
+    .def("set_antialiased",
+        py::overload_cast<py::object>(&GraphicsContextRenderer::set_antialiased))
     .def("set_capstyle", &GraphicsContextRenderer::set_capstyle)
     .def("set_clip_rectangle", &GraphicsContextRenderer::set_clip_rectangle)
     .def("set_clip_path", &GraphicsContextRenderer::set_clip_path)

@@ -67,6 +67,7 @@ struct GraphicsContextRenderer {
   uintptr_t get_data_address();
 
   void set_alpha(std::optional<double> alpha);
+  void set_antialiased(cairo_antialias_t aa);
   void set_antialiased(py::object aa); // bool, but also np.bool_.
   void set_capstyle(std::string capstyle);
   void set_clip_rectangle(std::optional<py::object> rectangle);

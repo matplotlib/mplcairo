@@ -5,8 +5,8 @@ This is a new, fairly complete implementation of a Cairo backend for
 Matplotlib.  Currently, it is designed to be used with the qt-cairo backend
 proposed in Matplotlib's PR #8771.
 
-Depending on the specific task, the backend can bea anywhere from ~2x faster
-(e.g., stamping markers) to ~3x slower (e.g., drawing lines) than Agg.
+Depending on the specific task, the backend can be anywhere from ~2x faster
+(e.g., stamping markers) to ~10% faster (e.g., drawing lines) than Agg.
 
 Installation
 ------------
@@ -48,6 +48,10 @@ call (e.g.)::
 Notes
 -----
 
+- Antialiasing uses ``CAIRO_ANTIALIAS_FAST`` by default.  The ``antialiased``
+  artist property can also take the ``mpl_cairo._mpl_cairo.cairo_antialias_t.GOOD``
+  (or ``BEST``, etc.) value for additional control.  ``GOOD``/``BEST``
+  antialiasing of lines is ~3x slower than using Agg.
 - ``path.simplify_threshold`` is also used to control the accuracy of marker
   stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
   than that will use the exact (slower) marker drawing path.
