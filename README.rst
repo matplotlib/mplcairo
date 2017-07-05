@@ -69,7 +69,6 @@ Missing features
 
 - Snapping.
 - Sketching (i.e. xkcd-style plots).
-- Control of linewidth and dashes in PathCollections.
 
 Known issues
 ------------

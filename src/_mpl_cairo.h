@@ -106,10 +106,10 @@ struct GraphicsContextRenderer {
       py::object offset_transform,
       py::object fcs,
       py::object ecs,
-      std::vector<py::object> lws,
-      std::vector<py::object> dashes,
-      std::vector<py::object> aas,
-      std::vector<py::object> urls,
+      std::vector<double> lws,
+      std::vector<std::tuple<std::optional<double>, std::optional<py::object>>> dashes,
+      py::object aas,
+      py::object urls,
       std::string offset_position);
   void draw_text(
       GraphicsContextRenderer& gc,

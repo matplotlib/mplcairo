@@ -13,11 +13,19 @@ namespace mpl_cairo {
 
 namespace py = pybind11;
 
+using dash_t = std::tuple<double, std::string>;  // Hack to use std::hash<std::string>.
+
+dash_t convert_dash(cairo_t* cr);
+dash_t convert_dash(std::tuple<std::optional<double>, std::optional<py::object>> dash_spec);
+void set_dashes(cairo_t* cr, dash_t dash);
+
 class PatternCache {
   struct CacheKey {
     py::object path;
     cairo_matrix_t matrix;
     void (*draw_func)(cairo_t*);
+    double linewidth;
+    dash_t dash;
   };
   struct Hash {
     size_t operator()(CacheKey const&) const;

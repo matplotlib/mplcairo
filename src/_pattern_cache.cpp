@@ -4,30 +4,68 @@
 
 namespace mpl_cairo {
 
+dash_t convert_dash(cairo_t* cr) {
+  auto dash_count = cairo_get_dash_count(cr);
+  auto dashes = std::unique_ptr<double[]>(new double[dash_count]);
+  double offset;
+  cairo_get_dash(cr, dashes.get(), &offset);
+  return {
+    offset,
+    std::string{
+      reinterpret_cast<char*>(dashes.get()), dash_count * sizeof(dashes[0])}};
+}
+
+dash_t convert_dash(std::tuple<std::optional<double>, std::optional<py::object>> dash_spec) {
+  auto [offset, dash_list] = dash_spec;
+  if (dash_list) {
+    if (!offset) {
+      throw std::invalid_argument("Missing dash offset");
+    }
+    auto dashes = dash_list->cast<std::vector<double>>();
+    return {
+      *offset,
+      std::string{
+        reinterpret_cast<char*>(dashes.data()),
+        dashes.size() * sizeof(dashes[0])}};
+  } else {
+    return {0, ""};
+  }
+}
+
+void set_dashes(cairo_t* cr, dash_t dash) {
+  auto [offset, buf] = dash;
+  cairo_set_dash(
+      cr,
+      std::launder(reinterpret_cast<double*>(buf.data())),
+      buf.size() / sizeof(double),
+      offset);
+}
+
 size_t PatternCache::Hash::operator()(CacheKey const& key) const {
-  auto& [path, matrix, draw_func] = key;
   // std::tuple is not hashable by default.  Reuse boost::hash_combine.
   size_t hashes[] = {
-    std::hash<void*>{}(path.ptr()),
-    std::hash<double>{}(matrix.xx), std::hash<double>{}(matrix.xy),
-    std::hash<double>{}(matrix.yx), std::hash<double>{}(matrix.yy),
-    std::hash<double>{}(matrix.x0), std::hash<double>{}(matrix.y0),
-    std::hash<void (*)(cairo_t*)>{}(draw_func)};
+    std::hash<void*>{}(key.path.ptr()),
+    std::hash<double>{}(key.matrix.xx), std::hash<double>{}(key.matrix.xy),
+    std::hash<double>{}(key.matrix.yx), std::hash<double>{}(key.matrix.yy),
+    std::hash<double>{}(key.matrix.x0), std::hash<double>{}(key.matrix.y0),
+    std::hash<void (*)(cairo_t*)>{}(key.draw_func),
+    std::hash<double>{}(key.linewidth),
+    std::hash<double>{}(std::get<0>(key.dash)),
+    std::hash<std::string>{}(std::get<1>(key.dash))};
   auto seed = size_t{0};
-  for (size_t i = 0; i < 7; ++i) {
+  for (size_t i = 0; i < sizeof(hashes) / sizeof(hashes[0]); ++i) {
     seed ^= hashes[i] + 0x9e3779b9 + (seed << 6) + (seed >> 2);
   }
   return seed;
 }
 
 bool PatternCache::EqualTo::operator()(CacheKey const& lhs, CacheKey const& rhs) const {
-  auto& [path1, matrix1, draw_func1] = lhs;
-  auto& [path2, matrix2, draw_func2] = rhs;
-  return (path1 == path2)
-    && (matrix1.xx == matrix2.xx) && (matrix1.xy == matrix2.xy)
-    && (matrix1.yx == matrix2.yx) && (matrix1.yy == matrix2.yy)
-    && (matrix1.x0 == matrix2.x0) && (matrix1.y0 == matrix2.y0)
-    && (draw_func1 == draw_func2);
+  return (lhs.path == rhs.path)
+    && (lhs.matrix.xx == rhs.matrix.xx) && (lhs.matrix.xy == rhs.matrix.xy)
+    && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
+    && (lhs.matrix.x0 == rhs.matrix.x0) && (lhs.matrix.y0 == rhs.matrix.y0)
+    && (lhs.draw_func == rhs.draw_func)
+    && (lhs.linewidth == rhs.linewidth) && (lhs.dash == rhs.dash);
 }
 
 PatternCache::PatternCache(double threshold) {
@@ -52,7 +90,8 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     cairo_save(cr);
     cairo_translate(cr, x, y);
     load_path(cr, key.path, &key.matrix);
-    // TODO: Copy lw, dashes.
+    cairo_set_line_width(cr, key.linewidth);
+    set_dashes(cr, key.dash);
     key.draw_func(cr);
     cairo_restore(cr);
     return;
@@ -63,7 +102,8 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
       cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
     auto recording_cr = cairo_create(recording_surface);
     load_path(recording_cr, key.path, &key.matrix);
-    // TODO: Copy lw, dashes.
+    cairo_set_line_width(recording_cr, key.linewidth);
+    set_dashes(recording_cr, key.dash);
     key.draw_func(recording_cr);
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
@@ -89,7 +129,8 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     cairo_translate(
         raster_cr, -entry.x0 + double(i) / n_subpix_, -entry.y0 + double(j) / n_subpix_);
     load_path(raster_cr, key.path, &key.matrix);
-    // TODO: Copy lw, dashes.
+    cairo_set_line_width(raster_cr, key.linewidth);
+    set_dashes(raster_cr, key.dash);
     key.draw_func(raster_cr);
     auto pattern = cairo_pattern_create_for_surface(raster_surface);
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);

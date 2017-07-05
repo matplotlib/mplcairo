@@ -204,13 +204,10 @@ void GraphicsContextRenderer::set_dashes(
     std::optional<double> dash_offset, std::optional<py::object> dash_list) {
   if (dash_list) {
     if (!dash_offset) {
-      throw std::invalid_argument("Missing offset");
+      throw std::invalid_argument("Missing dash offset");
     }
-    std::vector<double> v;
-    for (auto& e: dash_list->cast<py::iterable>()) {
-      v.push_back(e.cast<double>());
-    }
-    cairo_set_dash(cr_, v.data(), v.size(), *dash_offset);
+    auto dashes = dash_list->cast<std::vector<double>>();
+    cairo_set_dash(cr_, dashes.data(), dashes.size(), *dash_offset);
   } else {
     cairo_set_dash(cr_, nullptr, 0, 0);
   }
@@ -595,12 +592,12 @@ void GraphicsContextRenderer::draw_path_collection(
     py::object offset_transform,
     py::object fcs,
     py::object ecs,
-    std::vector<py::object> lws,
-    std::vector<py::object> dashes,
-    std::vector<py::object> aas,
-    std::vector<py::object> urls,
+    std::vector<double> lws,
+    std::vector<std::tuple<std::optional<double>, std::optional<py::object>>> dashes,
+    py::object aas,
+    py::object urls,
     std::string offset_position) {
-  // TODO: Support lws, dashes.
+  // TODO: Discretize marker sizes.
   // TODO: Persistent cache; cache eviction policy.
   if (!cr_) {
     return;
@@ -658,14 +655,18 @@ void GraphicsContextRenderer::draw_path_collection(
       auto r = *fcs_raw.data(i_mod, 0), g = *fcs_raw.data(i_mod, 1),
            b = *fcs_raw.data(i_mod, 2), a = *fcs_raw.data(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
-      cache.mask(cr_, {path, matrix, &cairo_fill}, x, y);
+      cache.mask(cr_, {path, matrix, &cairo_fill, 0, {}}, x, y);
     }
     if (ecs_raw.size()) {
       auto i_mod = i % ecs_raw.shape(0);
       auto r = *ecs_raw.data(i_mod, 0), g = *ecs_raw.data(i_mod, 1),
            b = *ecs_raw.data(i_mod, 2), a = *ecs_raw.data(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
-      cache.mask(cr_, {path, matrix, &cairo_stroke}, x, y);
+      auto lw = lws.size()
+        ? points_to_pixels(lws[i % lws.size()]) : cairo_get_line_width(cr_);
+      auto dash = dashes.size()
+        ? convert_dash(dashes[i % dashes.size()]) : convert_dash(cr_);
+      cache.mask(cr_, {path, matrix, &cairo_stroke, lw, dash}, x, y);
     }
     // NOTE: We drop antialiaseds because that just seems silly.
     // We drop urls as they should be handled in a post-processing step anyways
