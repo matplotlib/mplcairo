@@ -1,155 +1,11 @@
 #include "_mpl_cairo.h"
 
+#include "_util.h"
+#include "_pattern_cache.h"
+
 namespace mpl_cairo {
 
 using namespace pybind11::literals;
-
-static FT_Library FT_LIB;
-static cairo_user_data_key_t const FT_KEY = {0};
-static py::object UNIT_CIRCLE;
-
-cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
-  if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
-    throw std::invalid_argument("Only affine transforms are handled");
-  }
-  auto py_matrix = transform.cast<py::array_t<double>>();
-  return cairo_matrix_t{
-    *py_matrix.data(0, 0), -*py_matrix.data(1, 0),
-    *py_matrix.data(0, 1), -*py_matrix.data(1, 1),
-    *py_matrix.data(0, 2), y0 - *py_matrix.data(1, 2)};
-}
-
-cairo_matrix_t matrix_from_transform(
-    py::object transform, cairo_matrix_t* master_matrix) {
-  if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
-    throw std::invalid_argument("Only affine transforms are handled");
-  }
-  auto py_matrix = transform.cast<py::array_t<double>>();
-  // The y flip is already handled by the master matrix.
-  auto matrix = cairo_matrix_t{
-    *py_matrix.data(0, 0), *py_matrix.data(1, 0),
-    *py_matrix.data(0, 1), *py_matrix.data(1, 1),
-    *py_matrix.data(0, 2), *py_matrix.data(1, 2)};
-  cairo_matrix_multiply(&matrix, &matrix, master_matrix);
-  return matrix;
-}
-
-void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
-  cairo_set_antialias(dest, cairo_get_antialias(orig));
-  cairo_set_line_cap(dest, cairo_get_line_cap(orig));
-  cairo_set_line_join(dest, cairo_get_line_join(orig));
-  cairo_set_line_width(dest, cairo_get_line_width(orig));
-
-  auto dash_count = cairo_get_dash_count(orig);
-  auto dashes = std::unique_ptr<double[]>(new double[dash_count]);
-  double offset;
-  cairo_get_dash(orig, dashes.get(), &offset);
-  cairo_set_dash(dest, dashes.get(), dash_count, offset);
-
-  double r, g, b, a;
-  cairo_pattern_get_rgba(cairo_get_source(orig), &r, &g, &b, &a);
-  cairo_set_source_rgba(dest, r, g, b, a);
-}
-
-void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
-  cairo_save(cr);
-  cairo_transform(cr, matrix);
-  auto vertices = path.attr("vertices").cast<py::array_t<double>>();
-  auto maybe_codes = path.attr("codes");
-  auto n = vertices.shape(0);
-  cairo_new_path(cr);
-  if (!maybe_codes.is_none()) {
-    auto codes = maybe_codes.cast<py::array_t<int>>();
-    for (size_t i = 0; i < n; ++i) {
-      auto x0 = *vertices.data(i, 0), y0 = *vertices.data(i, 1);
-      auto isfinite = std::isfinite(x0) && std::isfinite(y0);
-      switch (static_cast<PathCode>(*codes.data(i))) {
-        case PathCode::STOP:
-          break;
-        case PathCode::MOVETO:
-          if (isfinite) {
-            cairo_move_to(cr, x0, y0);
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
-        case PathCode::LINETO:
-          if (isfinite) {
-            cairo_line_to(cr, x0, y0);
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
-          // NOTE: The semantics of nonfinite control points seem undocumented.
-          // Here, we ignore the entire curve element.
-        case PathCode::CURVE3: {
-          auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1);
-          i += 1;
-          isfinite &= std::isfinite(x1) && std::isfinite(y1);
-          if (isfinite && cairo_has_current_point(cr)) {
-            double x_prev, y_prev;
-            cairo_get_current_point(cr, &x_prev, &y_prev);
-            cairo_curve_to(cr,
-                (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
-                (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
-                x1, y1);
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
-        }
-        case PathCode::CURVE4: {
-          auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1),
-               x2 = *vertices.data(i + 2, 0), y2 = *vertices.data(i + 2, 1);
-          i += 2;
-          isfinite &= std::isfinite(x1) && std::isfinite(y1)
-            && std::isfinite(x2) && std::isfinite(y2);
-          if (isfinite && cairo_has_current_point(cr)) {
-            cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
-        }
-        case PathCode::CLOSEPOLY:
-          cairo_close_path(cr);
-          break;
-      }
-    }
-  } else {
-    for (size_t i = 0; i < n; ++i) {
-      auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
-      auto isfinite = std::isfinite(x) && std::isfinite(y);
-      if (isfinite) {
-        cairo_line_to(cr, x, y);
-      } else {
-        cairo_new_sub_path(cr);
-      }
-    }
-  }
-  cairo_restore(cr);
-}
-
-cairo_font_face_t* ft_font_from_prop(py::object prop) {
-  // It is probably not worth implementing an additional layer of caching here
-  // as findfont already has its cache and object equality needs would also
-  // need to go through Python anyways.
-  auto font_path =
-    py::module::import("matplotlib.font_manager").attr("findfont")(prop)
-    .cast<std::string>();
-  FT_Face ft_face;
-  if (FT_New_Face(FT_LIB, font_path.c_str(), 0, &ft_face)) {
-    throw std::runtime_error("FT_New_Face failed");
-  }
-  auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
-  if (cairo_font_face_set_user_data(
-        font_face, &FT_KEY, ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
-    cairo_font_face_destroy(font_face);
-    FT_Done_Face(ft_face);
-    throw std::runtime_error("cairo_font_face_set_user_data failed");
-  }
-  return font_face;
-}
 
 Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
   bbox{bbox}, buf{buf} {}
@@ -203,7 +59,7 @@ bool GraphicsContextRenderer::try_draw_circles(
       a = *alpha_;
     }
     if ((rgba_t{r, g, b, a} != get_rgba())  // Can't draw edge with another color.
-        || (a != 1)) {  // Can't handle alpha.
+        || (a != 1)) {  // Can't handle alpha.  // FIXME Try drawing one at a time.
       return false;
     }
   }
@@ -351,7 +207,7 @@ void GraphicsContextRenderer::set_dashes(
       throw std::invalid_argument("Missing offset");
     }
     std::vector<double> v;
-    for (auto e: dash_list->cast<py::iterable>()) {
+    for (auto& e: dash_list->cast<py::iterable>()) {
       v.push_back(e.cast<double>());
     }
     cairo_set_dash(cr_, v.data(), v.size(), *dash_offset);
@@ -589,11 +445,12 @@ void GraphicsContextRenderer::draw_markers(
     cairo_stroke(cr);
   };
 
-  double simplify_threshold = py::module::import("matplotlib").attr("rcParams")[
-    "path.simplify_threshold"].cast<double>();
+  double simplify_threshold =
+    py::module::import("matplotlib").attr("rcParams")["path.simplify_threshold"]
+    .cast<double>();
   std::unique_ptr<cairo_pattern_t*[]> patterns;
   size_t n_subpix = 0;
-  if (simplify_threshold >= 1. / 16) {
+  if (simplify_threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
     n_subpix = std::ceil(1 / simplify_threshold);
     if (n_subpix * n_subpix < n_vertices) {
       patterns.reset(new cairo_pattern_t*[n_subpix * n_subpix]);
@@ -602,8 +459,8 @@ void GraphicsContextRenderer::draw_markers(
 
   if (patterns) {
     // Get the extent of the marker.
-    auto recording_surface = cairo_recording_surface_create(
-        CAIRO_CONTENT_COLOR_ALPHA, nullptr);
+    auto recording_surface =
+      cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
     auto recording_cr = cairo_create(recording_surface);
     copy_for_marker_stamping(cr_, recording_cr);
     draw_one_marker(recording_cr);
@@ -703,8 +560,9 @@ void GraphicsContextRenderer::draw_path(
     auto hatch_surface = cairo_image_surface_create(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
-    auto [r, g, b, a] = py::module::import("matplotlib.colors").attr("to_rgba")(
-        py::cast(this).attr("get_hatch_color")()).cast<rgba_t>();
+    auto [r, g, b, a] =
+      py::module::import("matplotlib.colors").attr("to_rgba")(
+          py::cast(this).attr("get_hatch_color")()).cast<rgba_t>();
     cairo_set_source_rgba(hatch_cr, r, g, b, a);
     cairo_set_line_width(
         hatch_cr,
@@ -735,13 +593,15 @@ void GraphicsContextRenderer::draw_path_collection(
     std::vector<py::object> transforms,
     std::vector<py::object> offsets,
     py::object offset_transform,
-    std::vector<py::object> fcs,
-    std::vector<py::object> ecs,
+    py::object fcs,
+    py::object ecs,
     std::vector<py::object> lws,
     std::vector<py::object> dashes,
     std::vector<py::object> aas,
     std::vector<py::object> urls,
     std::string offset_position) {
+  // TODO: Support lws, dashes.
+  // TODO: Persistent cache; cache eviction policy.
   if (!cr_) {
     return;
   }
@@ -774,36 +634,42 @@ void GraphicsContextRenderer::draw_path_collection(
     matrices.push_back(master_matrix);
   }
   auto offset_matrix = matrix_from_transform(offset_transform);
+  auto convert_colors = [&](py::object colors) {
+    return
+      py::module::import("matplotlib.colors").attr("to_rgba_array")(
+          colors, alpha_ ? py::cast(*alpha_) : py::none())
+      .cast<py::array_t<double>>();
+  };
+  // Don't drop the arrays until the function exits.
+  auto fcs_raw_keepref = convert_colors(fcs), ecs_raw_keepref = convert_colors(ecs);
+  auto fcs_raw = fcs_raw_keepref.unchecked<2>(), ecs_raw = ecs_raw_keepref.unchecked<2>();
+  double simplify_threshold =
+    py::module::import("matplotlib").attr("rcParams")["path.simplify_threshold"]
+    .cast<double>();
+  auto cache = PatternCache{simplify_threshold};
   for (size_t i = 0; i < n; ++i) {
     cairo_save(cr_);
     auto path = paths[i % n_paths];
     auto matrix = matrices[i % n_transforms];
     auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
     cairo_matrix_transform_point(&offset_matrix, &x, &y);
-    cairo_translate(cr_, x, y);
-    load_path(cr_, path, &matrix);
-    if (ecs.size()) {
-      set_foreground(ecs[i % ecs.size()]);
-      cairo_stroke_preserve(cr_);
-    }
-    if (fcs.size()) {
-      auto rgb_fc = fcs[i % fcs.size()];
-      double r, g, b, a{1};
-      if (py::len(rgb_fc) == 3) {
-        std::tie(r, g, b) = rgb_fc.cast<rgb_t>();
-      } else {
-        std::tie(r, g, b, a) = rgb_fc.cast<rgba_t>();
-      }
-      if (alpha_) {
-        a = *alpha_;
-      }
+    if (fcs_raw.shape(0)) {
+      auto i_mod = i % fcs_raw.shape(0);
+      auto r = *fcs_raw.data(i_mod, 0), g = *fcs_raw.data(i_mod, 1),
+           b = *fcs_raw.data(i_mod, 2), a = *fcs_raw.data(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
-      cairo_fill_preserve(cr_);
+      cache.mask(cr_, {path, matrix, &cairo_fill}, x, y);
     }
-    // NOTE: We drop antialiaseds because... really?
+    if (ecs_raw.size()) {
+      auto i_mod = i % ecs_raw.shape(0);
+      auto r = *ecs_raw.data(i_mod, 0), g = *ecs_raw.data(i_mod, 1),
+           b = *ecs_raw.data(i_mod, 2), a = *ecs_raw.data(i_mod, 3);
+      cairo_set_source_rgba(cr_, r, g, b, a);
+      cache.mask(cr_, {path, matrix, &cairo_stroke}, x, y);
+    }
+    // NOTE: We drop antialiaseds because that just seems silly.
     // We drop urls as they should be handled in a post-processing step anyways
     // (cairo doesn't seem to support them?).
-    cairo_new_path(cr_);
     cairo_restore(cr_);
   }
 }
@@ -820,7 +686,7 @@ void GraphicsContextRenderer::draw_text(
   }
   cairo_save(cr_);
   if (ismath) {
-    // FIXME: If angle % 90 == 0, we can round x and y to avoid additional
+    // NOTE: If angle % 90 == 0, we can round x and y to avoid additional
     // aliasing on top of the one already provided by freetype.  Perhaps
     // we should let it know about the destination subpixel position?  If
     // angle % 90 != 0, all hope is lost anyways.

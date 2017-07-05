@@ -27,8 +27,8 @@ class get_pybind_include(object):
 ext_modules = [
     Extension(
         "mpl_cairo._mpl_cairo",
-        ["src/_mpl_cairo.cpp"],
-        depends=["src/_mpl_cairo.h"],
+        ["src/_mpl_cairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
+        depends=["src/_mpl_cairo.h", "src/_util.h", "src/_pattern_cache.h"],
         language="c++",
         include_dirs=[
             get_pybind_include(), get_pybind_include(user=True)

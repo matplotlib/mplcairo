@@ -6,8 +6,6 @@
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-ft.h>
-#include <freetype2/ft2build.h>
-#include FT_FREETYPE_H
 
 #include <pybind11/pybind11.h>
 #include <pybind11/eval.h>
@@ -17,20 +15,10 @@
 namespace mpl_cairo {
 
 namespace py = pybind11;
+
 using rgb_t = std::tuple<double, double, double>;
 using rgba_t = std::tuple<double, double, double, double>;
 using rectangle_t = std::tuple<double, double, double, double>;
-
-enum class PathCode {
-  STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79
-};
-
-cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
-cairo_matrix_t matrix_from_transform(
-    py::object transform, cairo_matrix_t* master_matrix);
-void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
-void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
-cairo_font_face_t* ft_font_from_prop(py::object prop);
 
 struct Region {
   cairo_rectangle_int_t bbox;
@@ -116,8 +104,8 @@ struct GraphicsContextRenderer {
       std::vector<py::object> all_transforms,
       std::vector<py::object> offsets,
       py::object offset_transform,
-      std::vector<py::object> fcs,
-      std::vector<py::object> ecs,
+      py::object fcs,
+      py::object ecs,
       std::vector<py::object> lws,
       std::vector<py::object> dashes,
       std::vector<py::object> aas,

@@ -54,7 +54,12 @@ Notes
   of lines is ~3x slower than using Agg.
 - ``path.simplify_threshold`` is also used to control the accuracy of marker
   stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
-  than that will use the exact (slower) marker drawing path.
+  than that will use the exact (slower) marker drawing path.  Marker stamping
+  is also implemented for scatter plots (which can have multiple colors).
+  Currently, markers of different sizes each need their own stamp to be
+  generated, although it may be possible to likewise discretize the marker size
+  using ``path.simplify_threshold``.  Additionally, a cache eviction policy
+  should be implemented.
 - ``draw_markers`` draws a marker at each control point of the given path,
   which is the documented behavior, even though all builtin renderers only draw
   markers at straight or Bézier segment ends.
@@ -64,6 +69,7 @@ Missing features
 
 - Snapping.
 - Sketching (i.e. xkcd-style plots).
+- Control of linewidth and dashes in PathCollections.
 
 Known issues
 ------------
