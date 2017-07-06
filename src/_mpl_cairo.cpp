@@ -463,28 +463,34 @@ void GraphicsContextRenderer::draw_markers(
   }
 
   if (patterns) {
-    // Get the extent of the marker.
-    auto recording_surface =
-      cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
-    auto recording_cr = cairo_create(recording_surface);
-    copy_for_marker_stamping(cr_, recording_cr);
-    draw_one_marker(recording_cr);
-    double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(
-        recording_surface, &x0, &y0, &width, &height);
-    cairo_destroy(recording_cr);
-    cairo_surface_destroy(recording_surface);
+    cairo_save(cr_);
 
+    // Get the extent of the marker.  Importantly, cairo_*_extents() ignores
+    // surface dimensions and clipping.
+    cairo_identity_matrix(cr_);
+    load_path(cr_, marker_path, &marker_matrix);
+    double x0, y0, x1, y1;
+    cairo_stroke_extents(cr_, &x0, &y0, &x1, &y1);
+    if (rgb_fc) {
+      double x1f, y1f, x2f, y2f;
+      cairo_fill_extents(cr_, &x1f, &y1f, &x2f, &y2f);
+      x0 = std::min(x0, x1f);
+      y0 = std::max(y0, y1f);
+      x1 = std::min(x1, x2f);
+      y1 = std::max(y1, y2f);
+    }
+
+    // Fill the pattern cache.
     for (size_t i = 0; i < n_subpix; ++i) {
       for (size_t j = 0; j < n_subpix; ++j) {
         auto raster_surface = cairo_surface_create_similar_image(
             cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
-            std::ceil(width + 1), std::ceil(height + 1));
+            std::ceil(x1 - x0 + 1), std::ceil(y1 - y0 + 1));
         auto raster_cr = cairo_create(raster_surface);
         copy_for_marker_stamping(cr_, raster_cr);
         cairo_translate(
             raster_cr, -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
-        draw_one_marker(recording_cr);
+        draw_one_marker(raster_cr);
         auto pattern = cairo_pattern_create_for_surface(raster_surface);
         cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
         patterns[i * n_subpix + j] = pattern;
@@ -493,7 +499,6 @@ void GraphicsContextRenderer::draw_markers(
       }
     }
 
-    cairo_save(cr_);
     for (size_t i = 0; i < n_vertices; ++i) {
       auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);

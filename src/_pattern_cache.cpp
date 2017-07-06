@@ -111,21 +111,22 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     cairo_restore(cr);
     return;
   }
-  // Get the path bbox.
+  // Get the untransformed path bbox with cairo_path_extents(), so that we
+  // know how to quantize the transformation matrix.  Note that this ignores
+  // the additional size from linewidths (they will not be scaled anyways).
+  // Importantly, cairo_*_extents() ignores surface dimensions and clipping.
   auto it_bboxes = bboxes_.find(key.path);
   if (it_bboxes == bboxes_.end()) {
-    auto recording_surface =
-      cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
-    auto recording_cr = cairo_create(recording_surface);
+    cairo_save(cr);
+    cairo_identity_matrix(cr);
     auto id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
-    load_path(recording_cr, key.path, &id);
-    cairo_stroke(recording_cr);
-    double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(
-        recording_surface, &x0, &y0, &width, &height);
+    load_path(cr, key.path, &id);
+    double x0, y0, x1, y1;
+    cairo_path_extents(cr, &x0, &y0, &x1, &y1);
+    cairo_restore(cr);
     bool ok;
     std::tie(it_bboxes, ok) =
-      bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, width, height});
+      bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, x1 - x0, y1 - y0});
     if (!ok) {
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
@@ -147,20 +148,28 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   // Get the patterns.
   auto it_patterns = patterns_.find(key);
   if (it_patterns == patterns_.end()) {
-    auto recording_surface =
-      cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
-    auto recording_cr = cairo_create(recording_surface);
-    key.draw(recording_cr);
-    double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(
-        recording_surface, &x0, &y0, &width, &height);
+    cairo_save(cr);
+    cairo_identity_matrix(cr);
+    load_path(cr, key.path, &key.matrix);
+    double x0, y0, x1, y1;
+    switch (key.draw_func) {
+      case draw_func_t::Fill:
+        cairo_fill_extents(cr, &x0, &y0, &x1, &y1);
+        break;
+      case draw_func_t::Stroke:
+        cairo_set_line_width(cr, key.linewidth);
+        set_dashes(cr, key.dash);
+        cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
+        break;
+    }
+    cairo_restore(cr);
     // Must be nullptr-initialized.
     auto patterns =
       std::make_unique<cairo_pattern_t*[]>(n_subpix_ * n_subpix_);
     bool ok;
     std::tie(it_patterns, ok) =
       patterns_.emplace(
-          key, PatternEntry{x0, y0, width, height, std::move(patterns)});
+          key, PatternEntry{x0, y0, x1 - x0, y1 - y0, std::move(patterns)});
     if (!ok) {
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
