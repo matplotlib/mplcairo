@@ -22,13 +22,19 @@ dash_t convert_dash(
     std::tuple<std::optional<double>, std::optional<py::object>> dash_spec);
 void set_dashes(cairo_t* cr, dash_t dash);
 
+enum class draw_func_t {
+  Fill, Stroke
+};
+
 class PatternCache {
   struct CacheKey {
     py::object path;
     cairo_matrix_t matrix;
-    void (*draw_func)(cairo_t*);
+    draw_func_t draw_func;
     double linewidth;
     dash_t dash;
+
+    void draw(cairo_t* cr);
   };
   struct Hash {
     size_t operator()(py::object const& path) const;

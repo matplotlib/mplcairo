@@ -40,6 +40,20 @@ void set_dashes(cairo_t* cr, dash_t dash) {
       offset);
 }
 
+void PatternCache::CacheKey::draw(cairo_t* cr) {
+  load_path(cr, path, &matrix);
+  switch (draw_func) {
+    case draw_func_t::Fill:
+      cairo_fill(cr);
+      break;
+    case draw_func_t::Stroke:
+      cairo_set_line_width(cr, linewidth);
+      set_dashes(cr, dash);
+      cairo_stroke(cr);
+      break;
+  }
+}
+
 size_t PatternCache::Hash::operator()(py::object const& path) const {
   return std::hash<void*>{}(path.ptr());
 }
@@ -51,7 +65,7 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const {
     std::hash<double>{}(key.matrix.xx), std::hash<double>{}(key.matrix.xy),
     std::hash<double>{}(key.matrix.yx), std::hash<double>{}(key.matrix.yy),
     std::hash<double>{}(key.matrix.x0), std::hash<double>{}(key.matrix.y0),
-    std::hash<void (*)(cairo_t*)>{}(key.draw_func),
+    std::hash<draw_func_t>{}(key.draw_func),
     std::hash<double>{}(key.linewidth),
     std::hash<double>{}(std::get<0>(key.dash)),
     std::hash<std::string>{}(std::get<1>(key.dash))};
@@ -93,10 +107,7 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   if (!n_subpix_) {
     cairo_save(cr);
     cairo_translate(cr, x, y);
-    load_path(cr, key.path, &key.matrix);
-    cairo_set_line_width(cr, key.linewidth);
-    set_dashes(cr, key.dash);
-    key.draw_func(cr);
+    key.draw(cr);
     cairo_restore(cr);
     return;
   }
@@ -108,7 +119,7 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     auto recording_cr = cairo_create(recording_surface);
     auto id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
     load_path(recording_cr, key.path, &id);
-    key.draw_func(recording_cr);
+    cairo_stroke(recording_cr);
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(
         recording_surface, &x0, &y0, &width, &height);
@@ -139,10 +150,7 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     auto recording_surface =
       cairo_recording_surface_create(CAIRO_CONTENT_COLOR_ALPHA, nullptr);
     auto recording_cr = cairo_create(recording_surface);
-    load_path(recording_cr, key.path, &key.matrix);
-    cairo_set_line_width(recording_cr, key.linewidth);
-    set_dashes(recording_cr, key.dash);
-    key.draw_func(recording_cr);
+    key.draw(recording_cr);
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(
         recording_surface, &x0, &y0, &width, &height);
@@ -172,10 +180,7 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     cairo_translate(
         raster_cr,
         -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
-    load_path(raster_cr, key.path, &key.matrix);
-    cairo_set_line_width(raster_cr, key.linewidth);
-    set_dashes(raster_cr, key.dash);
-    key.draw_func(raster_cr);
+    key.draw(raster_cr);
     pattern = cairo_pattern_create_for_surface(raster_surface);
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
     cairo_destroy(raster_cr);

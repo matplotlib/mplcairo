@@ -673,7 +673,7 @@ void GraphicsContextRenderer::draw_path_collection(
       auto r = *fcs_raw.data(i_mod, 0), g = *fcs_raw.data(i_mod, 1),
            b = *fcs_raw.data(i_mod, 2), a = *fcs_raw.data(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
-      cache.mask(cr_, {path, matrix, &cairo_fill, 0, {}}, x, y);
+      cache.mask(cr_, {path, matrix, draw_func_t::Fill, 0, {}}, x, y);
     }
     if (ecs_raw.size()) {
       auto i_mod = i % ecs_raw.shape(0);
@@ -684,7 +684,7 @@ void GraphicsContextRenderer::draw_path_collection(
         ? points_to_pixels(lws[i % lws.size()]) : cairo_get_line_width(cr_);
       auto dash = dashes.size()
         ? convert_dash(dashes[i % dashes.size()]) : convert_dash(cr_);
-      cache.mask(cr_, {path, matrix, &cairo_stroke, lw, dash}, x, y);
+      cache.mask(cr_, {path, matrix, draw_func_t::Stroke, lw, dash}, x, y);
     }
     // NOTE: We drop antialiaseds because that just seems silly.
     // We drop urls as they should be handled in a post-processing step anyways
