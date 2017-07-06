@@ -2,35 +2,13 @@ from matplotlib import rcsetup
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
 from matplotlib.backends.qt_compat import QT_API
 
-from . import format_t, GraphicsContextRendererCairo
+from .base import FigureCanvasCairo
 
 
 rcsetup.interactive_bk += ["module://mpl_cairo.qt"]  # NOTE: Should be fixed in Mpl.
 
 
-class FigureCanvasQTCairo(FigureCanvasQT):
-    def __init__(self, figure):
-        super(FigureCanvasQTCairo, self).__init__(figure=figure)
-        self._renderer = None
-
-    def draw(self):
-        self._renderer = GraphicsContextRendererCairo(self.figure.dpi)
-        self._renderer.set_ctx_from_image_args(
-            format_t.ARGB32, self.width(), self.height())
-        self.figure.draw(self._renderer)
-        super().draw()
-
-    def copy_from_bbox(self, bbox):
-        if self._renderer is None:
-            self.draw()
-        return self._renderer.copy_from_bbox(bbox)
-
-    def restore_region(self, region):
-        if self._renderer is None:
-            self.draw()
-        self._renderer.restore_region(region)
-        self.update()
-
+class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
     def paintEvent(self, event):
         if self._renderer is None:
             self.draw()
