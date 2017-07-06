@@ -107,7 +107,8 @@ struct GraphicsContextRenderer {
       py::object fcs,
       py::object ecs,
       std::vector<double> lws,
-      std::vector<std::tuple<std::optional<double>, std::optional<py::object>>> dashes,
+      std::vector<std::tuple<std::optional<double>, std::optional<py::object>>>
+        dashes,
       py::object aas,
       py::object urls,
       std::string offset_position);

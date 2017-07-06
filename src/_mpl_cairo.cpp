@@ -103,13 +103,15 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
   if (cr_) {
     cairo_destroy(cr_);
   }
-  if (py_surface.attr("__module__").cast<std::string>() == "cairocffi.surfaces") {
+  if (py_surface.attr("__module__").cast<std::string>()
+      == "cairocffi.surfaces") {
     auto surface = reinterpret_cast<cairo_surface_t*>(
         py::module::import("cairocffi").attr("ffi").attr("cast")(
           "int", py_surface.attr("_pointer")).cast<uintptr_t>());
     cr_ = cairo_create(surface);
   } else {
-    throw std::invalid_argument("Could not convert argument to cairo_surface_t*");
+    throw std::invalid_argument(
+        "Could not convert argument to cairo_surface_t*");
   }
 }
 
@@ -156,7 +158,8 @@ void GraphicsContextRenderer::set_antialiased(py::object aa) {
   if (!cr_) {
     return;
   }
-  cairo_set_antialias(cr_, aa.cast<bool>() ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
+  cairo_set_antialias(
+      cr_, aa.cast<bool>() ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
 }
 
 void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
@@ -174,7 +177,8 @@ void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
   }
 }
 
-void GraphicsContextRenderer::set_clip_rectangle(std::optional<py::object> rectangle) {
+void GraphicsContextRenderer::set_clip_rectangle(
+    std::optional<py::object> rectangle) {
   if (!cr_ || !rectangle) {
     return;
   }
@@ -189,11 +193,13 @@ void GraphicsContextRenderer::set_clip_rectangle(std::optional<py::object> recta
   cairo_clip(cr_);
 }
 
-void GraphicsContextRenderer::set_clip_path(std::optional<py::object> transformed_path) {
+void GraphicsContextRenderer::set_clip_path(
+    std::optional<py::object> transformed_path) {
   if (!cr_ || !transformed_path) {
     return;
   }
-  auto [path, transform] = transformed_path->attr("get_transformed_path_and_affine")()
+  auto [path, transform] =
+    transformed_path->attr("get_transformed_path_and_affine")()
     .cast<std::tuple<py::object, py::object>>();
   auto matrix = matrix_from_transform(transform, get_height());
   load_path(cr_, path, &matrix);
@@ -213,9 +219,10 @@ void GraphicsContextRenderer::set_dashes(
   }
 }
 
-void GraphicsContextRenderer::set_foreground(py::object fg, bool /* is_rgba */) {
-  auto [r, g, b, a] = py::module::import("matplotlib.colors").attr("to_rgba")(fg)
-    .cast<rgba_t>();
+void GraphicsContextRenderer::set_foreground(
+    py::object fg, bool /* is_rgba */) {
+  auto [r, g, b, a] =
+    py::module::import("matplotlib.colors").attr("to_rgba")(fg).cast<rgba_t>();
   if (alpha_) {
     a = *alpha_;
   }
@@ -418,7 +425,8 @@ void GraphicsContextRenderer::draw_markers(
   auto marker_matrix = matrix_from_transform(marker_transform);
   auto matrix = matrix_from_transform(transform, get_height());
 
-  double r, g, b, a{1};
+  // Initialize everyone, to avoid -Wmaybe-uninitialized in draw_one_marker().
+  auto r = 0., g = 0., b = 0., a = 1.;
   if (rgb_fc) {
     if (py::len(*rgb_fc) == 3) {
       std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
@@ -443,8 +451,8 @@ void GraphicsContextRenderer::draw_markers(
   };
 
   double simplify_threshold =
-    py::module::import("matplotlib").attr("rcParams")["path.simplify_threshold"]
-    .cast<double>();
+    py::module::import("matplotlib")
+    .attr("rcParams")["path.simplify_threshold"].cast<double>();
   std::unique_ptr<cairo_pattern_t*[]> patterns;
   size_t n_subpix = 0;
   if (simplify_threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
@@ -462,7 +470,8 @@ void GraphicsContextRenderer::draw_markers(
     copy_for_marker_stamping(cr_, recording_cr);
     draw_one_marker(recording_cr);
     double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+    cairo_recording_surface_ink_extents(
+        recording_surface, &x0, &y0, &width, &height);
     cairo_destroy(recording_cr);
     cairo_surface_destroy(recording_surface);
 
@@ -488,13 +497,18 @@ void GraphicsContextRenderer::draw_markers(
     for (size_t i = 0; i < n_vertices; ++i) {
       auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
-      auto target_x = x + x0, target_y = y + y0;
-      auto i_target_x = std::floor(target_x), i_target_y = std::floor(target_y);
-      auto f_target_x = target_x - i_target_x, f_target_y = target_y - i_target_y;
-      auto idx = int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
+      auto target_x = x + x0,
+           target_y = y + y0;
+      auto i_target_x = std::floor(target_x),
+           i_target_y = std::floor(target_y);
+      auto f_target_x = target_x - i_target_x,
+           f_target_y = target_y - i_target_y;
+      auto idx =
+        int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
       auto pattern = patterns[idx];
       // Offsetting by get_height() is already taken care of by matrix.
-      auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
+      auto pattern_matrix =
+        cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
       cairo_pattern_set_matrix(pattern, &pattern_matrix);
       cairo_set_source(cr_, pattern);
       cairo_paint(cr_);
@@ -507,7 +521,8 @@ void GraphicsContextRenderer::draw_markers(
     }
 
   } else {
-    if (try_draw_circles(gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
+    if (try_draw_circles(
+          gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
       return;
     }
     for (size_t i = 0; i < n_vertices; ++i) {
@@ -563,7 +578,8 @@ void GraphicsContextRenderer::draw_path(
     cairo_set_source_rgba(hatch_cr, r, g, b, a);
     cairo_set_line_width(
         hatch_cr,
-        points_to_pixels(py::cast(this).attr("get_hatch_linewidth")().cast<double>()));
+        points_to_pixels(
+          py::cast(this).attr("get_hatch_linewidth")().cast<double>()));
     auto hatch_matrix = cairo_matrix_t{
       double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     load_path(hatch_cr, hatch_path, &hatch_matrix);
@@ -593,11 +609,11 @@ void GraphicsContextRenderer::draw_path_collection(
     py::object fcs,
     py::object ecs,
     std::vector<double> lws,
-    std::vector<std::tuple<std::optional<double>, std::optional<py::object>>> dashes,
+    std::vector<std::tuple<std::optional<double>, std::optional<py::object>>>
+      dashes,
     py::object aas,
     py::object urls,
     std::string offset_position) {
-  // TODO: Discretize marker sizes.
   // TODO: Persistent cache; cache eviction policy.
   if (!cr_) {
     return;
@@ -638,11 +654,13 @@ void GraphicsContextRenderer::draw_path_collection(
       .cast<py::array_t<double>>();
   };
   // Don't drop the arrays until the function exits.
-  auto fcs_raw_keepref = convert_colors(fcs), ecs_raw_keepref = convert_colors(ecs);
-  auto fcs_raw = fcs_raw_keepref.unchecked<2>(), ecs_raw = ecs_raw_keepref.unchecked<2>();
+  auto fcs_raw_keepref = convert_colors(fcs),
+       ecs_raw_keepref = convert_colors(ecs);
+  auto fcs_raw = fcs_raw_keepref.unchecked<2>(),
+       ecs_raw = ecs_raw_keepref.unchecked<2>();
   double simplify_threshold =
-    py::module::import("matplotlib").attr("rcParams")["path.simplify_threshold"]
-    .cast<double>();
+    py::module::import("matplotlib")
+    .attr("rcParams")["path.simplify_threshold"].cast<double>();
   auto cache = PatternCache{simplify_threshold};
   for (size_t i = 0; i < n; ++i) {
     cairo_save(cr_);
@@ -701,7 +719,8 @@ void GraphicsContextRenderer::draw_text(
       mathtext_parser_.attr("parse")(s, dpi_, prop)
       .cast<std::tuple<
           double, double, double, double, double, py::object, py::object>>();
-    auto im_raw = py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
+    auto im_raw =
+      py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
     auto ni = im_raw.shape(0), nj = im_raw.shape(1);
     auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, nj);
     // 1 byte per pixel!
@@ -722,7 +741,8 @@ void GraphicsContextRenderer::draw_text(
     auto font_face = ft_font_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
     cairo_set_font_size(
-        cr_, points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
+        cr_,
+        points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
     cairo_show_text(cr_, s.c_str());
     cairo_font_face_destroy(font_face);
   }
@@ -743,7 +763,8 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto font_face = ft_font_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
     cairo_set_font_size(
-        cr_, points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
+        cr_,
+        points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
     cairo_text_extents_t extents;
     cairo_text_extents(cr_, s.c_str(), &extents);
     cairo_font_face_destroy(font_face);
@@ -769,7 +790,9 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
   auto raw = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
   for (int y = y0; y < y1; ++y) {
-    std::memcpy(buf.get() + (y - y0) * 4 * width, raw + y * stride + 4 * x0, 4 * width);
+    std::memcpy(
+        buf.get() + (y - y0) * 4 * width, raw + y * stride + 4 * x0,
+        4 * width);
   }
   return {{x0, y0, width, height}, buf};
 }
@@ -784,7 +807,9 @@ void GraphicsContextRenderer::restore_region(Region& region) {
   cairo_surface_flush(surface);
   // 4 bytes per pixel!
   for (int y = y0; y < y1; ++y) {
-    std::memcpy(raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width, 4 * width);
+    std::memcpy(
+        raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width,
+        4 * width);
   }
   cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
 }
@@ -801,7 +826,8 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     }
   });
   m.add_object("_cleanup", clean_ft_lib);
-  UNIT_CIRCLE = py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+  UNIT_CIRCLE =
+    py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
   py::enum_<cairo_antialias_t>(m, "antialias_t")
     .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
@@ -826,16 +852,20 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def(py::init<double>())
 
     // Backend-specific API.
-    .def("set_ctx_from_surface", &GraphicsContextRenderer::set_ctx_from_surface)
-    .def("set_ctx_from_image_args", &GraphicsContextRenderer::set_ctx_from_image_args)
+    .def("set_ctx_from_surface",
+        &GraphicsContextRenderer::set_ctx_from_surface)
+    .def("set_ctx_from_image_args",
+        &GraphicsContextRenderer::set_ctx_from_image_args)
     .def("get_data_address", &GraphicsContextRenderer::get_data_address)
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)
     .def("set_antialiased",
-        py::overload_cast<cairo_antialias_t>(&GraphicsContextRenderer::set_antialiased))
+        py::overload_cast<cairo_antialias_t>(
+          &GraphicsContextRenderer::set_antialiased))
     .def("set_antialiased",
-        py::overload_cast<py::object>(&GraphicsContextRenderer::set_antialiased))
+        py::overload_cast<py::object>(
+          &GraphicsContextRenderer::set_antialiased))
     .def("set_capstyle", &GraphicsContextRenderer::set_capstyle)
     .def("set_clip_rectangle", &GraphicsContextRenderer::set_clip_rectangle)
     .def("set_clip_path", &GraphicsContextRenderer::set_clip_path)
@@ -858,19 +888,22 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     // Needed for patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
-    .def("get_canvas_width_height", &GraphicsContextRenderer::get_canvas_width_height)
+    .def("get_canvas_width_height",
+        &GraphicsContextRenderer::get_canvas_width_height)
     // Needed for patheffects.
     .def_property_readonly("width", &GraphicsContextRenderer::get_width)
     .def_property_readonly("height", &GraphicsContextRenderer::get_height)
 
-    .def("draw_gouraud_triangles", &GraphicsContextRenderer::draw_gouraud_triangles)
+    .def("draw_gouraud_triangles",
+        &GraphicsContextRenderer::draw_gouraud_triangles)
     .def("draw_image", &GraphicsContextRenderer::draw_image)
     .def("draw_markers", &GraphicsContextRenderer::draw_markers,
         "gc"_a, "marker_path"_a, "marker_trans"_a, "path"_a, "trans"_a,
         "rgbFace"_a=nullptr)
     .def("draw_path", &GraphicsContextRenderer::draw_path,
         "gc"_a, "path"_a, "transform"_a, "rgbFace"_a=nullptr)
-    .def("draw_path_collection", &GraphicsContextRenderer::draw_path_collection)
+    .def("draw_path_collection",
+        &GraphicsContextRenderer::draw_path_collection)
     .def("draw_text", &GraphicsContextRenderer::draw_text,
         "gc"_a, "x"_a, "y"_a, "s"_a, "prop"_a, "angle"_a,
         "ismath"_a=false, "mtext"_a=nullptr)

@@ -13,7 +13,8 @@ dash_t convert_dash(cairo_t* cr) {
       reinterpret_cast<char*>(dashes.get()), dash_count * sizeof(dashes[0])}};
 }
 
-dash_t convert_dash(std::tuple<std::optional<double>, std::optional<py::object>> dash_spec) {
+dash_t convert_dash(
+    std::tuple<std::optional<double>, std::optional<py::object>> dash_spec) {
   auto [offset, dash_list] = dash_spec;
   if (dash_list) {
     if (!offset) {
@@ -61,7 +62,8 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const {
   return seed;
 }
 
-bool PatternCache::EqualTo::operator()(CacheKey const& lhs, CacheKey const& rhs) const {
+bool PatternCache::EqualTo::operator()(
+    CacheKey const& lhs, CacheKey const& rhs) const {
   return (lhs.path == rhs.path)
     && (lhs.matrix.xx == rhs.matrix.xx) && (lhs.matrix.xy == rhs.matrix.xy)
     && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
@@ -108,7 +110,8 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     load_path(recording_cr, key.path, &id);
     key.draw_func(recording_cr);
     double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+    cairo_recording_surface_ink_extents(
+        recording_surface, &x0, &y0, &width, &height);
     bool ok;
     std::tie(it_bboxes, ok) =
       bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, width, height});
@@ -141,12 +144,15 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
     set_dashes(recording_cr, key.dash);
     key.draw_func(recording_cr);
     double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(recording_surface, &x0, &y0, &width, &height);
+    cairo_recording_surface_ink_extents(
+        recording_surface, &x0, &y0, &width, &height);
     // Must be nullptr-initialized.
-    auto patterns = std::make_unique<cairo_pattern_t*[]>(n_subpix_ * n_subpix_);
+    auto patterns =
+      std::make_unique<cairo_pattern_t*[]>(n_subpix_ * n_subpix_);
     bool ok;
     std::tie(it_patterns, ok) =
-      patterns_.emplace(key, PatternEntry{x0, y0, width, height, std::move(patterns)});
+      patterns_.emplace(
+          key, PatternEntry{x0, y0, width, height, std::move(patterns)});
     if (!ok) {
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
@@ -160,10 +166,12 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   auto& pattern = entry.patterns[idx];
   if (!pattern) {
     auto raster_surface = cairo_image_surface_create(
-        CAIRO_FORMAT_A8, std::ceil(entry.width + 1), std::ceil(entry.height + 1));
+        CAIRO_FORMAT_A8,
+        std::ceil(entry.width + 1), std::ceil(entry.height + 1));
     auto raster_cr = cairo_create(raster_surface);
     cairo_translate(
-        raster_cr, -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
+        raster_cr,
+        -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
     load_path(raster_cr, key.path, &key.matrix);
     cairo_set_line_width(raster_cr, key.linewidth);
     set_dashes(raster_cr, key.dash);
