@@ -46,6 +46,14 @@ call (e.g.)::
 
    $ pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
 
+Test suite
+----------
+
+Run ``run-mpl-test-suite.py`` *from the Matplotlib source folder* to run the
+subset of matplotlib tests that rely on png image comparison, while using this
+backend.  Pass command-line options as you would to pytest, although ``-k``
+must not be compressed with another short argument.
+
 Notes
 -----
 
@@ -68,6 +76,7 @@ Missing features
 
 - Snapping.
 - Sketching (i.e. xkcd-style plots).
+- ``set_agg_filter``.
 
 Known issues
 ------------
