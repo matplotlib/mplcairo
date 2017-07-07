@@ -32,6 +32,13 @@ cairo_matrix_t matrix_from_transform(
   return matrix;
 }
 
+cairo_t* trivial_context() {
+  auto surface = cairo_image_surface_create(CAIRO_FORMAT_A1, 0, 0);
+  auto cr = cairo_create(surface);
+  cairo_surface_destroy(surface);
+  return cr;
+}
+
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
   cairo_set_antialias(dest, cairo_get_antialias(orig));
   cairo_set_line_cap(dest, cairo_get_line_cap(orig));

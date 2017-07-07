@@ -157,6 +157,7 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   }
   auto surface = cairo_image_surface_create(format, width, height);
   cr_ = cairo_create(surface);
+  cairo_surface_destroy(surface);
 }
 
 uintptr_t GraphicsContextRenderer::get_data_address() {
@@ -309,17 +310,17 @@ void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer& other) {
   dpi_ = other.dpi_;
   alpha_ = other.alpha_;
   clip_rectangle_ = other.clip_rectangle_;
-  if (!cr_) {
-    clip_path_ = {};  // Ugh.
-    return;
-  }
   // Workaround lack of cairo_path_reference.
   if (other.clip_path_) {
-    cairo_new_path(cr_);
-    cairo_append_path(cr_, *other.clip_path_);
-    *clip_path_ = cairo_copy_path(cr_);
+    auto tmp_cr = trivial_context();  // cr may be null.
+    cairo_append_path(tmp_cr, *other.clip_path_);
+    *clip_path_ = cairo_copy_path(tmp_cr);
+    cairo_destroy(tmp_cr);
   } else {
     clip_path_ = {};
+  }
+  if (!cr_) {
+    return;
   }
   cairo_reference(cr_);
   cairo_save(cr_);

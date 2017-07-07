@@ -50,6 +50,7 @@ class PatternCache {
     std::unique_ptr<cairo_pattern_t*[]> patterns;
   };
 
+  cairo_t* trivial_cr_;
   double threshold_;
   size_t n_subpix_;
   // Bounds of the non-transformed path.

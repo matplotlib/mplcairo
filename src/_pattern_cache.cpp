@@ -87,7 +87,7 @@ bool PatternCache::EqualTo::operator()(
 }
 
 PatternCache::PatternCache(double threshold) :
-  threshold_{threshold} {
+  trivial_cr_{trivial_context()}, threshold_{threshold} {
   if (threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
     n_subpix_ = std::ceil(1 / threshold);
   } else {
@@ -96,6 +96,7 @@ PatternCache::PatternCache(double threshold) :
 }
 
 PatternCache::~PatternCache() {
+  cairo_destroy(trivial_cr_);
   for (auto& [key, entry]: patterns_) {
     for (size_t i = 0; i < n_subpix_ * n_subpix_; ++i) {
       cairo_pattern_destroy(entry.patterns[i]);
@@ -117,13 +118,10 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   // Importantly, cairo_*_extents() ignores surface dimensions and clipping.
   auto it_bboxes = bboxes_.find(key.path);
   if (it_bboxes == bboxes_.end()) {
-    cairo_save(cr);
-    cairo_identity_matrix(cr);
     auto id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
-    load_path(cr, key.path, &id);
+    load_path(trivial_cr_, key.path, &id);
     double x0, y0, x1, y1;
-    cairo_path_extents(cr, &x0, &y0, &x1, &y1);
-    cairo_restore(cr);
+    cairo_path_extents(trivial_cr_, &x0, &y0, &x1, &y1);
     bool ok;
     std::tie(it_bboxes, ok) =
       bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, x1 - x0, y1 - y0});
@@ -149,21 +147,18 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   auto it_patterns = patterns_.find(key);
   if (it_patterns == patterns_.end()) {
     // Get the pattern extents.
-    cairo_save(cr);
-    cairo_identity_matrix(cr);
-    load_path(cr, key.path, &key.matrix);
+    load_path(trivial_cr_, key.path, &key.matrix);
     double x0, y0, x1, y1;
     switch (key.draw_func) {
       case draw_func_t::Fill:
-        cairo_fill_extents(cr, &x0, &y0, &x1, &y1);
+        cairo_fill_extents(trivial_cr_, &x0, &y0, &x1, &y1);
         break;
       case draw_func_t::Stroke:
-        cairo_set_line_width(cr, key.linewidth);
-        set_dashes(cr, key.dash);
-        cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
+        cairo_set_line_width(trivial_cr_, key.linewidth);
+        set_dashes(trivial_cr_, key.dash);
+        cairo_stroke_extents(trivial_cr_, &x0, &y0, &x1, &y1);
         break;
     }
-    cairo_restore(cr);
     // Must be nullptr-initialized.
     auto patterns =
       std::make_unique<cairo_pattern_t*[]>(n_subpix_ * n_subpix_);

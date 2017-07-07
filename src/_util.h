@@ -22,6 +22,7 @@ enum class PathCode {
 cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
 cairo_matrix_t matrix_from_transform(
     py::object transform, cairo_matrix_t* master_matrix);
+cairo_t* trivial_context();
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
 void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
 cairo_font_face_t* ft_font_from_prop(py::object prop);
