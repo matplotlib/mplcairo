@@ -165,6 +165,7 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
       cr_, &STATE_KEY,
       new std::stack<GraphicsContextRenderer::AdditionalState>({{}, {}}),
       GraphicsContextRenderer::destroy_state_stack);
+  cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);  // NOTE: See below.
 }
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
@@ -183,6 +184,9 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
       cr_, &STATE_KEY,
       new std::stack<GraphicsContextRenderer::AdditionalState>({{}, {}}),
       GraphicsContextRenderer::destroy_state_stack);
+  // NOTE: Collections and text PathEffects have no joinstyle and implicitly
+  // rely on a "round" default.
+  cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);
 }
 
 uintptr_t GraphicsContextRenderer::get_data_address() {
@@ -755,7 +759,7 @@ void GraphicsContextRenderer::draw_path_collection(
       auto r = *fcs_raw.data(i_mod, 0), g = *fcs_raw.data(i_mod, 1),
            b = *fcs_raw.data(i_mod, 2), a = *fcs_raw.data(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
-      cache.mask(cr_, {path, matrix, draw_func_t::Fill, 0, {}}, x, y);
+      cache.mask(cr_, path, matrix, draw_func_t::Fill, 0, {}, x, y);
     }
     if (ecs_raw.size()) {
       auto i_mod = i % ecs_raw.shape(0);
@@ -766,7 +770,7 @@ void GraphicsContextRenderer::draw_path_collection(
         ? points_to_pixels(lws[i % lws.size()]) : cairo_get_line_width(cr_);
       auto dash = dashes.size()
         ? convert_dash(dashes[i % dashes.size()]) : convert_dash(cr_);
-      cache.mask(cr_, {path, matrix, draw_func_t::Stroke, lw, dash}, x, y);
+      cache.mask(cr_, path, matrix, draw_func_t::Stroke, lw, dash, x, y);
     }
     // NOTE: We drop antialiaseds because that just seems silly.
     // We drop urls as they should be handled in a post-processing step anyways
@@ -966,12 +970,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("restore", &GraphicsContextRenderer::restore)
 
     // Renderer API.
-    // NOTE Needed for patheffects, which should use its own.
+    // NOTE: Needed for patheffects, which should use its own.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def("get_canvas_width_height",
         &GraphicsContextRenderer::get_canvas_width_height)
-    // NOTE Needed for patheffects, which should use get_canvas_width_height().
+    // NOTE: Needed for patheffects, which should use get_canvas_width_height().
     .def_property_readonly("width", &GraphicsContextRenderer::get_width)
     .def_property_readonly("height", &GraphicsContextRenderer::get_height)
 

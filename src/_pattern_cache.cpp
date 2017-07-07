@@ -49,6 +49,8 @@ void PatternCache::CacheKey::draw(cairo_t* cr) {
     case draw_func_t::Stroke:
       cairo_set_line_width(cr, linewidth);
       set_dashes(cr, dash);
+      cairo_set_line_cap(cr, capstyle);
+      cairo_set_line_join(cr, joinstyle);
       cairo_stroke(cr);
       break;
   }
@@ -68,7 +70,9 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const {
     std::hash<draw_func_t>{}(key.draw_func),
     std::hash<double>{}(key.linewidth),
     std::hash<double>{}(std::get<0>(key.dash)),
-    std::hash<std::string>{}(std::get<1>(key.dash))};
+    std::hash<std::string>{}(std::get<1>(key.dash)),
+    std::hash<cairo_line_cap_t>{}(key.capstyle),
+    std::hash<cairo_line_join_t>{}(key.joinstyle)};
   auto seed = size_t{0};
   for (size_t i = 0; i < sizeof(hashes) / sizeof(hashes[0]); ++i) {
     seed ^= hashes[i] + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -83,7 +87,8 @@ bool PatternCache::EqualTo::operator()(
     && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
     && (lhs.matrix.x0 == rhs.matrix.x0) && (lhs.matrix.y0 == rhs.matrix.y0)
     && (lhs.draw_func == rhs.draw_func)
-    && (lhs.linewidth == rhs.linewidth) && (lhs.dash == rhs.dash);
+    && (lhs.linewidth == rhs.linewidth) && (lhs.dash == rhs.dash)
+    && (lhs.capstyle == rhs.capstyle) && (lhs.joinstyle == rhs.joinstyle);
 }
 
 PatternCache::PatternCache(double threshold) :
@@ -104,7 +109,18 @@ PatternCache::~PatternCache() {
   }
 }
 
-void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
+void PatternCache::mask(
+    cairo_t* cr,
+    py::object path,
+    cairo_matrix_t matrix,
+    draw_func_t draw_func,
+    double linewidth,
+    dash_t dash,
+    double x, double y) {
+  auto key = CacheKey{
+    path, matrix, draw_func, linewidth, dash,
+    // TODO Actually we can skip these if draw_func == stroke.
+    cairo_get_line_cap(cr), cairo_get_line_join(cr)};
   if (!n_subpix_) {
     cairo_save(cr);
     cairo_translate(cr, x, y);
@@ -114,7 +130,8 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   }
   // Get the untransformed path bbox with cairo_path_extents(), so that we
   // know how to quantize the transformation matrix.  Note that this ignores
-  // the additional size from linewidths (they will not be scaled anyways).
+  // the additional size from linewidths (they will not be scaled anyways)...
+  // although TODO: we may have some issues with miters?
   // Importantly, cairo_*_extents() ignores surface dimensions and clipping.
   auto it_bboxes = bboxes_.find(key.path);
   if (it_bboxes == bboxes_.end()) {

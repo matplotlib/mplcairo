@@ -33,6 +33,8 @@ class PatternCache {
     draw_func_t draw_func;
     double linewidth;
     dash_t dash;
+    cairo_line_cap_t capstyle;
+    cairo_line_join_t joinstyle;
 
     void draw(cairo_t* cr);
   };
@@ -61,7 +63,9 @@ class PatternCache {
   public:
   PatternCache(double threshold);
   ~PatternCache();
-  void mask(cairo_t* cr, CacheKey key, double x, double y);
+  void mask(
+    cairo_t* cr, py::object path, cairo_matrix_t matrix, draw_func_t draw_func,
+    double linewidth, dash_t dash, double x, double y);
 };
 
 }
