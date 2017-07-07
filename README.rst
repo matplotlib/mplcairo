@@ -81,6 +81,7 @@ Missing features
 Known issues
 ------------
 
+- Markers, ticks, and dashes seem incorrectly sized.
 - Blitting-based animation leaves small artefacts at the edges of the blitted
   region.
 

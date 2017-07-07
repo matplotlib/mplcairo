@@ -901,12 +901,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("restore", &GraphicsContextRenderer::restore)
 
     // Renderer API.
-    // Needed for patheffects.
+    // NOTE Needed for patheffects, which should use its own.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def("get_canvas_width_height",
         &GraphicsContextRenderer::get_canvas_width_height)
-    // Needed for patheffects.
+    // NOTE Needed for patheffects, which should use get_canvas_width_height().
     .def_property_readonly("width", &GraphicsContextRenderer::get_width)
     .def_property_readonly("height", &GraphicsContextRenderer::get_height)
 

@@ -30,12 +30,20 @@ class FigureCanvasCairo(FigureCanvasBase):
     def __init__(self, figure):
         super().__init__(figure=figure)
         self._renderer = None
+        self._last_renderer_args = None
+
+    # NOTE: Not documented, but needed for tight_layout.
+    def get_renderer(self):
+        renderer_args = self.figure.dpi, self.get_width_height()
+        if renderer_args != self._last_renderer_args:
+            self._renderer = GraphicsContextRendererCairo(self.figure.dpi)
+            self._renderer.set_ctx_from_image_args(
+                format_t.ARGB32, *self.get_width_height())
+            self._last_renderer_args = renderer_args
+        return self._renderer
 
     def draw(self):
-        self._renderer = GraphicsContextRendererCairo(self.figure.dpi)
-        self._renderer.set_ctx_from_image_args(
-            format_t.ARGB32, *self.get_width_height())
-        self.figure.draw(self._renderer)
+        self.figure.draw(self.get_renderer())
         super().draw()
 
     def copy_from_bbox(self, bbox):
