@@ -54,7 +54,6 @@ class GraphicsContextRenderer {
 
   AdditionalState& get_additional_state();
   static void destroy_state_stack(void* ptr);
-  double points_to_pixels(double points);
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
   ClipContext clip_context();
@@ -83,7 +82,8 @@ class GraphicsContextRenderer {
   void set_clip_rectangle(std::optional<py::object> rectangle);
   void set_clip_path(std::optional<py::object> transformed_path);
   void set_dashes(
-      std::optional<double> dash_offset, std::optional<py::object> dash_list);
+      std::optional<double> dash_offset,
+      std::optional<std::vector<double>> dash_list);
   void set_foreground(py::object fg, bool /* is_rgba */=false);
   void set_joinstyle(std::string js);
   void set_linewidth(double lw);
@@ -98,6 +98,7 @@ class GraphicsContextRenderer {
   std::tuple<int, int> get_canvas_width_height();
   int get_width();
   int get_height();
+  double points_to_pixels(double points);
 
   void draw_gouraud_triangles(
       GraphicsContextRenderer& gc,

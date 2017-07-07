@@ -60,10 +60,6 @@ void GraphicsContextRenderer::destroy_state_stack(void* ptr) {
   delete stack;
 }
 
-double GraphicsContextRenderer::points_to_pixels(double points) {
-  return points * dpi_ / 72;
-}
-
 double GraphicsContextRenderer::pixels_to_points(double pixels) {
   return pixels / (dpi_ / 72);
 }
@@ -270,13 +266,16 @@ void GraphicsContextRenderer::set_clip_path(
 }
 
 void GraphicsContextRenderer::set_dashes(
-    std::optional<double> dash_offset, std::optional<py::object> dash_list) {
+    std::optional<double> dash_offset,
+    std::optional<std::vector<double>> dash_list) {
   if (dash_list) {
     if (!dash_offset) {
       throw std::invalid_argument("Missing dash offset");
     }
-    auto dashes = dash_list->cast<std::vector<double>>();
-    cairo_set_dash(cr_, dashes.data(), dashes.size(), *dash_offset);
+    std::transform(
+        dash_list->begin(), dash_list->end(), dash_list->begin(),
+        [&](double points) { return points_to_pixels(points); });
+    cairo_set_dash(cr_, dash_list->data(), dash_list->size(), *dash_offset);
   } else {
     cairo_set_dash(cr_, nullptr, 0, 0);
   }
@@ -371,6 +370,10 @@ int GraphicsContextRenderer::get_height() {
     return 0;
   }
   return cairo_image_surface_get_height(cairo_get_target(cr_));
+}
+
+double GraphicsContextRenderer::points_to_pixels(double points) {
+  return points * dpi_ / 72;
 }
 
 void GraphicsContextRenderer::draw_gouraud_triangles(
@@ -487,6 +490,7 @@ void GraphicsContextRenderer::draw_markers(
   auto n_vertices = vertices.shape(0);
 
   auto marker_matrix = matrix_from_transform(marker_transform);
+  // NOTE: Not clear why this is needed...
   auto matrix = matrix_from_transform(transform, get_height());
 
   // Initialize everyone, to avoid -Wmaybe-uninitialized in draw_one_marker().
@@ -970,6 +974,8 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     // NOTE Needed for patheffects, which should use get_canvas_width_height().
     .def_property_readonly("width", &GraphicsContextRenderer::get_width)
     .def_property_readonly("height", &GraphicsContextRenderer::get_height)
+
+    .def("points_to_pixels", &GraphicsContextRenderer::points_to_pixels)
 
     .def("draw_gouraud_triangles",
         &GraphicsContextRenderer::draw_gouraud_triangles)
