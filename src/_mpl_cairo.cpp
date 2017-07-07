@@ -10,6 +10,31 @@ using namespace pybind11::literals;
 Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
   bbox{bbox}, buf{buf} {}
 
+GraphicsContextRenderer::ClipContext::ClipContext(
+    GraphicsContextRenderer* gcr) :
+  gcr_{gcr} {
+  auto cr = gcr_->cr_;
+  cairo_save(cr);
+  if (auto rectangle = gcr->clip_rectangle_; rectangle) {
+    auto [x, y, w, h] = *rectangle;
+    cairo_save(cr);
+    cairo_identity_matrix(cr);
+    cairo_new_path(cr);
+    cairo_rectangle(cr, x, gcr->get_height() - h - y, w, h);
+    cairo_restore(cr);
+    cairo_clip(cr);
+  }
+  if (auto clip_path = gcr->clip_path_; clip_path) {
+    cairo_new_path(cr);
+    cairo_append_path(cr, *clip_path);
+    cairo_clip(cr);
+  }
+}
+
+GraphicsContextRenderer::ClipContext::~ClipContext() {
+  cairo_restore(gcr_->cr_);
+}
+
 double GraphicsContextRenderer::points_to_pixels(double points) {
   return points * dpi_ / 72;
 }
@@ -18,7 +43,7 @@ double GraphicsContextRenderer::pixels_to_points(double pixels) {
   return pixels / (dpi_ / 72);
 }
 
-rgba_t GraphicsContextRenderer::get_rgba(void) {
+rgba_t GraphicsContextRenderer::get_rgba() {
   double r, g, b, a;
   auto status = cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a);
   if (status != CAIRO_STATUS_SUCCESS) {
@@ -30,6 +55,10 @@ rgba_t GraphicsContextRenderer::get_rgba(void) {
     a = *alpha_;
   }
   return {r, g, b, a};
+}
+
+GraphicsContextRenderer::ClipContext GraphicsContextRenderer::clip_context() {
+  return {this};
 }
 
 bool GraphicsContextRenderer::try_draw_circles(
@@ -96,6 +125,9 @@ GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
 GraphicsContextRenderer::~GraphicsContextRenderer() {
   if (cr_) {
     cairo_destroy(cr_);
+  }
+  if (clip_path_) {
+    cairo_path_destroy(*clip_path_);
   }
 }
 
@@ -179,34 +211,31 @@ void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
 
 void GraphicsContextRenderer::set_clip_rectangle(
     std::optional<py::object> rectangle) {
-  if (!cr_ || !rectangle) {
-    return;
+  if (rectangle) {
+    clip_rectangle_ = rectangle->attr("bounds").cast<rectangle_t>();
+  } else {
+    clip_rectangle_ = {};
   }
-  // It may be technically necessary to go through one round of restore()
-  // / save() (with one save() in the constructor) to clear the previous
-  // rectangle (and similarly for set_clip_path()).  In practice, it looks
-  // like Matplotlib is careful to only clip once per Python-level context,
-  // though, so we're safe.
-  auto [x, y, w, h] = rectangle->attr("bounds").cast<rectangle_t>();
-  cairo_save(cr_);
-  cairo_identity_matrix(cr_);
-  cairo_new_path(cr_);
-  cairo_rectangle(cr_, x, get_height() - h - y, w, h);
-  cairo_restore(cr_);
-  cairo_clip(cr_);
 }
 
 void GraphicsContextRenderer::set_clip_path(
     std::optional<py::object> transformed_path) {
-  if (!cr_ || !transformed_path) {
-    return;
+  if (clip_path_) {
+    cairo_path_destroy(*clip_path_);
   }
-  auto [path, transform] =
-    transformed_path->attr("get_transformed_path_and_affine")()
-    .cast<std::tuple<py::object, py::object>>();
-  auto matrix = matrix_from_transform(transform, get_height());
-  load_path(cr_, path, &matrix);
-  cairo_clip(cr_);
+  if (transformed_path) {
+    auto [path, transform] =
+      transformed_path->attr("get_transformed_path_and_affine")()
+      .cast<std::tuple<py::object, py::object>>();
+    auto matrix = matrix_from_transform(transform, get_height());
+    cairo_save(cr_);
+    cairo_identity_matrix(cr_);
+    load_path(cr_, path, &matrix);
+    cairo_restore(cr_);
+    clip_path_ = cairo_copy_path(cr_);
+  } else {
+    clip_path_ = {};
+  }
 }
 
 void GraphicsContextRenderer::set_dashes(
@@ -258,12 +287,12 @@ double GraphicsContextRenderer::get_linewidth() {
   return pixels_to_points(cairo_get_line_width(cr_));
 }
 
-rgb_t GraphicsContextRenderer::get_rgb(void) {
+rgb_t GraphicsContextRenderer::get_rgb() {
   auto [r, g, b, a] = get_rgba();
   return {r, g, b};
 }
 
-GraphicsContextRenderer& GraphicsContextRenderer::new_gc(void) {
+GraphicsContextRenderer& GraphicsContextRenderer::new_gc() {
   if (!cr_) {
     return *this;
   }
@@ -279,32 +308,42 @@ void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer& other) {
   cr_ = other.cr_;
   dpi_ = other.dpi_;
   alpha_ = other.alpha_;
+  clip_rectangle_ = other.clip_rectangle_;
   if (!cr_) {
+    clip_path_ = {};  // Ugh.
     return;
+  }
+  // Workaround lack of cairo_path_reference.
+  if (other.clip_path_) {
+    cairo_new_path(cr_);
+    cairo_append_path(cr_, *other.clip_path_);
+    *clip_path_ = cairo_copy_path(cr_);
+  } else {
+    clip_path_ = {};
   }
   cairo_reference(cr_);
   cairo_save(cr_);
 }
 
-void GraphicsContextRenderer::restore(void) {
+void GraphicsContextRenderer::restore() {
   if (!cr_) {
     return;
   }
   cairo_restore(cr_);
 }
 
-std::tuple<int, int> GraphicsContextRenderer::get_canvas_width_height(void) {
+std::tuple<int, int> GraphicsContextRenderer::get_canvas_width_height() {
   return {get_width(), get_height()};
 }
 
-int GraphicsContextRenderer::get_width(void) {
+int GraphicsContextRenderer::get_width() {
   if (!cr_) {
     return 0;
   }
   return cairo_image_surface_get_width(cairo_get_target(cr_));
 }
 
-int GraphicsContextRenderer::get_height(void) {
+int GraphicsContextRenderer::get_height() {
   if (!cr_) {
     return 0;
   }
@@ -322,8 +361,8 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
+  auto cm = clip_context();
   auto matrix = matrix_from_transform(transform, get_height());
-  cairo_save(cr_);
   auto tri_raw = triangles.unchecked<3>();
   auto col_raw = colors.unchecked<3>();
   auto n = tri_raw.shape(0);
@@ -352,7 +391,6 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   cairo_set_source(cr_, pattern);
   cairo_paint(cr_);
   cairo_pattern_destroy(pattern);
-  cairo_restore(cr_);
 }
 
 void GraphicsContextRenderer::draw_image(
@@ -363,7 +401,7 @@ void GraphicsContextRenderer::draw_image(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  cairo_save(cr_);
+  auto cm = clip_context();
   auto im_raw = im.unchecked<3>();
   auto ni = im_raw.shape(0), nj = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
@@ -403,7 +441,6 @@ void GraphicsContextRenderer::draw_image(
   cairo_paint(cr_);
   cairo_pattern_destroy(pattern);
   cairo_surface_destroy(surface);
-  cairo_restore(cr_);
 }
 
 void GraphicsContextRenderer::draw_markers(
@@ -419,6 +456,7 @@ void GraphicsContextRenderer::draw_markers(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
+  auto cm = clip_context();
 
   auto vertices = path.attr("vertices").cast<py::array_t<double>>();
   // NOTE: For efficiency, we ignore codes, which is the documented behavior
@@ -466,7 +504,6 @@ void GraphicsContextRenderer::draw_markers(
   }
 
   if (patterns) {
-    cairo_save(cr_);
     // Get the extent of the marker.  Importantly, cairo_*_extents() ignores
     // surface dimensions and clipping.
     // NOTE: Currently Matplotlib chooses *not* to call draw_markers() if the
@@ -523,7 +560,6 @@ void GraphicsContextRenderer::draw_markers(
       cairo_set_source(cr_, pattern);
       cairo_paint(cr_);
     }
-    cairo_restore(cr_);
 
     // Cleanup.
     for (size_t i = 0; i < n_subpix * n_subpix; ++i) {
@@ -557,6 +593,7 @@ void GraphicsContextRenderer::draw_path(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
+  auto cm = clip_context();
   auto matrix = matrix_from_transform(transform, get_height());
   load_path(cr_, path, &matrix);
   if (rgb_fc) {
@@ -629,6 +666,7 @@ void GraphicsContextRenderer::draw_path_collection(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
+  auto cm = clip_context();
   // Fall back onto the slow implementation in the following, non-supported
   // cases:
   //   - Hatching is used: the stamp cache cannot be used anymore, as the hatch
@@ -719,7 +757,7 @@ void GraphicsContextRenderer::draw_text(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  cairo_save(cr_);
+  auto cm = clip_context();
   if (ismath) {
     // NOTE: If angle % 90 == 0, we can round x and y to avoid additional
     // aliasing on top of the one already provided by freetype.  Perhaps
@@ -762,7 +800,6 @@ void GraphicsContextRenderer::draw_text(
     cairo_show_text(cr_, s.c_str());
     cairo_font_face_destroy(font_face);
   }
-  cairo_restore(cr_);
 }
 
 std::tuple<double, double, double>

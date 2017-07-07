@@ -27,17 +27,30 @@ struct Region {
   Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf);
 };
 
-struct GraphicsContextRenderer {
+class GraphicsContextRenderer {
+  class ClipContext {
+    GraphicsContextRenderer* gcr_;
+
+    public:
+    ClipContext(GraphicsContextRenderer* gcr);
+    ~ClipContext();
+    ClipContext(const ClipContext& other) = delete;
+    ClipContext(ClipContext&& other) = delete;
+    ClipContext operator=(const ClipContext& other) = delete;
+    ClipContext operator=(ClipContext&& other) = delete;
+  };
+
   cairo_t* cr_;
   double dpi_;
   std::optional<double> alpha_;
+  std::optional<rectangle_t> clip_rectangle_;
+  std::optional<cairo_path_t*> clip_path_;
   py::object mathtext_parser_;
-  py::object text2path_;
 
-  private:
   double points_to_pixels(double points);
   double pixels_to_points(double pixels);
-  rgba_t get_rgba(void);
+  rgba_t get_rgba();
+  ClipContext clip_context();
   bool try_draw_circles(
       GraphicsContextRenderer& gc,
       py::object marker_path,
@@ -47,6 +60,8 @@ struct GraphicsContextRenderer {
       std::optional<py::object> rgb_fc);
 
   public:
+  py::object text2path_;
+
   GraphicsContextRenderer(double dpi);
   ~GraphicsContextRenderer();
 
@@ -67,15 +82,15 @@ struct GraphicsContextRenderer {
   void set_linewidth(double lw);
 
   double get_linewidth();
-  rgb_t get_rgb(void);
+  rgb_t get_rgb();
 
-  GraphicsContextRenderer& new_gc(void);
+  GraphicsContextRenderer& new_gc();
   void copy_properties(GraphicsContextRenderer& other);
-  void restore(void);
+  void restore();
 
-  std::tuple<int, int> get_canvas_width_height(void);
-  int get_width(void);
-  int get_height(void);
+  std::tuple<int, int> get_canvas_width_height();
+  int get_width();
+  int get_height();
 
   void draw_gouraud_triangles(
       GraphicsContextRenderer& gc,
