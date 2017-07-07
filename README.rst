@@ -74,9 +74,10 @@ Notes
 Missing features
 ----------------
 
+- Hatching of ``PathCollections``\s.
+- ``set_agg_filter``.
 - Snapping.
 - Sketching (i.e. xkcd-style plots).
-- ``set_agg_filter``.
 
 Known issues
 ------------

@@ -159,7 +159,7 @@ void GraphicsContextRenderer::set_antialiased(py::object aa) {
     return;
   }
   cairo_set_antialias(
-      cr_, aa.cast<bool>() ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
+      cr_, py::bool_(aa) ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
 }
 
 void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
@@ -469,6 +469,9 @@ void GraphicsContextRenderer::draw_markers(
     cairo_save(cr_);
     // Get the extent of the marker.  Importantly, cairo_*_extents() ignores
     // surface dimensions and clipping.
+    // NOTE: Currently Matplotlib chooses *not* to call draw_markers() if the
+    // marker is bigger than the canvas, but this is really a limitation on
+    // Agg's side.
     cairo_identity_matrix(cr_);
     load_path(cr_, marker_path, &marker_matrix);
     double x0, y0, x1, y1;

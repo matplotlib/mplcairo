@@ -44,6 +44,7 @@ void PatternCache::CacheKey::draw(cairo_t* cr) {
   load_path(cr, path, &matrix);
   switch (draw_func) {
     case draw_func_t::Fill:
+      // FIXME: Hatching.
       cairo_fill(cr);
       break;
     case draw_func_t::Stroke:
@@ -148,6 +149,7 @@ void PatternCache::mask(cairo_t* cr, CacheKey key, double x, double y) {
   // Get the patterns.
   auto it_patterns = patterns_.find(key);
   if (it_patterns == patterns_.end()) {
+    // Get the pattern extents.
     cairo_save(cr);
     cairo_identity_matrix(cr);
     load_path(cr, key.path, &key.matrix);

@@ -7,7 +7,7 @@ FT_Library FT_LIB = nullptr;
 py::object UNIT_CIRCLE = {};
 
 cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
-  if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
+  if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
   auto py_matrix = transform.cast<py::array_t<double>>();
@@ -19,7 +19,7 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
 
 cairo_matrix_t matrix_from_transform(
     py::object transform, cairo_matrix_t* master_matrix) {
-  if (!py::getattr(transform, "is_affine", py::bool_(true)).cast<bool>()) {
+  if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
   auto py_matrix = transform.cast<py::array_t<double>>();
