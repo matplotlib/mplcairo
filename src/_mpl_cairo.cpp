@@ -100,19 +100,18 @@ GraphicsContextRenderer::~GraphicsContextRenderer() {
 }
 
 void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
-  if (cr_) {
-    cairo_destroy(cr_);
-  }
   if (py_surface.attr("__module__").cast<std::string>()
-      == "cairocffi.surfaces") {
-    auto surface = reinterpret_cast<cairo_surface_t*>(
-        py::module::import("cairocffi").attr("ffi").attr("cast")(
-          "int", py_surface.attr("_pointer")).cast<uintptr_t>());
-    cr_ = cairo_create(surface);
-  } else {
+      != "cairocffi.surfaces") {
     throw std::invalid_argument(
         "Could not convert argument to cairo_surface_t*");
   }
+  if (cr_) {
+    cairo_destroy(cr_);
+  }
+  auto surface = reinterpret_cast<cairo_surface_t*>(
+      py::module::import("cairocffi").attr("ffi").attr("cast")(
+        "int", py_surface.attr("_pointer")).cast<uintptr_t>());
+  cr_ = cairo_create(surface);
 }
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
@@ -141,10 +140,11 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
     return;
   }
   alpha_ = alpha;
+  auto [r, g, b] = get_rgb();
   if (!alpha) {
+    cairo_set_source_rgba(cr_, r, g, b, 1);
     return;
   }
-  auto [r, g, b] = get_rgb();
   cairo_set_source_rgba(cr_, r, g, b, *alpha);
 }
 
@@ -188,8 +188,11 @@ void GraphicsContextRenderer::set_clip_rectangle(
   // like Matplotlib is careful to only clip once per Python-level context,
   // though, so we're safe.
   auto [x, y, w, h] = rectangle->attr("bounds").cast<rectangle_t>();
+  cairo_save(cr_);
+  cairo_identity_matrix(cr_);
   cairo_new_path(cr_);
   cairo_rectangle(cr_, x, get_height() - h - y, w, h);
+  cairo_restore(cr_);
   cairo_clip(cr_);
 }
 
@@ -464,7 +467,6 @@ void GraphicsContextRenderer::draw_markers(
 
   if (patterns) {
     cairo_save(cr_);
-
     // Get the extent of the marker.  Importantly, cairo_*_extents() ignores
     // surface dimensions and clipping.
     cairo_identity_matrix(cr_);
@@ -552,7 +554,6 @@ void GraphicsContextRenderer::draw_path(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  cairo_save(cr_);
   auto matrix = matrix_from_transform(transform, get_height());
   load_path(cr_, path, &matrix);
   if (rgb_fc) {
@@ -601,7 +602,6 @@ void GraphicsContextRenderer::draw_path(
     cairo_restore(cr_);
   }
   cairo_stroke(cr_);
-  cairo_restore(cr_);
 }
 
 void GraphicsContextRenderer::draw_path_collection(
