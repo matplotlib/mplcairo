@@ -3,9 +3,13 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
+#include <stack>
+
 namespace mpl_cairo {
 
 using namespace pybind11::literals;
+
+static cairo_user_data_key_t const STATE_KEY = {0};
 
 Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
   bbox{bbox}, buf{buf} {}
@@ -15,7 +19,8 @@ GraphicsContextRenderer::ClipContext::ClipContext(
   gcr_{gcr} {
   auto cr = gcr_->cr_;
   cairo_save(cr);
-  if (auto rectangle = gcr->clip_rectangle_; rectangle) {
+  auto& state = gcr_->get_additional_state();
+  if (auto rectangle = state.clip_rectangle; rectangle) {
     auto [x, y, w, h] = *rectangle;
     cairo_save(cr);
     cairo_identity_matrix(cr);
@@ -24,7 +29,7 @@ GraphicsContextRenderer::ClipContext::ClipContext(
     cairo_restore(cr);
     cairo_clip(cr);
   }
-  if (auto clip_path = gcr->clip_path_; clip_path) {
+  if (auto clip_path = state.clip_path; clip_path) {
     cairo_new_path(cr);
     cairo_append_path(cr, *clip_path);
     cairo_clip(cr);
@@ -33,6 +38,26 @@ GraphicsContextRenderer::ClipContext::ClipContext(
 
 GraphicsContextRenderer::ClipContext::~ClipContext() {
   cairo_restore(gcr_->cr_);
+}
+
+GraphicsContextRenderer::AdditionalState&
+GraphicsContextRenderer::get_additional_state() {
+  return
+    static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
+        cairo_get_user_data(cr_, &STATE_KEY))->top();
+}
+
+void GraphicsContextRenderer::destroy_state_stack(void* ptr) {
+  auto* stack =
+    static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(ptr);
+  while (stack->size()) {
+    auto& state = stack->top();
+    if (state.clip_path) {
+      cairo_path_destroy(*state.clip_path);
+    }
+    stack->pop();
+  }
+  delete stack;
 }
 
 double GraphicsContextRenderer::points_to_pixels(double points) {
@@ -51,8 +76,8 @@ rgba_t GraphicsContextRenderer::get_rgba() {
         "Could not retrieve color from pattern: "
         + std::string{cairo_status_to_string(status)});
   }
-  if (alpha_) {
-    a = *alpha_;
+  if (auto alpha = get_additional_state().alpha; alpha) {
+    a = *alpha;
   }
   return {r, g, b, a};
 }
@@ -84,8 +109,8 @@ bool GraphicsContextRenderer::try_draw_circles(
     } else {
       std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
     }
-    if (alpha_) {
-      a = *alpha_;
+    if (auto alpha = get_additional_state().alpha; alpha) {
+      a = *alpha;
     }
     if ((rgba_t{r, g, b, a} != get_rgba())  // Can't draw edge with another color.
         || (a != 1)) {  // Can't handle alpha.  // FIXME Try drawing one at a time.
@@ -125,9 +150,6 @@ GraphicsContextRenderer::~GraphicsContextRenderer() {
   if (cr_) {
     cairo_destroy(cr_);
   }
-  if (clip_path_) {
-    cairo_path_destroy(*clip_path_);
-  }
 }
 
 void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
@@ -143,6 +165,10 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
       py::module::import("cairocffi").attr("ffi").attr("cast")(
         "int", py_surface.attr("_pointer")).cast<uintptr_t>());
   cr_ = cairo_create(surface);
+  cairo_set_user_data(
+      cr_, &STATE_KEY,
+      new std::stack<GraphicsContextRenderer::AdditionalState>({{}, {}}),
+      GraphicsContextRenderer::destroy_state_stack);
 }
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
@@ -157,6 +183,10 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   auto surface = cairo_image_surface_create(format, width, height);
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
+  cairo_set_user_data(
+      cr_, &STATE_KEY,
+      new std::stack<GraphicsContextRenderer::AdditionalState>({{}, {}}),
+      GraphicsContextRenderer::destroy_state_stack);
 }
 
 uintptr_t GraphicsContextRenderer::get_data_address() {
@@ -171,7 +201,7 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
   if (!cr_) {
     return;
   }
-  alpha_ = alpha;
+  get_additional_state().alpha = alpha;
   auto [r, g, b] = get_rgb();
   if (!alpha) {
     cairo_set_source_rgba(cr_, r, g, b, 1);
@@ -211,17 +241,18 @@ void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
 
 void GraphicsContextRenderer::set_clip_rectangle(
     std::optional<py::object> rectangle) {
-  if (rectangle) {
-    clip_rectangle_ = rectangle->attr("bounds").cast<rectangle_t>();
-  } else {
-    clip_rectangle_ = {};
-  }
+  auto& clip_rectangle = get_additional_state().clip_rectangle;
+  clip_rectangle =
+    rectangle
+    ? rectangle->attr("bounds").cast<rectangle_t>()
+    : std::optional<rectangle_t>{};
 }
 
 void GraphicsContextRenderer::set_clip_path(
     std::optional<py::object> transformed_path) {
-  if (clip_path_) {
-    cairo_path_destroy(*clip_path_);
+  auto& clip_path = get_additional_state().clip_path;
+  if (clip_path) {
+    cairo_path_destroy(*clip_path);
   }
   if (transformed_path) {
     auto [path, transform] =
@@ -232,9 +263,9 @@ void GraphicsContextRenderer::set_clip_path(
     cairo_identity_matrix(cr_);
     load_path(cr_, path, &matrix);
     cairo_restore(cr_);
-    clip_path_ = cairo_copy_path(cr_);
+    clip_path = cairo_copy_path(cr_);
   } else {
-    clip_path_ = {};
+    clip_path = {};
   }
 }
 
@@ -255,8 +286,8 @@ void GraphicsContextRenderer::set_foreground(
     py::object fg, bool /* is_rgba */) {
   auto [r, g, b, a] =
     py::module::import("matplotlib.colors").attr("to_rgba")(fg).cast<rgba_t>();
-  if (alpha_) {
-    a = *alpha_;
+  if (auto alpha = get_additional_state().alpha; alpha) {
+    a = *alpha;
   }
   cairo_set_source_rgba(cr_, r, g, b, a);
 }
@@ -298,36 +329,29 @@ GraphicsContextRenderer& GraphicsContextRenderer::new_gc() {
   }
   cairo_reference(cr_);
   cairo_save(cr_);
+  auto& states =
+    *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
+        cairo_get_user_data(cr_, &STATE_KEY));
+  states.push(states.top());
   return *this;
 }
 
-void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer& other) {
-  dpi_ = other.dpi_;
-  if (cr_) {
-    cairo_destroy(cr_);
+void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer* other) {
+  // In practice the following holds.  Anything else requires figuring out what
+  // to do with the properties stack.
+  if (this != other) {
+    throw std::invalid_argument("Independent contexts cannot be copied");
   }
-  cr_ = other.cr_;
-  alpha_ = other.alpha_;
-  clip_rectangle_ = other.clip_rectangle_;
-  if (clip_path_) {
-    cairo_path_destroy(*clip_path_);
-  }
-  if (other.clip_path_) {
-    *clip_path_ = copy_path(*other.clip_path_);
-  } else {
-    clip_path_ = {};
-  }
-  if (!cr_) {
-    return;
-  }
-  cairo_reference(cr_);
-  cairo_save(cr_);
 }
 
 void GraphicsContextRenderer::restore() {
   if (!cr_) {
     return;
   }
+  auto& states =
+    *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
+        cairo_get_user_data(cr_, &STATE_KEY));
+  states.pop();
   cairo_restore(cr_);
 }
 
@@ -408,15 +432,15 @@ void GraphicsContextRenderer::draw_image(
   }
   auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
   auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
-  if (alpha_) {
+  if (auto alpha = get_additional_state().alpha; alpha) {
     for (size_t i = 0; i < ni; ++i) {
       auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
       for (size_t j = 0; j < nj; ++j) {
         auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
              b = *im_raw.data(i, j, 2)/*, a = *im_raw.data(i, j, 3) */;
         *(ptr++) =
-          (uint8_t(*alpha_ * 0xff) << 24) | (uint8_t(*alpha_ * r) << 16)
-          | (uint8_t(*alpha_ * g) << 8) | (uint8_t(*alpha_ * b));
+          (uint8_t(*alpha * 0xff) << 24) | (uint8_t(*alpha * r) << 16)
+          | (uint8_t(*alpha * g) << 8) | (uint8_t(*alpha * b));
       }
     }
   } else {
@@ -473,8 +497,8 @@ void GraphicsContextRenderer::draw_markers(
     } else {
       std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
     }
-    if (alpha_) {
-      a = *alpha_;
+    if (auto alpha = get_additional_state().alpha; alpha) {
+      a = *alpha;
     }
   }
 
@@ -603,8 +627,8 @@ void GraphicsContextRenderer::draw_path(
     } else {
       std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
     }
-    if (alpha_) {
-      a = *alpha_;
+    if (auto alpha = get_additional_state().alpha; alpha) {
+      a = *alpha;
     }
     cairo_set_source_rgba(cr_, r, g, b, a);
     cairo_fill_preserve(cr_);
@@ -701,9 +725,10 @@ void GraphicsContextRenderer::draw_path_collection(
   }
   auto offset_matrix = matrix_from_transform(offset_transform);
   auto convert_colors = [&](py::object colors) {
+    auto alpha = get_additional_state().alpha;
     return
       py::module::import("matplotlib.colors").attr("to_rgba_array")(
-          colors, alpha_ ? py::cast(*alpha_) : py::none())
+          colors, alpha ? py::cast(*alpha) : py::none())
       .cast<py::array_t<double>>();
   };
   // Don't drop the arrays until the function exits.

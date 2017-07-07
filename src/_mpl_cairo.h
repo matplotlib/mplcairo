@@ -28,6 +28,14 @@ struct Region {
 };
 
 class GraphicsContextRenderer {
+  // Store the additional state that needs to be pushed/popped as user data on
+  // the cairo_t* to tie their lifetimes.
+  struct AdditionalState {
+    std::optional<double> alpha;
+    std::optional<rectangle_t> clip_rectangle;
+    std::optional<cairo_path_t*> clip_path;
+  };
+
   class ClipContext {
     GraphicsContextRenderer* gcr_;
 
@@ -44,10 +52,8 @@ class GraphicsContextRenderer {
   double dpi_;
   py::object mathtext_parser_;
 
-  std::optional<double> alpha_;
-  std::optional<rectangle_t> clip_rectangle_;
-  std::optional<cairo_path_t*> clip_path_;
-
+  AdditionalState& get_additional_state();
+  static void destroy_state_stack(void* ptr);
   double points_to_pixels(double points);
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
@@ -86,7 +92,7 @@ class GraphicsContextRenderer {
   rgb_t get_rgb();
 
   GraphicsContextRenderer& new_gc();
-  void copy_properties(GraphicsContextRenderer& other);
+  void copy_properties(GraphicsContextRenderer* other);
   void restore();
 
   std::tuple<int, int> get_canvas_width_height();
