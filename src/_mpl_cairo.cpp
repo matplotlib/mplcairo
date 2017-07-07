@@ -117,7 +117,6 @@ bool GraphicsContextRenderer::try_draw_circles(
 GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
   cr_{nullptr},
   dpi_{dpi},
-  alpha_{{}},
   mathtext_parser_{
     py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {}
@@ -303,19 +302,18 @@ GraphicsContextRenderer& GraphicsContextRenderer::new_gc() {
 }
 
 void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer& other) {
+  dpi_ = other.dpi_;
   if (cr_) {
     cairo_destroy(cr_);
   }
   cr_ = other.cr_;
-  dpi_ = other.dpi_;
   alpha_ = other.alpha_;
   clip_rectangle_ = other.clip_rectangle_;
-  // Workaround lack of cairo_path_reference.
+  if (clip_path_) {
+    cairo_path_destroy(*clip_path_);
+  }
   if (other.clip_path_) {
-    auto tmp_cr = trivial_context();  // cr may be null.
-    cairo_append_path(tmp_cr, *other.clip_path_);
-    *clip_path_ = cairo_copy_path(tmp_cr);
-    cairo_destroy(tmp_cr);
+    *clip_path_ = copy_path(*other.clip_path_);
   } else {
     clip_path_ = {};
   }

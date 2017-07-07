@@ -42,10 +42,11 @@ class GraphicsContextRenderer {
 
   cairo_t* cr_;
   double dpi_;
+  py::object mathtext_parser_;
+
   std::optional<double> alpha_;
   std::optional<rectangle_t> clip_rectangle_;
   std::optional<cairo_path_t*> clip_path_;
-  py::object mathtext_parser_;
 
   double points_to_pixels(double points);
   double pixels_to_points(double pixels);

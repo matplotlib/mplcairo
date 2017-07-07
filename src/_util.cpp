@@ -39,6 +39,15 @@ cairo_t* trivial_context() {
   return cr;
 }
 
+// Copy the whole path, as there is no cairo_path_reference().
+cairo_path_t* copy_path(cairo_path_t* path) {
+  auto cr = trivial_context();
+  cairo_append_path(cr, path);
+  auto new_path = cairo_copy_path(cr);
+  cairo_destroy(cr);
+  return new_path;
+}
+
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
   cairo_set_antialias(dest, cairo_get_antialias(orig));
   cairo_set_line_cap(dest, cairo_get_line_cap(orig));
