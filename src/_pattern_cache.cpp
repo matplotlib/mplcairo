@@ -44,7 +44,6 @@ void PatternCache::CacheKey::draw(cairo_t* cr) {
   load_path(cr, path, &matrix);
   switch (draw_func) {
     case draw_func_t::Fill:
-      // FIXME: Hatching.
       cairo_fill(cr);
       break;
     case draw_func_t::Stroke:

@@ -629,10 +629,18 @@ void GraphicsContextRenderer::draw_path_collection(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  if (offset_position == "data") {
-    // NOTE: This seems to be used only by hexbin().  Perhaps the feature can
-    // be deprecated and folded into hexbin()?  For now, we can just fall back
-    // to the slow implementation.
+  // Fall back onto the slow implementation in the following, non-supported
+  // cases:
+  //   - Hatching is used: the stamp cache cannot be used anymore, as the hatch
+  //     positions would be different on every stamp.  (NOTE: Actually it
+  //     may be possible to use the hatch as the source and mask it with the
+  //     pattern.)
+  //   - NOTE: offset_position is set to "data".  This feature is only used by
+  //     hexbin(), so it should really just be deprecated; hexbin() should
+  //     provide its own Container class which correctly adjusts the transforms
+  //     at draw time.
+  if ((py::bool_(py::cast(this).attr("get_hatch")()))
+      || (offset_position == "data")) {
     py::module::import("matplotlib.backend_bases")
       .attr("RendererBase").attr("draw_path_collection")(
           this, gc, master_transform,
