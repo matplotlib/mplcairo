@@ -14,11 +14,16 @@ static cairo_user_data_key_t const STATE_KEY = {0};
 Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
   bbox{bbox}, buf{buf} {}
 
-GraphicsContextRenderer::ClipContext::ClipContext(
+GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     GraphicsContextRenderer* gcr) :
   gcr_{gcr} {
   auto cr = gcr_->cr_;
   cairo_save(cr);
+  // Force alpha, if needed.  Cannot be done earlier as we need to be able to
+  // unforce it (by setting alpha to None).
+  auto [r, g, b, a] = gcr_->get_rgba();
+  cairo_set_source_rgba(cr, r, g, b, a);
+  // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.
   auto& state = gcr_->get_additional_state();
   if (auto rectangle = state.clip_rectangle; rectangle) {
     auto [x, y, w, h] = *rectangle;
@@ -36,7 +41,7 @@ GraphicsContextRenderer::ClipContext::ClipContext(
   }
 }
 
-GraphicsContextRenderer::ClipContext::~ClipContext() {
+GraphicsContextRenderer::AdditionalContext::~AdditionalContext() {
   cairo_restore(gcr_->cr_);
 }
 
@@ -78,7 +83,7 @@ rgba_t GraphicsContextRenderer::get_rgba() {
   return {r, g, b, a};
 }
 
-GraphicsContextRenderer::ClipContext GraphicsContextRenderer::clip_context() {
+GraphicsContextRenderer::AdditionalContext GraphicsContextRenderer::additional_context() {
   return {this};
 }
 
@@ -206,12 +211,6 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
     return;
   }
   get_additional_state().alpha = alpha;
-  auto [r, g, b] = get_rgb();
-  if (!alpha) {
-    cairo_set_source_rgba(cr_, r, g, b, 1);
-    return;
-  }
-  cairo_set_source_rgba(cr_, r, g, b, *alpha);
 }
 
 void GraphicsContextRenderer::set_antialiased(cairo_antialias_t aa) {
@@ -414,7 +413,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  auto cm = clip_context();
+  auto ac = additional_context();
   auto matrix = matrix_from_transform(transform, get_height());
   auto tri_raw = triangles.unchecked<3>();
   auto col_raw = colors.unchecked<3>();
@@ -454,7 +453,7 @@ void GraphicsContextRenderer::draw_image(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  auto cm = clip_context();
+  auto ac = additional_context();
   auto im_raw = im.unchecked<3>();
   auto ni = im_raw.shape(0), nj = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
@@ -510,7 +509,7 @@ void GraphicsContextRenderer::draw_markers(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  auto cm = clip_context();
+  auto ac = additional_context();
 
   auto vertices = path.attr("vertices").cast<py::array_t<double>>();
   // NOTE: For efficiency, we ignore codes, which is the documented behavior
@@ -647,7 +646,7 @@ void GraphicsContextRenderer::draw_path(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  auto cm = clip_context();
+  auto ac = additional_context();
   auto matrix = matrix_from_transform(transform, get_height());
   load_path(cr_, path, &matrix);
   if (rgb_fc) {
@@ -718,7 +717,7 @@ void GraphicsContextRenderer::draw_path_collection(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  auto cm = clip_context();
+  auto ac = additional_context();
   // Fall back onto the slow implementation in the following, non-supported
   // cases:
   //   - Hatching is used: the stamp cache cannot be used anymore, as the hatch
@@ -809,7 +808,7 @@ void GraphicsContextRenderer::draw_text(
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
-  auto cm = clip_context();
+  auto ac = additional_context();
   if (ismath) {
     // NOTE: If angle % 90 == 0, we can round x and y to avoid additional
     // aliasing on top of the one already provided by freetype.  Perhaps

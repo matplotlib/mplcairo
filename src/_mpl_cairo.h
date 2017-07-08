@@ -37,16 +37,16 @@ class GraphicsContextRenderer {
     double hatch_linewidth;
   };
 
-  class ClipContext {
+  class AdditionalContext {
     GraphicsContextRenderer* gcr_;
 
     public:
-    ClipContext(GraphicsContextRenderer* gcr);
-    ~ClipContext();
-    ClipContext(const ClipContext& other) = delete;
-    ClipContext(ClipContext&& other) = delete;
-    ClipContext operator=(const ClipContext& other) = delete;
-    ClipContext operator=(ClipContext&& other) = delete;
+    AdditionalContext(GraphicsContextRenderer* gcr);
+    ~AdditionalContext();
+    AdditionalContext(const AdditionalContext& other) = delete;
+    AdditionalContext(AdditionalContext&& other) = delete;
+    AdditionalContext operator=(const AdditionalContext& other) = delete;
+    AdditionalContext operator=(AdditionalContext&& other) = delete;
   };
 
   cairo_t* cr_;
@@ -57,7 +57,7 @@ class GraphicsContextRenderer {
   static void destroy_state_stack(void* ptr);
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
-  ClipContext clip_context();
+  AdditionalContext additional_context();
   bool try_draw_circles(
       GraphicsContextRenderer& gc,
       py::object marker_path,
