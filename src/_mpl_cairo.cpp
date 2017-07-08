@@ -83,7 +83,8 @@ rgba_t GraphicsContextRenderer::get_rgba() {
   return {r, g, b, a};
 }
 
-GraphicsContextRenderer::AdditionalContext GraphicsContextRenderer::additional_context() {
+GraphicsContextRenderer::AdditionalContext
+GraphicsContextRenderer::additional_context() {
   return {this};
 }
 
@@ -170,6 +171,7 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
+  stack->top().sketch = py::none();
   cairo_set_user_data(
       cr_, &STATE_KEY, stack, GraphicsContextRenderer::destroy_state_stack);
   cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);  // NOTE: See below.
@@ -191,6 +193,7 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
+  stack->top().sketch = py::none();
   cairo_set_user_data(
       cr_, &STATE_KEY, stack, GraphicsContextRenderer::destroy_state_stack);
   // NOTE: Collections and text PathEffects have no joinstyle and implicitly
@@ -647,8 +650,17 @@ void GraphicsContextRenderer::draw_path(
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto ac = additional_context();
-  auto matrix = matrix_from_transform(transform, get_height());
-  load_path(cr_, path, &matrix);
+  if (auto sketch = get_additional_state().sketch; !sketch.is_none()) {
+    path = path.attr("cleaned")(
+        "transform"_a=transform,
+        "curves"_a=true,
+        "sketch"_a=get_additional_state().sketch);
+    auto id = cairo_matrix_t{1, 0, 0, -1, 0, get_height()};
+    load_path(cr_, path, &id);
+  } else {
+    auto matrix = matrix_from_transform(transform, get_height());
+    load_path(cr_, path, &matrix);
+  }
   if (rgb_fc) {
     cairo_save(cr_);
     double r, g, b, a{1};
@@ -989,6 +1001,17 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
     .def("get_rgb", &GraphicsContextRenderer::get_rgb)
+
+    // NOTE: Slightly hackish, but works.  Avoids having to reproduce the logic
+    // in set_sketch_params().
+    .def_property(
+        "_sketch",
+        [](GraphicsContextRenderer& gcr) {
+          return gcr.get_additional_state().sketch;
+        },
+        [](GraphicsContextRenderer& gcr, py::object sketch) {
+          gcr.get_additional_state().sketch = sketch;
+        })
 
     .def("new_gc", &GraphicsContextRenderer::new_gc)
     .def("copy_properties", &GraphicsContextRenderer::copy_properties)

@@ -35,6 +35,7 @@ class GraphicsContextRenderer {
     std::optional<std::string> hatch;
     rgba_t hatch_color;
     double hatch_linewidth;
+    py::object sketch;
   };
 
   class AdditionalContext {
@@ -53,7 +54,10 @@ class GraphicsContextRenderer {
   double dpi_;
   py::object mathtext_parser_;
 
+  public: // Should be private, but exposed for simple access to sketch params.
   AdditionalState& get_additional_state();
+
+  private:
   static void destroy_state_stack(void* ptr);
   double pixels_to_points(double pixels);
   rgba_t get_rgba();

@@ -75,7 +75,6 @@ Missing features
 ----------------
 
 - Snapping.
-- Sketching (i.e. xkcd-style plots).
 
 Known issues
 ------------
