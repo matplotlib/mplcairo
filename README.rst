@@ -74,7 +74,6 @@ Notes
 Missing features
 ----------------
 
-- ``set_agg_filter``.
 - Snapping.
 - Sketching (i.e. xkcd-style plots).
 
