@@ -75,11 +75,16 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
   cairo_set_source_rgba(dest, r, g, b, a);
 }
 
-/**
- * Temporarily add `matrix` to `cr`'s CTM, and make `path` `cr`'s current path
- * (transformed accordingly).  Note that a pre-existing CTM may already be
- * present!
- */
+// Temporarily add `matrix` to `cr`'s CTM, and make `path` `cr`'s current path
+// (transformed accordingly).  Note that a pre-existing CTM may already be
+// present!
+// TODO: In order to deal with overflow when transformed values do not fit in
+// a 24-bit signed integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091
+// and test_simplification.test_overflow), we need to know the entire
+// transformation matrix up to that point (which in practice is just *matrix
+// and a translation) and just run everything through the clipping step of
+// Path.cleanup (but then we may as well combine some more operations).
+// (Moreover, this would not handle Beziers.)
 void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
   cairo_save(cr);
   // We can't simply call cairo_transform(cr, matrix) because matrix may be

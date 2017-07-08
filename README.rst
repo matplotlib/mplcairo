@@ -79,7 +79,9 @@ Missing features
 Known issues
 ------------
 
-- Markers, ticks, and dashes seem incorrectly sized.
+- Very large inputs (transforming to pixel values greater than ``2**23`` in
+  absolute value) will be drawn incorrectly due to overflow in cairo (cairo
+  #20091).
 - Blitting-based animation leaves small artefacts at the edges of the blitted
   region.
 
