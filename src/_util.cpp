@@ -6,6 +6,16 @@ static cairo_user_data_key_t const FT_KEY = {0};
 FT_Library FT_LIB = nullptr;
 py::object UNIT_CIRCLE = {};
 
+py::object rc_param(std::string key) {
+  return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
+}
+
+rgba_t to_rgba(py::object color) {
+  return
+    py::module::import("matplotlib.colors")
+    .attr("to_rgba")(color).cast<rgba_t>();
+}
+
 cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");

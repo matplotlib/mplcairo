@@ -12,13 +12,11 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include "_util.h"
+
 namespace mpl_cairo {
 
 namespace py = pybind11;
-
-using rectangle_t = std::tuple<double, double, double, double>;
-using rgb_t = std::tuple<double, double, double>;
-using rgba_t = std::tuple<double, double, double, double>;
 
 struct Region {
   cairo_rectangle_int_t bbox;
@@ -34,6 +32,9 @@ class GraphicsContextRenderer {
     std::optional<double> alpha;
     std::optional<rectangle_t> clip_rectangle;
     std::optional<cairo_path_t*> clip_path;
+    std::optional<std::string> hatch;
+    rgba_t hatch_color;
+    double hatch_linewidth;
   };
 
   class ClipContext {
@@ -85,9 +86,14 @@ class GraphicsContextRenderer {
       std::optional<double> dash_offset,
       std::optional<std::vector<double>> dash_list);
   void set_foreground(py::object fg, bool /* is_rgba */=false);
+  void set_hatch(std::optional<std::string> hatch);
+  void set_hatch_color(py::object hatch);
   void set_joinstyle(std::string js);
   void set_linewidth(double lw);
 
+  std::optional<std::string> get_hatch();
+  rgba_t get_hatch_color();
+  double get_hatch_linewidth();
   double get_linewidth();
   rgb_t get_rgb();
 

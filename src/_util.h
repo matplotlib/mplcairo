@@ -12,6 +12,10 @@ namespace mpl_cairo {
 
 namespace py = pybind11;
 
+using rectangle_t = std::tuple<double, double, double, double>;
+using rgb_t = std::tuple<double, double, double>;
+using rgba_t = std::tuple<double, double, double, double>;
+
 extern FT_Library FT_LIB;
 extern py::object UNIT_CIRCLE;
 
@@ -19,6 +23,8 @@ enum class PathCode {
   STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79
 };
 
+py::object rc_param(std::string key);
+rgba_t to_rgba(py::object color);
 cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
 cairo_matrix_t matrix_from_transform(
     py::object transform, cairo_matrix_t* master_matrix);

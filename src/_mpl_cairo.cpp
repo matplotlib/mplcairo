@@ -161,10 +161,12 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
       py::module::import("cairocffi").attr("ffi").attr("cast")(
         "int", py_surface.attr("_pointer")).cast<uintptr_t>());
   cr_ = cairo_create(surface);
+  auto stack = new std::stack<AdditionalState>({AdditionalState{}});
+  stack->top().hatch = {};
+  stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
+  stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   cairo_set_user_data(
-      cr_, &STATE_KEY,
-      new std::stack<GraphicsContextRenderer::AdditionalState>({{}, {}}),
-      GraphicsContextRenderer::destroy_state_stack);
+      cr_, &STATE_KEY, stack, GraphicsContextRenderer::destroy_state_stack);
   cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);  // NOTE: See below.
 }
 
@@ -180,10 +182,12 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   auto surface = cairo_image_surface_create(format, width, height);
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
+  auto stack = new std::stack<AdditionalState>({AdditionalState{}});
+  stack->top().hatch = {};
+  stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
+  stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   cairo_set_user_data(
-      cr_, &STATE_KEY,
-      new std::stack<GraphicsContextRenderer::AdditionalState>({{}, {}}),
-      GraphicsContextRenderer::destroy_state_stack);
+      cr_, &STATE_KEY, stack, GraphicsContextRenderer::destroy_state_stack);
   // NOTE: Collections and text PathEffects have no joinstyle and implicitly
   // rely on a "round" default.
   cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);
@@ -287,12 +291,19 @@ void GraphicsContextRenderer::set_dashes(
 
 void GraphicsContextRenderer::set_foreground(
     py::object fg, bool /* is_rgba */) {
-  auto [r, g, b, a] =
-    py::module::import("matplotlib.colors").attr("to_rgba")(fg).cast<rgba_t>();
+  auto [r, g, b, a] = to_rgba(fg);
   if (auto alpha = get_additional_state().alpha; alpha) {
     a = *alpha;
   }
   cairo_set_source_rgba(cr_, r, g, b, a);
+}
+
+void GraphicsContextRenderer::set_hatch(std::optional<std::string> hatch) {
+  get_additional_state().hatch = hatch;
+}
+
+void GraphicsContextRenderer::set_hatch_color(py::object hatch_color) {
+  get_additional_state().hatch_color = to_rgba(hatch_color);
 }
 
 void GraphicsContextRenderer::set_joinstyle(std::string joinstyle) {
@@ -315,6 +326,18 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
     return;
   }
   cairo_set_line_width(cr_, points_to_pixels(lw));
+}
+
+std::optional<std::string> GraphicsContextRenderer::get_hatch() {
+  return get_additional_state().hatch;
+}
+
+rgba_t GraphicsContextRenderer::get_hatch_color() {
+  return get_additional_state().hatch_color;
+}
+
+double GraphicsContextRenderer::get_hatch_linewidth() {
+  return get_additional_state().hatch_linewidth;
 }
 
 double GraphicsContextRenderer::get_linewidth() {
@@ -523,8 +546,7 @@ void GraphicsContextRenderer::draw_markers(
   };
 
   double simplify_threshold =
-    py::module::import("matplotlib")
-    .attr("rcParams")["path.simplify_threshold"].cast<double>();
+    rc_param("path.simplify_threshold").cast<double>();
   std::unique_ptr<cairo_pattern_t*[]> patterns;
   size_t n_subpix = 0;
   if (simplify_threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
@@ -649,9 +671,7 @@ void GraphicsContextRenderer::draw_path(
     auto hatch_surface = cairo_image_surface_create(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
-    auto [r, g, b, a] =
-      py::module::import("matplotlib.colors").attr("to_rgba")(
-          py::cast(this).attr("get_hatch_color")()).cast<rgba_t>();
+    auto [r, g, b, a] = to_rgba(py::cast(this).attr("get_hatch_color")());
     cairo_set_source_rgba(hatch_cr, r, g, b, a);
     cairo_set_line_width(
         hatch_cr,
@@ -745,8 +765,7 @@ void GraphicsContextRenderer::draw_path_collection(
   auto fcs_raw = fcs_raw_keepref.unchecked<2>(),
        ecs_raw = ecs_raw_keepref.unchecked<2>();
   double simplify_threshold =
-    py::module::import("matplotlib")
-    .attr("rcParams")["path.simplify_threshold"].cast<double>();
+    rc_param("path.simplify_threshold").cast<double>();
   auto cache = PatternCache{simplify_threshold};
   for (size_t i = 0; i < n; ++i) {
     cairo_save(cr_);
@@ -957,9 +976,15 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("set_dashes", &GraphicsContextRenderer::set_dashes)
     .def("set_foreground", &GraphicsContextRenderer::set_foreground,
         "fg"_a, "isRGBA"_a=false)
+    .def("set_hatch", &GraphicsContextRenderer::set_hatch)
+    .def("set_hatch_color", &GraphicsContextRenderer::set_hatch_color)
     .def("set_joinstyle", &GraphicsContextRenderer::set_joinstyle)
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
 
+    // NOTE: Needed by get_hatch_path, which should call get_hatch().
+    .def_property_readonly("_hatch", &GraphicsContextRenderer::get_hatch)
+    .def("get_hatch_color", &GraphicsContextRenderer::get_hatch_color)
+    .def("get_hatch_linewidth", &GraphicsContextRenderer::get_hatch_linewidth)
     // Needed by the default impl. of draw_quad_mesh.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
