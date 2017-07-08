@@ -464,12 +464,12 @@ void GraphicsContextRenderer::draw_image(
   auto surface = cairo_image_surface_create_for_data(
       buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
   auto pattern = cairo_pattern_create_for_surface(surface);
+  cairo_surface_destroy(surface);
   auto matrix = cairo_matrix_t{1, 0, 0, -1, -x, -y + get_height()};
   cairo_pattern_set_matrix(pattern, &matrix);
   cairo_set_source(cr_, pattern);
   cairo_paint(cr_);
   cairo_pattern_destroy(pattern);
-  cairo_surface_destroy(surface);
 }
 
 void GraphicsContextRenderer::draw_markers(
@@ -552,23 +552,23 @@ void GraphicsContextRenderer::draw_markers(
     }
 
     // Fill the pattern cache.
+    auto raster_surface = cairo_surface_create_similar_image(
+        cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
+        std::ceil(x1 - x0 + 1), std::ceil(y1 - y0 + 1));
+    auto raster_cr = cairo_create(raster_surface);
+    cairo_surface_destroy(raster_surface);
+    copy_for_marker_stamping(cr_, raster_cr);
     for (size_t i = 0; i < n_subpix; ++i) {
       for (size_t j = 0; j < n_subpix; ++j) {
-        auto raster_surface = cairo_surface_create_similar_image(
-            cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
-            std::ceil(x1 - x0 + 1), std::ceil(y1 - y0 + 1));
-        auto raster_cr = cairo_create(raster_surface);
-        copy_for_marker_stamping(cr_, raster_cr);
+        cairo_push_group(raster_cr);
         cairo_translate(
             raster_cr, -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
         draw_one_marker(raster_cr);
-        auto pattern = cairo_pattern_create_for_surface(raster_surface);
+        auto pattern = patterns[i * n_subpix + j] = cairo_pop_group(raster_cr);
         cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
-        patterns[i * n_subpix + j] = pattern;
-        cairo_destroy(raster_cr);
-        cairo_surface_destroy(raster_surface);
       }
     }
+    cairo_destroy(raster_cr);
 
     for (size_t i = 0; i < n_vertices; ++i) {
       auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
@@ -659,6 +659,7 @@ void GraphicsContextRenderer::draw_path(
     auto hatch_surface = cairo_image_surface_create(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
+    cairo_surface_destroy(hatch_surface);
     auto [r, g, b, a] = get_additional_state().hatch_color;
     cairo_set_source_rgba(hatch_cr, r, g, b, a);
     cairo_set_line_width(
@@ -675,7 +676,6 @@ void GraphicsContextRenderer::draw_path(
     cairo_paint(cr_);
     cairo_pattern_destroy(hatch_pattern);
     cairo_destroy(hatch_cr);
-    cairo_surface_destroy(hatch_surface);
     cairo_restore(cr_);
   }
   cairo_stroke(cr_);
