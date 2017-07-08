@@ -17,7 +17,9 @@ class GraphicsContextRendererCairo(
         # Fill in the missing methods.
         GraphicsContextBase,
         RendererBase):
-    pass
+
+    def option_image_nocomposite(self):
+        return True  # Similarly to Agg.
 
 
 class FigureCanvasCairo(FigureCanvasBase):
