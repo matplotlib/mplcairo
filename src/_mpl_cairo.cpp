@@ -243,7 +243,8 @@ void GraphicsContextRenderer::set_clip_rectangle(
   auto& clip_rectangle = get_additional_state().clip_rectangle;
   clip_rectangle =
     rectangle
-    ? rectangle->attr("bounds").cast<rectangle_t>()
+    // A TransformedBbox or a tuple.
+    ? py::getattr(*rectangle, "bounds", *rectangle).cast<rectangle_t>()
     : std::optional<rectangle_t>{};
 }
 
