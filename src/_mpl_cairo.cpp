@@ -45,13 +45,6 @@ GraphicsContextRenderer::AdditionalContext::~AdditionalContext() {
   cairo_restore(gcr_->cr_);
 }
 
-GraphicsContextRenderer::AdditionalState&
-GraphicsContextRenderer::get_additional_state() {
-  return
-    static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
-        cairo_get_user_data(cr_, &STATE_KEY))->top();
-}
-
 void GraphicsContextRenderer::destroy_state_stack(void* ptr) {
   auto* stack =
     static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(ptr);
@@ -330,16 +323,11 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
   cairo_set_line_width(cr_, points_to_pixels(lw));
 }
 
-std::optional<std::string> GraphicsContextRenderer::get_hatch() {
-  return get_additional_state().hatch;
-}
-
-rgba_t GraphicsContextRenderer::get_hatch_color() {
-  return get_additional_state().hatch_color;
-}
-
-double GraphicsContextRenderer::get_hatch_linewidth() {
-  return get_additional_state().hatch_linewidth;
+GraphicsContextRenderer::AdditionalState&
+GraphicsContextRenderer::get_additional_state() {
+  return
+    static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
+        cairo_get_user_data(cr_, &STATE_KEY))->top();
 }
 
 double GraphicsContextRenderer::get_linewidth() {
@@ -683,12 +671,10 @@ void GraphicsContextRenderer::draw_path(
     auto hatch_surface = cairo_image_surface_create(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
-    auto [r, g, b, a] = to_rgba(py::cast(this).attr("get_hatch_color")());
+    auto [r, g, b, a] = get_additional_state().hatch_color;
     cairo_set_source_rgba(hatch_cr, r, g, b, a);
     cairo_set_line_width(
-        hatch_cr,
-        points_to_pixels(
-          py::cast(this).attr("get_hatch_linewidth")().cast<double>()));
+        hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));
     auto hatch_matrix = cairo_matrix_t{
       double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     load_path(hatch_cr, hatch_path, &hatch_matrix);
@@ -995,10 +981,19 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("set_joinstyle", &GraphicsContextRenderer::set_joinstyle)
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
 
+    .def("get_clip_rectangle", [](GraphicsContextRenderer& gcr) {
+        return gcr.get_additional_state().clip_rectangle; })
+    .def("get_clip_path", [](GraphicsContextRenderer& gcr) {
+        return gcr.get_additional_state().clip_path; })
     // NOTE: Needed by get_hatch_path, which should call get_hatch().
-    .def_property_readonly("_hatch", &GraphicsContextRenderer::get_hatch)
-    .def("get_hatch_color", &GraphicsContextRenderer::get_hatch_color)
-    .def("get_hatch_linewidth", &GraphicsContextRenderer::get_hatch_linewidth)
+    .def_property_readonly("_hatch", [](GraphicsContextRenderer& gcr) {
+        return gcr.get_additional_state().hatch; })
+    .def("get_hatch", [](GraphicsContextRenderer& gcr) {
+        return gcr.get_additional_state().hatch; })
+    .def("get_hatch_color", [](GraphicsContextRenderer& gcr) {
+        return gcr.get_additional_state().hatch_color; })
+    .def("get_hatch_linewidth", [](GraphicsContextRenderer& gcr) {
+        return gcr.get_additional_state().hatch_linewidth; })
     // Needed by the default impl. of draw_quad_mesh.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
