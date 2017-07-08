@@ -31,7 +31,7 @@ class GraphicsContextRenderer {
   struct AdditionalState {
     std::optional<double> alpha;
     std::optional<rectangle_t> clip_rectangle;
-    std::optional<cairo_path_t*> clip_path;
+    std::shared_ptr<cairo_path_t> clip_path;
     std::optional<std::string> hatch;
     rgba_t hatch_color;
     double hatch_linewidth;
@@ -55,7 +55,6 @@ class GraphicsContextRenderer {
   py::object mathtext_parser_;
 
   private:
-  static void destroy_state_stack(void* ptr);
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
   AdditionalContext additional_context();

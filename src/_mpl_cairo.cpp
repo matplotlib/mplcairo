@@ -36,26 +36,13 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   }
   if (auto clip_path = state.clip_path; clip_path) {
     cairo_new_path(cr);
-    cairo_append_path(cr, *clip_path);
+    cairo_append_path(cr, clip_path.get());
     cairo_clip(cr);
   }
 }
 
 GraphicsContextRenderer::AdditionalContext::~AdditionalContext() {
   cairo_restore(gcr_->cr_);
-}
-
-void GraphicsContextRenderer::destroy_state_stack(void* ptr) {
-  auto* stack =
-    static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(ptr);
-  while (stack->size()) {
-    auto& state = stack->top();
-    if (state.clip_path) {
-      cairo_path_destroy(*state.clip_path);
-    }
-    stack->pop();
-  }
-  delete stack;
 }
 
 double GraphicsContextRenderer::pixels_to_points(double pixels) {
@@ -161,12 +148,12 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
         "int", py_surface.attr("_pointer")).cast<uintptr_t>());
   cr_ = cairo_create(surface);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
+  stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
-  cairo_set_user_data(
-      cr_, &STATE_KEY, stack, GraphicsContextRenderer::destroy_state_stack);
+  cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
   cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);  // NOTE: See below.
 }
 
@@ -183,12 +170,12 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
+  stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
-  cairo_set_user_data(
-      cr_, &STATE_KEY, stack, GraphicsContextRenderer::destroy_state_stack);
+  cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
   // NOTE: Collections and text PathEffects have no joinstyle and implicitly
   // rely on a "round" default.
   cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);
@@ -250,10 +237,6 @@ void GraphicsContextRenderer::set_clip_rectangle(
 
 void GraphicsContextRenderer::set_clip_path(
     std::optional<py::object> transformed_path) {
-  auto& clip_path = get_additional_state().clip_path;
-  if (clip_path) {
-    cairo_path_destroy(*clip_path);
-  }
   if (transformed_path) {
     auto [path, transform] =
       transformed_path->attr("get_transformed_path_and_affine")()
@@ -263,9 +246,10 @@ void GraphicsContextRenderer::set_clip_path(
     cairo_identity_matrix(cr_);
     load_path(cr_, path, &matrix);
     cairo_restore(cr_);
-    clip_path = cairo_copy_path(cr_);
+    get_additional_state().clip_path.reset(
+        cairo_copy_path(cr_), &cairo_path_destroy);
   } else {
-    clip_path = {};
+    get_additional_state().clip_path.reset();
   }
 }
 
@@ -647,7 +631,7 @@ void GraphicsContextRenderer::draw_path(
         "transform"_a=transform,
         "curves"_a=true,
         "sketch"_a=get_additional_state().sketch);
-    auto id = cairo_matrix_t{1, 0, 0, -1, 0, get_height()};
+    auto id = cairo_matrix_t{1, 0, 0, -1, 0, double(get_height())};
     load_path(cr_, path, &id);
   } else {
     auto matrix = matrix_from_transform(transform, get_height());
