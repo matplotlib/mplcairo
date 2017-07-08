@@ -753,6 +753,9 @@ void GraphicsContextRenderer::draw_path_collection(
        n_transforms = transforms.size(),
        n_offsets = offsets.size(),
        n = std::max({n_paths, n_transforms, n_offsets});
+  if (!n_paths || !n_offsets) {
+    return;
+  }
   auto master_matrix = matrix_from_transform(master_transform, get_height());
   std::vector<cairo_matrix_t> matrices;
   if (n_transforms) {
