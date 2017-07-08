@@ -867,26 +867,25 @@ void GraphicsContextRenderer::draw_text(
 
 std::tuple<double, double, double>
 GraphicsContextRenderer::get_text_width_height_descent(
-    std::string s, py::object prop, bool ismath) {
-  if (ismath) {
-    auto [ox, oy, width, height, descent, image, chars] =
-      mathtext_parser_.attr("parse")(s, dpi_, prop)
-      .cast<std::tuple<
-          double, double, double, double, double, py::object, py::object>>();
-    return {width, height, descent};
-  } else {
-    cairo_save(cr_);
-    auto font_face = ft_font_from_prop(prop);
-    cairo_set_font_face(cr_, font_face);
-    cairo_set_font_size(
-        cr_,
-        points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
-    cairo_text_extents_t extents;
-    cairo_text_extents(cr_, s.c_str(), &extents);
-    cairo_font_face_destroy(font_face);
-    cairo_restore(cr_);
-    return {extents.width, extents.height, extents.height + extents.y_bearing};
+    std::string s, py::object prop, py::object ismath) {
+  // NOTE: ismath can be True, False, "TeX".
+  if (rc_param("text.usetex").cast<bool>() || py::bool_(ismath)) {
+    return
+      py::module::import("matplotlib.backend_bases")
+        .attr("RendererBase").attr("get_text_width_height_descent")(
+            this, s, prop, ismath).cast<std::tuple<double, double, double>>();
   }
+  cairo_save(cr_);
+  auto font_face = ft_font_from_prop(prop);
+  cairo_set_font_face(cr_, font_face);
+  cairo_set_font_size(
+      cr_,
+      points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
+  cairo_text_extents_t extents;
+  cairo_text_extents(cr_, s.c_str(), &extents);
+  cairo_font_face_destroy(font_face);
+  cairo_restore(cr_);
+  return {extents.width, extents.height, extents.height + extents.y_bearing};
 }
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
@@ -1018,7 +1017,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("restore", &GraphicsContextRenderer::restore)
 
     // Renderer API.
-    // NOTE: Needed for patheffects, which should use its own.
+    // NOTE: Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def("get_canvas_width_height",

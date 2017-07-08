@@ -150,7 +150,7 @@ class GraphicsContextRenderer {
       double x, double y, std::string s, py::object prop, double angle,
       bool ismath, py::object mtext);
   std::tuple<double, double, double> get_text_width_height_descent(
-      std::string s, py::object prop, bool ismath);
+      std::string s, py::object prop, py::object ismath);
 
   Region copy_from_bbox(py::object bbox);
   void restore_region(Region& region);
