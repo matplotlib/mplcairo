@@ -620,6 +620,9 @@ void GraphicsContextRenderer::draw_markers(
       cairo_save(cr_);
       auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
+      if (!(std::isfinite(x) && std::isfinite(y))) {
+        continue;
+      }
       cairo_translate(cr_, x, y);
       draw_one_marker(cr_);
       cairo_restore(cr_);
@@ -775,6 +778,9 @@ void GraphicsContextRenderer::draw_path_collection(
     auto matrix = matrices[i % n_transforms];
     auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
     cairo_matrix_transform_point(&offset_matrix, &x, &y);
+    if (!(std::isfinite(x) && std::isfinite(y))) {
+      continue;
+    }
     if (fcs_raw.shape(0)) {
       auto i_mod = i % fcs_raw.shape(0);
       auto r = *fcs_raw.data(i_mod, 0), g = *fcs_raw.data(i_mod, 1),
