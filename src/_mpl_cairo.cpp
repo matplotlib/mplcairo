@@ -93,7 +93,7 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
   auto surface = reinterpret_cast<cairo_surface_t*>(
       py::module::import("cairocffi").attr("ffi").attr("cast")(
         "int", py_surface.attr("_pointer")).cast<uintptr_t>());
-  cr_ = cairo_create(surface);
+  cr_ = context_with_defaults(surface);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
@@ -101,7 +101,6 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
   cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
-  cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);  // NOTE: See below.
 }
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
@@ -114,7 +113,7 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
     cairo_destroy(cr_);
   }
   auto surface = cairo_image_surface_create(format, width, height);
-  cr_ = cairo_create(surface);
+  cr_ = context_with_defaults(surface);
   cairo_surface_destroy(surface);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
@@ -123,9 +122,6 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
   cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
-  // NOTE: Collections and text PathEffects have no joinstyle and implicitly
-  // rely on a "round" default.
-  cairo_set_line_join(cr_, CAIRO_LINE_JOIN_ROUND);
 }
 
 uintptr_t GraphicsContextRenderer::get_data_address() {
@@ -250,6 +246,9 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
     return;
   }
   cairo_set_line_width(cr_, points_to_pixels(lw));
+  // NOTE: Somewhat weird setting, but that's what the Agg backend does
+  // (_backend_agg.h).
+  cairo_set_miter_limit(cr_, cairo_get_line_width(cr_));
 }
 
 GraphicsContextRenderer::AdditionalState&
@@ -572,11 +571,13 @@ void GraphicsContextRenderer::draw_path(
     auto dpi = int(dpi_);  // Truncating is good enough.
     auto hatch_surface = cairo_image_surface_create(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
-    auto hatch_cr = cairo_create(hatch_surface);
+    auto hatch_cr = context_with_defaults(hatch_surface);
     cairo_surface_destroy(hatch_surface);
     auto hatch_color = get_additional_state().hatch_color;
     cairo_set_line_width(
         hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));
+    // cf. set_linewidth.
+    cairo_set_miter_limit(hatch_cr, cairo_get_line_width(hatch_cr));
     auto matrix = cairo_matrix_t{
       double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     fill_and_stroke_exact(

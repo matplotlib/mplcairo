@@ -42,16 +42,19 @@ cairo_matrix_t matrix_from_transform(
   return matrix;
 }
 
-cairo_t* trivial_context() {
-  auto surface = cairo_image_surface_create(CAIRO_FORMAT_A1, 0, 0);
+cairo_t* context_with_defaults(cairo_surface_t* surface) {
+  // NOTE: Collections and text PathEffects have no joinstyle and implicitly
+  // rely on a "round" default.
   auto cr = cairo_create(surface);
-  cairo_surface_destroy(surface);
+  cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
   return cr;
 }
 
 // Copy the whole path, as there is no cairo_path_reference().
 cairo_path_t* copy_path(cairo_path_t* path) {
-  auto cr = trivial_context();
+  auto surface = cairo_image_surface_create(CAIRO_FORMAT_A1, 0, 0);
+  auto cr = cairo_create(surface);
+  cairo_surface_destroy(surface);
   cairo_append_path(cr, path);
   auto new_path = cairo_copy_path(cr);
   cairo_destroy(cr);

@@ -51,6 +51,7 @@ void PatternCache::CacheKey::draw(
     case draw_func_t::Stroke:
       cairo_save(cr);
       cairo_set_line_width(cr, linewidth);
+      cairo_set_miter_limit(cr, linewidth); // cf. set_linewidth.
       set_dashes(cr, dash);
       cairo_set_line_cap(cr, capstyle);
       cairo_set_line_join(cr, joinstyle);
@@ -186,6 +187,7 @@ void PatternCache::mask(
       case draw_func_t::Stroke:
         cairo_save(cr);
         cairo_set_line_width(cr, key.linewidth);
+        cairo_set_miter_limit(cr, key.linewidth); // cf. set_linewidth.
         set_dashes(cr, key.dash);
         cairo_restore(cr);
         cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
