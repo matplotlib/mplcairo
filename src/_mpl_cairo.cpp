@@ -604,8 +604,8 @@ void GraphicsContextRenderer::draw_path_collection(
     py::object fcs,
     py::object ecs,
     std::vector<double> lws,
-    std::vector<std::tuple<std::optional<double>, std::optional<py::object>>>
-      dashes,
+    std::vector<std::tuple<std::optional<double>,
+                           std::optional<std::vector<double>>>> dashes,
     py::object aas,
     py::object urls,
     std::string offset_position) {
@@ -666,11 +666,14 @@ void GraphicsContextRenderer::draw_path_collection(
        ecs_raw_keepref = convert_colors(ecs);
   auto fcs_raw = fcs_raw_keepref.unchecked<2>(),
        ecs_raw = ecs_raw_keepref.unchecked<2>();
-  double simplify_threshold =
-    rc_param("path.simplify_threshold").cast<double>();
-  auto cache = PatternCache{simplify_threshold};
+  auto dashes_raw = std::vector<dash_t>{};
+  for (auto [dash_offset, dash_list]: dashes) {
+    set_dashes(dash_offset, dash_list);  // Invoke the dash converter.
+    dashes_raw.push_back(convert_dash(cr_));
+  }
+  auto cache = PatternCache{
+    rc_param("path.simplify_threshold").cast<double>()};
   for (size_t i = 0; i < n; ++i) {
-    cairo_save(cr_);
     auto path = paths[i % n_paths];
     auto matrix = matrices[i % n_transforms];
     auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
@@ -692,14 +695,12 @@ void GraphicsContextRenderer::draw_path_collection(
       cairo_set_source_rgba(cr_, r, g, b, a);
       auto lw = lws.size()
         ? points_to_pixels(lws[i % lws.size()]) : cairo_get_line_width(cr_);
-      auto dash = dashes.size()
-        ? convert_dash(dashes[i % dashes.size()]) : convert_dash(cr_);
+      auto dash = dashes_raw[i % dashes_raw.size()];
       cache.mask(cr_, path, matrix, draw_func_t::Stroke, lw, dash, x, y);
     }
     // NOTE: We drop antialiaseds because that just seems silly.
     // We drop urls as they should be handled in a post-processing step anyways
     // (cairo doesn't seem to support them?).
-    cairo_restore(cr_);
   }
 }
 

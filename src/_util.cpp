@@ -223,6 +223,7 @@ void fill_and_stroke_exact(
       load_path_exact(cr, path, matrix);
       path_loaded = true;
     }
+    cairo_identity_matrix(cr);  // Dashes are interpreted using the CTM.
     cairo_stroke_preserve(cr);
   }
   cairo_restore(cr);

@@ -18,8 +18,6 @@ namespace py = pybind11;
 using dash_t = std::tuple<double, std::string>;  // Hack to use std::hash<std::string>.
 
 dash_t convert_dash(cairo_t* cr);
-dash_t convert_dash(
-    std::tuple<std::optional<double>, std::optional<py::object>> dash_spec);
 void set_dashes(cairo_t* cr, dash_t dash);
 
 enum class draw_func_t {

@@ -13,24 +13,6 @@ dash_t convert_dash(cairo_t* cr) {
       reinterpret_cast<char*>(dashes.get()), dash_count * sizeof(dashes[0])}};
 }
 
-dash_t convert_dash(
-    std::tuple<std::optional<double>, std::optional<py::object>> dash_spec) {
-  auto [offset, dash_list] = dash_spec;
-  if (dash_list) {
-    if (!offset) {
-      throw std::invalid_argument("Missing dash offset");
-    }
-    auto dashes = dash_list->cast<std::vector<double>>();
-    return {
-      *offset,
-      std::string{
-        reinterpret_cast<char*>(dashes.data()),
-        dashes.size() * sizeof(dashes[0])}};
-  } else {
-    return {0, ""};
-  }
-}
-
 void set_dashes(cairo_t* cr, dash_t dash) {
   auto [offset, buf] = dash;
   cairo_set_dash(
@@ -153,20 +135,20 @@ void PatternCache::mask(
   // Approximate ("quantize") the transform matrix, so that the transformed
   // path is within 3 x (thresholds/3) of the path transformed by the original
   // matrix.  1 x threshold will be added by the patterns_ cache.
-  // If the object is smaller than the threshold in either direction (see e.g.
-  // test_mplot3d.test_quiver3d), draw it directly; doing otherwise would be
-  // highly inaccurate.
+  // If the entire object is within the threshold of the origin in either
+  // direction, then draw it directly, as doing otherwise would be highly
+  // inaccurate (see e.g. test_mplot3d.test_quiver3d).
   auto& bbox = it_bboxes->second;
-  auto x_size = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
-       y_size = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
-  if ((x_size < threshold_) || (y_size < threshold_)) {
+  auto x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
+       y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
+  if ((x_max < threshold_) || (y_max < threshold_)) {
     double r, g, b, a;
     cairo_pattern_get_rgba(cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});
     return;
   }
-  auto eps = threshold_ / 3;
-  auto x_q = eps / x_size, y_q = eps / y_size,
+  auto eps = threshold_ / 3,
+       x_q = eps / x_max, y_q = eps / y_max,
        xx_q = std::round(key.matrix.xx / x_q) * x_q,
        yx_q = std::round(key.matrix.yx / x_q) * x_q,
        xy_q = std::round(key.matrix.xy / y_q) * y_q,
