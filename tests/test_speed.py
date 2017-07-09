@@ -17,6 +17,7 @@ pytest.fixture(autouse=True)(mpl_test_settings)
 
 @pytest.fixture
 def axes():
+    mpl.rcdefaults()
     fig = Figure()
     return fig.add_subplot(111)
 
@@ -66,46 +67,47 @@ def test_line(
 @pytest.mark.parametrize("alpha", [.99, 1])
 def test_circles(
         benchmark, canvas_cls, threshold, alpha, axes, sample_vectors):
-    mpl.rcParams["path.simplify_threshold"] = threshold
-    axes.plot(*sample_vectors, "o", alpha=alpha)
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
+    with mpl.rc_context({"path.simplify_threshold": threshold}):
+        axes.plot(*sample_vectors, "o", alpha=alpha)
+        despine(axes)
+        axes.figure.canvas = canvas_cls(axes.figure)
+        benchmark(axes.figure.canvas.draw)
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
 def test_squares(
         benchmark, canvas_cls, threshold, axes, sample_vectors):
-    mpl.rcParams["path.simplify_threshold"] = threshold
-    axes.plot(*sample_vectors, "s")
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
+    with mpl.rc_context({"path.simplify_threshold": threshold}):
+        axes.plot(*sample_vectors, "s")
+        despine(axes)
+        axes.figure.canvas = canvas_cls(axes.figure)
+        benchmark(axes.figure.canvas.draw)
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
 def test_scatter_multicolor(
         benchmark, canvas_cls, threshold, axes, sample_vectors):
-    mpl.rcParams["path.simplify_threshold"] = threshold
-    a, b = sample_vectors
-    axes.scatter(a, a, c=b)
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
+    with mpl.rc_context({"path.simplify_threshold": threshold}):
+        a, b = sample_vectors
+        axes.scatter(a, a, c=b)
+        despine(axes)
+        axes.figure.canvas = canvas_cls(axes.figure)
+        benchmark(axes.figure.canvas.draw)
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
+@pytest.mark.parametrize("marker", ["o", "s"])
 def test_scatter_multisize(
-        benchmark, canvas_cls, threshold, axes, sample_vectors):
-    mpl.rcParams["path.simplify_threshold"] = threshold
-    a, b = sample_vectors
-    axes.scatter(a, a, s=100 * b ** 2)
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
+        benchmark, canvas_cls, threshold, marker, axes, sample_vectors):
+    with mpl.rc_context({"path.simplify_threshold": threshold}):
+        a, b = sample_vectors
+        axes.scatter(a, a, s=100 * b ** 2, marker=marker)
+        despine(axes)
+        axes.figure.canvas = canvas_cls(axes.figure)
+        benchmark(axes.figure.canvas.draw)
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
