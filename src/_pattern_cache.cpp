@@ -152,16 +152,24 @@ void PatternCache::mask(
   // Approximate ("quantize") the transform matrix, so that the transformed
   // path is within 3 x (thresholds/3) of the path transformed by the original
   // matrix.  1 x threshold will be added by the patterns_ cache.
+  // If the object is smaller than the threshold in either direction (see e.g.
+  // test_mplot3d.test_quiver3d), draw it directly; doing otherwise would be
+  // highly inaccurate.
   auto& bbox = it_bboxes->second;
+  auto x_size = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
+       y_size = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
+  if ((x_size < threshold_) || (y_size < threshold_)) {
+    double r, g, b, a;
+    cairo_pattern_get_rgba(cairo_get_source(cr), &r, &g, &b, &a);
+    key.draw(cr, x, y, {r, g, b, a});
+    return;
+  }
   auto eps = threshold_ / 3;
-  auto x_q = eps / std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
-       y_q = eps / std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height)),
-       // If x_q is infinite, that means the marker has zero size in the x
-       // direction, in which case xx_q and yx_q don't matter.
-       xx_q = std::isinf(x_q) ? 0 : std::round(key.matrix.xx / x_q) * x_q,
-       yx_q = std::isinf(x_q) ? 0 : std::round(key.matrix.yx / x_q) * x_q,
-       xy_q = std::isinf(y_q) ? 0 : std::round(key.matrix.xy / y_q) * y_q,
-       yy_q = std::isinf(y_q) ? 0 : std::round(key.matrix.yy / y_q) * y_q,
+  auto x_q = eps / x_size, y_q = eps / y_size,
+       xx_q = std::round(key.matrix.xx / x_q) * x_q,
+       yx_q = std::round(key.matrix.yx / x_q) * x_q,
+       xy_q = std::round(key.matrix.xy / y_q) * y_q,
+       yy_q = std::round(key.matrix.yy / y_q) * y_q,
        x0_q = std::round(key.matrix.x0 / eps) * eps,
        y0_q = std::round(key.matrix.y0 / eps) * eps;
   key.matrix = {xx_q, yx_q, xy_q, yy_q, x0_q, y0_q};
