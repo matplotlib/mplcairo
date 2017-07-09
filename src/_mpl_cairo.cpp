@@ -475,7 +475,7 @@ void GraphicsContextRenderer::draw_markers(
     py::object marker_transform,
     py::object path,
     py::object transform,
-    std::optional<py::object> rgb_fc) {
+    std::optional<py::object> fc) {
   if (!cr_) {
     return;
   }
@@ -490,35 +490,17 @@ void GraphicsContextRenderer::draw_markers(
   auto n_vertices = vertices.shape(0);
 
   auto marker_matrix = matrix_from_transform(marker_transform);
-  // NOTE: Not clear why this is needed...
   auto matrix = matrix_from_transform(transform, get_height());
 
-  // Initialize everyone, to avoid -Wmaybe-uninitialized in draw_one_marker().
-  auto r = 0., g = 0., b = 0., a = 1.;
-  if (rgb_fc) {
-    if (py::len(*rgb_fc) == 3) {
-      std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-    } else {
-      std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-    }
-    if (auto alpha = get_additional_state().alpha; alpha) {
-      a = *alpha;
-    }
-  }
+  auto fc_raw =
+    fc ? to_rgba(*fc, get_additional_state().alpha) : std::optional<rgba_t>{};
+  auto ec_raw = get_rgba();
 
-  // Recording surfaces are quite slow, so just call a lambda instead.
   auto draw_one_marker = [&](cairo_t* cr, double x, double y) {
     auto m = cairo_matrix_t{
       marker_matrix.xx, marker_matrix.yx, marker_matrix.xy, marker_matrix.yy,
       marker_matrix.x0 + x, marker_matrix.y0 + y};
-    load_path_exact(cr, marker_path, &m);
-    if (rgb_fc) {
-      cairo_save(cr);
-      cairo_set_source_rgba(cr, r, g, b, a);
-      cairo_fill_preserve(cr);
-      cairo_restore(cr);
-    }
-    cairo_stroke(cr);
+    fill_and_stroke_exact(cr, marker_path, &m, fc_raw, ec_raw);
   };
 
   double simplify_threshold =
@@ -541,7 +523,7 @@ void GraphicsContextRenderer::draw_markers(
     load_path_exact(cr_, marker_path, &marker_matrix);
     double x0, y0, x1, y1;
     cairo_stroke_extents(cr_, &x0, &y0, &x1, &y1);
-    if (rgb_fc) {
+    if (fc) {
       double x1f, y1f, x2f, y2f;
       cairo_fill_extents(cr_, &x1f, &y1f, &x2f, &y2f);
       x0 = std::min(x0, x1f);
@@ -595,7 +577,7 @@ void GraphicsContextRenderer::draw_markers(
 
   } else {
     if (try_draw_circles(
-          gc, marker_path, &marker_matrix, path, &matrix, rgb_fc)) {
+          gc, marker_path, &marker_matrix, path, &matrix, fc)) {
       return;
     }
     for (size_t i = 0; i < n_vertices; ++i) {
@@ -615,7 +597,7 @@ void GraphicsContextRenderer::draw_path(
     GraphicsContextRenderer& gc,
     py::object path,
     py::object transform,
-    std::optional<py::object> rgb_fc) {
+    std::optional<py::object> fc) {
   if (!cr_) {
     return;
   }
@@ -634,17 +616,9 @@ void GraphicsContextRenderer::draw_path(
     auto matrix = matrix_from_transform(transform, get_height());
     load_path_exact(cr_, path, &matrix);
   }
-  if (rgb_fc) {
+  if (fc) {
     cairo_save(cr_);
-    double r, g, b, a{1};
-    if (py::len(*rgb_fc) == 3) {
-      std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-    } else {
-      std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-    }
-    if (auto alpha = get_additional_state().alpha; alpha) {
-      a = *alpha;
-    }
+    auto [r, g, b, a] = to_rgba(*fc, get_additional_state().alpha);
     cairo_set_source_rgba(cr_, r, g, b, a);
     cairo_fill_preserve(cr_);
     cairo_restore(cr_);
@@ -657,15 +631,13 @@ void GraphicsContextRenderer::draw_path(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
     cairo_surface_destroy(hatch_surface);
-    auto [r, g, b, a] = get_additional_state().hatch_color;
-    cairo_set_source_rgba(hatch_cr, r, g, b, a);
+    auto hatch_color = get_additional_state().hatch_color;
     cairo_set_line_width(
         hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));
     auto matrix = cairo_matrix_t{
       double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
-    load_path_exact(hatch_cr, hatch_path, &matrix);
-    cairo_fill_preserve(hatch_cr);
-    cairo_stroke(hatch_cr);
+    fill_and_stroke_exact(
+        hatch_cr, hatch_path, &matrix, hatch_color, hatch_color);
     auto hatch_pattern = cairo_pattern_create_for_surface(hatch_surface);
     cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
     cairo_set_source(cr_, hatch_pattern);

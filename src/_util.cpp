@@ -10,10 +10,10 @@ py::object rc_param(std::string key) {
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
 }
 
-rgba_t to_rgba(py::object color) {
+rgba_t to_rgba(py::object color, std::optional<double> alpha) {
   return
     py::module::import("matplotlib.colors")
-    .attr("to_rgba")(color).cast<rgba_t>();
+    .attr("to_rgba")(color, alpha).cast<rgba_t>();
 }
 
 cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
@@ -181,6 +181,26 @@ void load_path_exact(
     }
   }
   cairo_set_matrix(cr, &ctm);
+}
+
+// Fill and/or stroke `path` onto `cr` after transformation by `matrix`,
+// ignoring the CTM ("exact").
+void fill_and_stroke_exact(
+    cairo_t* cr, py::object path, cairo_matrix_t* matrix,
+    std::optional<rgba_t> fill, std::optional<rgba_t> stroke) {
+  cairo_save(cr);
+  load_path_exact(cr, path, matrix);
+  if (fill) {
+    auto [r, g, b, a] = *fill;
+    cairo_set_source_rgba(cr, r, g, b, a);
+    cairo_fill_preserve(cr);
+  }
+  if (stroke) {
+    auto [r, g, b, a] = *stroke;
+    cairo_set_source_rgba(cr, r, g, b, a);
+    cairo_stroke_preserve(cr);
+  }
+  cairo_restore(cr);
 }
 
 cairo_font_face_t* ft_font_from_prop(py::object prop) {

@@ -118,12 +118,12 @@ class GraphicsContextRenderer {
       py::object marker_transform,
       py::object path,
       py::object transform,
-      std::optional<py::object> rgb_fc);
+      std::optional<py::object> fc);
   void draw_path(
       GraphicsContextRenderer& gc,
       py::object path,
       py::object transform,
-      std::optional<py::object> rgb_fc);
+      std::optional<py::object> fc);
   void draw_path_collection(
       GraphicsContextRenderer& gc,
       py::object master_transform,

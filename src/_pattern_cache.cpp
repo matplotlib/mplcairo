@@ -43,17 +43,18 @@ void set_dashes(cairo_t* cr, dash_t dash) {
 void PatternCache::CacheKey::draw(cairo_t* cr, double x, double y) {
   auto m = cairo_matrix_t{
     matrix.xx, matrix.yx, matrix.xy, matrix.yy, matrix.x0 + x, matrix.y0 + y};
-  load_path_exact(cr, path, &m);
   switch (draw_func) {
     case draw_func_t::Fill:
-      cairo_fill(cr);
+      fill_and_stroke_exact(cr, path, &m, {{0, 0, 0, 1}}, {});
       break;
     case draw_func_t::Stroke:
+      cairo_save(cr);
       cairo_set_line_width(cr, linewidth);
       set_dashes(cr, dash);
       cairo_set_line_cap(cr, capstyle);
       cairo_set_line_join(cr, joinstyle);
-      cairo_stroke(cr);
+      fill_and_stroke_exact(cr, path, &m, {}, {{0, 0, 0, 1}});
+      cairo_restore(cr);
       break;
   }
 }

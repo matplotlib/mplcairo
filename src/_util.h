@@ -24,8 +24,8 @@ enum class PathCode {
 };
 
 py::object rc_param(std::string key);
-rgba_t to_rgba(py::object color);
-cairo_matrix_t matrix_from_transform(py::object transform, double y0=0);
+rgba_t to_rgba(py::object color, std::optional<double> alpha = {});
+cairo_matrix_t matrix_from_transform(py::object transform, double y0 = 0);
 cairo_matrix_t matrix_from_transform(
     py::object transform, cairo_matrix_t* master_matrix);
 cairo_t* trivial_context();
@@ -33,6 +33,9 @@ cairo_path_t* copy_path(cairo_path_t* path);
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix);
+void fill_and_stroke_exact(
+    cairo_t* cr, py::object path, cairo_matrix_t* matrix,
+    std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
 cairo_font_face_t* ft_font_from_prop(py::object prop);
 
 }
