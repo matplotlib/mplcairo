@@ -118,6 +118,8 @@ void PatternCache::mask(
     double linewidth,
     dash_t dash,
     double x, double y) {
+  // The matrix gets cached, so we may as well take it by value instead of by
+  // pointer.
   auto key = CacheKey{
     path, matrix, draw_func, linewidth, dash,
     // TODO Actually we can skip these if draw_func == stroke.
@@ -149,12 +151,14 @@ void PatternCache::mask(
   // matrix.  1 x threshold will be added by the patterns_ cache.
   auto& bbox = it_bboxes->second;
   auto eps = threshold_ / 3;
-  auto xstep = eps / std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
-       ystep = eps / std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height)),
-       xx_q = std::round(key.matrix.xx / xstep) * xstep,
-       yx_q = std::round(key.matrix.yx / xstep) * xstep,
-       xy_q = std::round(key.matrix.xy / ystep) * ystep,
-       yy_q = std::round(key.matrix.yy / ystep) * ystep,
+  auto x_q = eps / std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
+       y_q = eps / std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height)),
+       // If x_q is infinite, that means the marker has zero size in the x
+       // direction, in which case xx_q and yx_q don't matter.
+       xx_q = std::isinf(x_q) ? 0 : std::round(key.matrix.xx / x_q) * x_q,
+       yx_q = std::isinf(x_q) ? 0 : std::round(key.matrix.yx / x_q) * x_q,
+       xy_q = std::isinf(y_q) ? 0 : std::round(key.matrix.xy / y_q) * y_q,
+       yy_q = std::isinf(y_q) ? 0 : std::round(key.matrix.yy / y_q) * y_q,
        x0_q = std::round(key.matrix.x0 / eps) * eps,
        y0_q = std::round(key.matrix.y0 / eps) * eps;
   key.matrix = {xx_q, yx_q, xy_q, yy_q, x0_q, y0_q};
