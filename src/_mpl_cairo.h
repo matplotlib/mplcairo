@@ -77,7 +77,7 @@ class GraphicsContextRenderer {
   void set_clip_path(std::optional<py::object> transformed_path);
   void set_dashes(
       std::optional<double> dash_offset,
-      std::optional<std::vector<double>> dash_list);
+      std::optional<py::array_t<double>> dash_list);
   void set_foreground(py::object fg, bool /* is_rgba */=false);
   void set_hatch(std::optional<std::string> hatch);
   void set_hatch_color(py::object hatch);
@@ -122,13 +122,13 @@ class GraphicsContextRenderer {
       py::object master_transform,
       std::vector<py::object> paths,
       std::vector<py::object> all_transforms,
-      std::vector<py::object> offsets,
+      py::array_t<double> offsets,
       py::object offset_transform,
       py::object fcs,
       py::object ecs,
-      std::vector<double> lws,
+      py::array_t<double> lws,
       std::vector<std::tuple<std::optional<double>,
-                             std::optional<std::vector<double>>>> dashes,
+                             std::optional<py::array_t<double>>>> dashes,
       py::object aas,
       py::object urls,
       std::string offset_position);

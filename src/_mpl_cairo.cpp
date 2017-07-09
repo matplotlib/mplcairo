@@ -195,15 +195,18 @@ void GraphicsContextRenderer::set_clip_path(
 
 void GraphicsContextRenderer::set_dashes(
     std::optional<double> dash_offset,
-    std::optional<std::vector<double>> dash_list) {
+    std::optional<py::array_t<double>> dash_list) {
   if (dash_list) {
     if (!dash_offset) {
       throw std::invalid_argument("Missing dash offset");
     }
-    std::transform(
-        dash_list->begin(), dash_list->end(), dash_list->begin(),
-        [&](double points) { return points_to_pixels(points); });
-    cairo_set_dash(cr_, dash_list->data(), dash_list->size(), *dash_offset);
+    auto dashes_raw = dash_list->unchecked<1>();
+    auto n = dashes_raw.size();
+    auto buf = std::unique_ptr<double[]>(new double[n]);
+    for (size_t i = 0; i < n; ++i) {
+      buf[i] = points_to_pixels(dashes_raw[i]);
+    }
+    cairo_set_dash(cr_, buf.get(), n, *dash_offset);
   } else {
     cairo_set_dash(cr_, nullptr, 0, 0);
   }
@@ -348,12 +351,11 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   for (size_t i = 0; i < n; ++i) {
     cairo_mesh_pattern_begin_patch(pattern);
     for (size_t j = 0; j < 3; ++j) {
-      cairo_mesh_pattern_line_to(
-          pattern, *tri_raw.data(i, j, 0), *tri_raw.data(i, j, 1));
+      cairo_mesh_pattern_line_to(pattern, tri_raw(i, j, 0), tri_raw(i, j, 1));
       cairo_mesh_pattern_set_corner_color_rgba(
           pattern, j,
-          *col_raw.data(i, j, 0), *col_raw.data(i, j, 1),
-          *col_raw.data(i, j, 2), *col_raw.data(i, j, 3));
+          col_raw(i, j, 0), col_raw(i, j, 1),
+          col_raw(i, j, 2), col_raw(i, j, 3));
     }
     cairo_mesh_pattern_end_patch(pattern);
   }
@@ -385,8 +387,8 @@ void GraphicsContextRenderer::draw_image(
   for (size_t i = 0; i < ni; ++i) {
     auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
     for (size_t j = 0; j < nj; ++j) {
-      auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
-           b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
+      auto r = im_raw(i, j, 0), g = im_raw(i, j, 1),
+           b = im_raw(i, j, 2), a = im_raw(i, j, 3);
       *(ptr++) =
         (uint8_t(a) << 24) | (uint8_t(a / 255. * r) << 16)
         | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
@@ -418,7 +420,10 @@ void GraphicsContextRenderer::draw_markers(
   }
   auto ac = additional_context();
 
-  auto vertices = path.attr("vertices").cast<py::array_t<double>>();
+  // As paths store their vertices in an array, the .cast<>() will not make a
+  // copy and we don't need to explicitly keep the intermediate result alive.
+  auto vertices =
+    path.attr("vertices").cast<py::array_t<double>>().unchecked<2>();
   // NOTE: For efficiency, we ignore codes, which is the documented behavior
   // even though not the actual one of other backends.
   auto n_vertices = vertices.shape(0);
@@ -485,7 +490,7 @@ void GraphicsContextRenderer::draw_markers(
     cairo_destroy(raster_cr);
 
     for (size_t i = 0; i < n_vertices; ++i) {
-      auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
+      auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
       auto target_x = x + x0,
            target_y = y + y0;
@@ -512,7 +517,7 @@ void GraphicsContextRenderer::draw_markers(
   } else {
     for (size_t i = 0; i < n_vertices; ++i) {
       cairo_save(cr_);
-      auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
+      auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
       if (!(std::isfinite(x) && std::isfinite(y))) {
         continue;
@@ -587,13 +592,13 @@ void GraphicsContextRenderer::draw_path_collection(
     py::object master_transform,
     std::vector<py::object> paths,
     std::vector<py::object> transforms,
-    std::vector<py::object> offsets,
+    py::array_t<double> offsets,
     py::object offset_transform,
     py::object fcs,
     py::object ecs,
-    std::vector<double> lws,
+    py::array_t<double> lws,
     std::vector<std::tuple<std::optional<double>,
-                           std::optional<std::vector<double>>>> dashes,
+                           std::optional<py::array_t<double>>>> dashes,
     py::object aas,
     py::object urls,
     std::string offset_position) {
@@ -626,20 +631,25 @@ void GraphicsContextRenderer::draw_path_collection(
   }
   auto n_paths = paths.size(),
        n_transforms = transforms.size(),
-       n_offsets = offsets.size(),
+       n_offsets = offsets.shape(0),
        n = std::max({n_paths, n_transforms, n_offsets});
   if (!n_paths || !n_offsets) {
     return;
   }
   auto master_matrix = matrix_from_transform(master_transform, get_height());
-  std::vector<cairo_matrix_t> matrices;
+  auto matrices = std::unique_ptr<cairo_matrix_t[]>(
+      new cairo_matrix_t[n_transforms ? n_transforms : 1]);
   if (n_transforms) {
     for (size_t i = 0; i < n_transforms; ++i) {
-      matrices.push_back(matrix_from_transform(transforms[i], &master_matrix));
+      matrices[i] = matrix_from_transform(transforms[i], &master_matrix);
     }
   } else {
     n_transforms = 1;
-    matrices.push_back(master_matrix);
+    matrices[0] = master_matrix;
+  }
+  auto offsets_raw = offsets.unchecked<2>();
+  if (offsets_raw.shape(1) != 2) {
+    throw std::invalid_argument("Invalid offsets shape");
   }
   auto offset_matrix = matrix_from_transform(offset_transform);
   auto convert_colors = [&](py::object colors) {
@@ -649,41 +659,53 @@ void GraphicsContextRenderer::draw_path_collection(
           colors, alpha ? py::cast(*alpha) : py::none())
       .cast<py::array_t<double>>();
   };
-  // Don't drop the arrays until the function exits.
+  // Don't drop the arrays until the function exits.  NOTE: Perhaps pybind11
+  // should ensure that?
   auto fcs_raw_keepref = convert_colors(fcs),
        ecs_raw_keepref = convert_colors(ecs);
   auto fcs_raw = fcs_raw_keepref.unchecked<2>(),
        ecs_raw = ecs_raw_keepref.unchecked<2>();
-  auto dashes_raw = std::vector<dash_t>{};
-  for (auto [dash_offset, dash_list]: dashes) {
-    set_dashes(dash_offset, dash_list);  // Invoke the dash converter.
-    dashes_raw.push_back(convert_dash(cr_));
+  auto lws_raw = lws.unchecked<1>();
+  auto n_dashes = dashes.size();
+  auto dashes_raw = std::unique_ptr<dash_t[]>(
+      new dash_t[n_dashes ? n_dashes : 1]);
+  if (n_dashes) {
+    for (size_t i = 0; i < n_dashes; ++i) {
+      auto [dash_offset, dash_list] = dashes[i];
+      set_dashes(dash_offset, dash_list);  // Invoke the dash converter.
+      dashes_raw[i] = convert_dash(cr_);
+    }
+  } else {
+    n_dashes = 1;
+    dashes_raw[0] = {};
   }
   auto cache = PatternCache{
     rc_param("path.simplify_threshold").cast<double>()};
   for (size_t i = 0; i < n; ++i) {
     auto path = paths[i % n_paths];
     auto matrix = matrices[i % n_transforms];
-    auto [x, y] = offsets[i % n_offsets].cast<std::pair<double, double>>();
+    auto x = offsets_raw(i % n_offsets, 0),
+         y = offsets_raw(i % n_offsets, 1);
     cairo_matrix_transform_point(&offset_matrix, &x, &y);
     if (!(std::isfinite(x) && std::isfinite(y))) {
       continue;
     }
     if (fcs_raw.shape(0)) {
       auto i_mod = i % fcs_raw.shape(0);
-      auto r = *fcs_raw.data(i_mod, 0), g = *fcs_raw.data(i_mod, 1),
-           b = *fcs_raw.data(i_mod, 2), a = *fcs_raw.data(i_mod, 3);
+      auto r = fcs_raw(i_mod, 0), g = fcs_raw(i_mod, 1),
+           b = fcs_raw(i_mod, 2), a = fcs_raw(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
       cache.mask(cr_, path, matrix, draw_func_t::Fill, 0, {}, x, y);
     }
     if (ecs_raw.size()) {
       auto i_mod = i % ecs_raw.shape(0);
-      auto r = *ecs_raw.data(i_mod, 0), g = *ecs_raw.data(i_mod, 1),
-           b = *ecs_raw.data(i_mod, 2), a = *ecs_raw.data(i_mod, 3);
+      auto r = ecs_raw(i_mod, 0), g = ecs_raw(i_mod, 1),
+           b = ecs_raw(i_mod, 2), a = ecs_raw(i_mod, 3);
       cairo_set_source_rgba(cr_, r, g, b, a);
-      auto lw = lws.size()
-        ? points_to_pixels(lws[i % lws.size()]) : cairo_get_line_width(cr_);
-      auto dash = dashes_raw[i % dashes_raw.size()];
+      auto lw = lws_raw.size()
+        ? points_to_pixels(lws_raw[i % lws_raw.size()])
+        : cairo_get_line_width(cr_);
+      auto dash = dashes_raw[i % n_dashes];
       cache.mask(cr_, path, matrix, draw_func_t::Stroke, lw, dash, x, y);
     }
     // NOTE: We drop antialiaseds because that just seems silly.
