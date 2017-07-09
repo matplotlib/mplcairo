@@ -36,7 +36,7 @@ class PatternCache {
     cairo_line_cap_t capstyle;
     cairo_line_join_t joinstyle;
 
-    void draw(cairo_t* cr, double x, double y);
+    void draw(cairo_t* cr, double x, double y, rgba_t color={0, 0, 0, 1});
   };
   struct Hash {
     size_t operator()(py::object const& path) const;

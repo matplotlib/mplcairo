@@ -40,12 +40,13 @@ void set_dashes(cairo_t* cr, dash_t dash) {
       offset);
 }
 
-void PatternCache::CacheKey::draw(cairo_t* cr, double x, double y) {
+void PatternCache::CacheKey::draw(
+    cairo_t* cr, double x, double y, rgba_t color) {
   auto m = cairo_matrix_t{
     matrix.xx, matrix.yx, matrix.xy, matrix.yy, matrix.x0 + x, matrix.y0 + y};
   switch (draw_func) {
     case draw_func_t::Fill:
-      fill_and_stroke_exact(cr, path, &m, {{0, 0, 0, 1}}, {});
+      fill_and_stroke_exact(cr, path, &m, color, {});
       break;
     case draw_func_t::Stroke:
       cairo_save(cr);
@@ -53,7 +54,7 @@ void PatternCache::CacheKey::draw(cairo_t* cr, double x, double y) {
       set_dashes(cr, dash);
       cairo_set_line_cap(cr, capstyle);
       cairo_set_line_join(cr, joinstyle);
-      fill_and_stroke_exact(cr, path, &m, {}, {{0, 0, 0, 1}});
+      fill_and_stroke_exact(cr, path, &m, {}, color);
       cairo_restore(cr);
       break;
   }
@@ -125,7 +126,9 @@ void PatternCache::mask(
     // TODO Actually we can skip these if draw_func == stroke.
     cairo_get_line_cap(cr), cairo_get_line_join(cr)};
   if (!n_subpix_) {
-    key.draw(cr, x, y);
+    double r, g, b, a;
+    cairo_pattern_get_rgba(cairo_get_source(cr), &r, &g, &b, &a);
+    key.draw(cr, x, y, {r, g, b, a});
     return;
   }
   // Get the untransformed path bbox with cairo_path_extents(), so that we
