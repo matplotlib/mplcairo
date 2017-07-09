@@ -36,7 +36,7 @@ class PatternCache {
     cairo_line_cap_t capstyle;
     cairo_line_join_t joinstyle;
 
-    void draw(cairo_t* cr);
+    void draw(cairo_t* cr, double x, double y);
   };
   struct Hash {
     size_t operator()(py::object const& path) const;
@@ -52,7 +52,6 @@ class PatternCache {
     std::unique_ptr<cairo_pattern_t*[]> patterns;
   };
 
-  cairo_t* trivial_cr_;
   double threshold_;
   size_t n_subpix_;
   // Bounds of the non-transformed path.

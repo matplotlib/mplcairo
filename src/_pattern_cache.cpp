@@ -40,8 +40,10 @@ void set_dashes(cairo_t* cr, dash_t dash) {
       offset);
 }
 
-void PatternCache::CacheKey::draw(cairo_t* cr) {
-  load_path(cr, path, &matrix);
+void PatternCache::CacheKey::draw(cairo_t* cr, double x, double y) {
+  auto m = cairo_matrix_t{
+    matrix.xx, matrix.yx, matrix.xy, matrix.yy, matrix.x0 + x, matrix.y0 + y};
+  load_path_exact(cr, path, &m);
   switch (draw_func) {
     case draw_func_t::Fill:
       cairo_fill(cr);
@@ -91,8 +93,7 @@ bool PatternCache::EqualTo::operator()(
     && (lhs.capstyle == rhs.capstyle) && (lhs.joinstyle == rhs.joinstyle);
 }
 
-PatternCache::PatternCache(double threshold) :
-  trivial_cr_{trivial_context()}, threshold_{threshold} {
+PatternCache::PatternCache(double threshold) : threshold_{threshold} {
   if (threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
     n_subpix_ = std::ceil(1 / threshold);
   } else {
@@ -101,7 +102,6 @@ PatternCache::PatternCache(double threshold) :
 }
 
 PatternCache::~PatternCache() {
-  cairo_destroy(trivial_cr_);
   for (auto& [key, entry]: patterns_) {
     for (size_t i = 0; i < n_subpix_ * n_subpix_; ++i) {
       cairo_pattern_destroy(entry.patterns[i]);
@@ -122,10 +122,7 @@ void PatternCache::mask(
     // TODO Actually we can skip these if draw_func == stroke.
     cairo_get_line_cap(cr), cairo_get_line_join(cr)};
   if (!n_subpix_) {
-    cairo_save(cr);
-    cairo_translate(cr, x, y);
-    key.draw(cr);
-    cairo_restore(cr);
+    key.draw(cr, x, y);
     return;
   }
   // Get the untransformed path bbox with cairo_path_extents(), so that we
@@ -136,9 +133,9 @@ void PatternCache::mask(
   auto it_bboxes = bboxes_.find(key.path);
   if (it_bboxes == bboxes_.end()) {
     auto id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
-    load_path(trivial_cr_, key.path, &id);
+    load_path_exact(cr, key.path, &id);
     double x0, y0, x1, y1;
-    cairo_path_extents(trivial_cr_, &x0, &y0, &x1, &y1);
+    cairo_path_extents(cr, &x0, &y0, &x1, &y1);
     bool ok;
     std::tie(it_bboxes, ok) =
       bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, x1 - x0, y1 - y0});
@@ -164,16 +161,18 @@ void PatternCache::mask(
   auto it_patterns = patterns_.find(key);
   if (it_patterns == patterns_.end()) {
     // Get the pattern extents.
-    load_path(trivial_cr_, key.path, &key.matrix);
+    load_path_exact(cr, key.path, &key.matrix);
     double x0, y0, x1, y1;
     switch (key.draw_func) {
       case draw_func_t::Fill:
-        cairo_fill_extents(trivial_cr_, &x0, &y0, &x1, &y1);
+        cairo_fill_extents(cr, &x0, &y0, &x1, &y1);
         break;
       case draw_func_t::Stroke:
-        cairo_set_line_width(trivial_cr_, key.linewidth);
-        set_dashes(trivial_cr_, key.dash);
-        cairo_stroke_extents(trivial_cr_, &x0, &y0, &x1, &y1);
+        cairo_save(cr);
+        cairo_set_line_width(cr, key.linewidth);
+        set_dashes(cr, key.dash);
+        cairo_restore(cr);
+        cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
         break;
     }
     // Must be nullptr-initialized.
@@ -199,10 +198,9 @@ void PatternCache::mask(
         CAIRO_FORMAT_A8,
         std::ceil(entry.width + 1), std::ceil(entry.height + 1));
     auto raster_cr = cairo_create(raster_surface);
-    cairo_translate(
+    key.draw(
         raster_cr,
         -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
-    key.draw(raster_cr);
     pattern = cairo_pattern_create_for_surface(raster_surface);
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
     cairo_destroy(raster_cr);

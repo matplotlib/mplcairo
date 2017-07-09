@@ -242,10 +242,7 @@ void GraphicsContextRenderer::set_clip_path(
       transformed_path->attr("get_transformed_path_and_affine")()
       .cast<std::tuple<py::object, py::object>>();
     auto matrix = matrix_from_transform(transform, get_height());
-    cairo_save(cr_);
-    cairo_identity_matrix(cr_);
-    load_path(cr_, path, &matrix);
-    cairo_restore(cr_);
+    load_path_exact(cr_, path, &matrix);
     get_additional_state().clip_path.reset(
         cairo_copy_path(cr_), &cairo_path_destroy);
   } else {
@@ -510,8 +507,11 @@ void GraphicsContextRenderer::draw_markers(
   }
 
   // Recording surfaces are quite slow, so just call a lambda instead.
-  auto draw_one_marker = [&](cairo_t* cr) {
-    load_path(cr, marker_path, &marker_matrix);
+  auto draw_one_marker = [&](cairo_t* cr, double x, double y) {
+    auto m = cairo_matrix_t{
+      marker_matrix.xx, marker_matrix.yx, marker_matrix.xy, marker_matrix.yy,
+      marker_matrix.x0 + x, marker_matrix.y0 + y};
+    load_path_exact(cr, marker_path, &m);
     if (rgb_fc) {
       cairo_save(cr);
       cairo_set_source_rgba(cr, r, g, b, a);
@@ -538,8 +538,7 @@ void GraphicsContextRenderer::draw_markers(
     // NOTE: Currently Matplotlib chooses *not* to call draw_markers() if the
     // marker is bigger than the canvas, but this is really a limitation on
     // Agg's side.
-    cairo_identity_matrix(cr_);
-    load_path(cr_, marker_path, &marker_matrix);
+    load_path_exact(cr_, marker_path, &marker_matrix);
     double x0, y0, x1, y1;
     cairo_stroke_extents(cr_, &x0, &y0, &x1, &y1);
     if (rgb_fc) {
@@ -561,9 +560,8 @@ void GraphicsContextRenderer::draw_markers(
     for (size_t i = 0; i < n_subpix; ++i) {
       for (size_t j = 0; j < n_subpix; ++j) {
         cairo_push_group(raster_cr);
-        cairo_translate(
+        draw_one_marker(
             raster_cr, -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
-        draw_one_marker(raster_cr);
         auto pattern = patterns[i * n_subpix + j] = cairo_pop_group(raster_cr);
         cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
       }
@@ -607,8 +605,7 @@ void GraphicsContextRenderer::draw_markers(
       if (!(std::isfinite(x) && std::isfinite(y))) {
         continue;
       }
-      cairo_translate(cr_, x, y);
-      draw_one_marker(cr_);
+      draw_one_marker(cr_, x, y);
       cairo_restore(cr_);
     }
   }
@@ -631,11 +628,11 @@ void GraphicsContextRenderer::draw_path(
         "transform"_a=transform,
         "curves"_a=true,
         "sketch"_a=get_additional_state().sketch);
-    auto id = cairo_matrix_t{1, 0, 0, -1, 0, double(get_height())};
-    load_path(cr_, path, &id);
+    auto matrix = cairo_matrix_t{1, 0, 0, -1, 0, double(get_height())};
+    load_path_exact(cr_, path, &matrix);
   } else {
     auto matrix = matrix_from_transform(transform, get_height());
-    load_path(cr_, path, &matrix);
+    load_path_exact(cr_, path, &matrix);
   }
   if (rgb_fc) {
     cairo_save(cr_);
@@ -664,9 +661,9 @@ void GraphicsContextRenderer::draw_path(
     cairo_set_source_rgba(hatch_cr, r, g, b, a);
     cairo_set_line_width(
         hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));
-    auto hatch_matrix = cairo_matrix_t{
+    auto matrix = cairo_matrix_t{
       double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
-    load_path(hatch_cr, hatch_path, &hatch_matrix);
+    load_path_exact(hatch_cr, hatch_path, &matrix);
     cairo_fill_preserve(hatch_cr);
     cairo_stroke(hatch_cr);
     auto hatch_pattern = cairo_pattern_create_for_surface(hatch_surface);

@@ -31,7 +31,8 @@ cairo_matrix_t matrix_from_transform(
 cairo_t* trivial_context();
 cairo_path_t* copy_path(cairo_path_t* path);
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
-void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
+void load_path_exact(
+    cairo_t* cr, py::object path, cairo_matrix_t* matrix);
 cairo_font_face_t* ft_font_from_prop(py::object prop);
 
 }

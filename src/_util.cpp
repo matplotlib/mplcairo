@@ -75,18 +75,20 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
   cairo_set_source_rgba(dest, r, g, b, a);
 }
 
-// Temporarily add `matrix` to `cr`'s CTM, and make `path` `cr`'s current path
-// (transformed accordingly).  Note that a pre-existing CTM may already be
-// present!
-// TODO: In order to deal with overflow when transformed values do not fit in
-// a 24-bit signed integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091
-// and test_simplification.test_overflow), we need to know the entire
-// transformation matrix up to that point (which in practice is just *matrix
-// and a translation) and just run everything through the clipping step of
-// Path.cleanup (but then we may as well combine some more operations).
-// (Moreover, this would not handle Beziers.)
-void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
-  cairo_save(cr);
+// Set the current path of `cr` to `path`, after transformation by `matrix`,
+// ignoring the CTM ("exact").
+//
+// TODO: Deal with overflow when transformed values do not fit in a 24-bit
+// signed integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091
+// and test_simplification.test_overflow) by running everything through
+// Path.cleanup's clipping step (although it does not handle Beziers).
+void load_path_exact(
+    cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+  // We don't need to cairo_save()/cairo_restore() the whole state, we can just
+  // store the CTM.
+  cairo_matrix_t ctm;
+  cairo_get_matrix(cr, &ctm);
+  cairo_identity_matrix(cr);
   // We can't simply call cairo_transform(cr, matrix) because matrix may be
   // degenerate (e.g., for zero-sized markers).  Fortunately, the cost of doing
   // the transformation ourselves seems negligible (if any).
@@ -178,7 +180,7 @@ void load_path(cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
       }
     }
   }
-  cairo_restore(cr);
+  cairo_set_matrix(cr, &ctm);
 }
 
 cairo_font_face_t* ft_font_from_prop(py::object prop) {
