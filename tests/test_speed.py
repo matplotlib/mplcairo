@@ -62,13 +62,17 @@ def test_line(
     benchmark(axes.figure.canvas.draw)
 
 
+# For the marker tests, try both square and round markers, as we have a special
+# code path for circles which may not be representative of general performance.
+
+
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
-@pytest.mark.parametrize("alpha", [.99, 1])
-def test_circles(
-        benchmark, canvas_cls, threshold, alpha, axes, sample_vectors):
+@pytest.mark.parametrize("marker", ["o", "s"])
+def test_markers(
+        benchmark, canvas_cls, threshold, marker, axes, sample_vectors):
     with mpl.rc_context({"path.simplify_threshold": threshold}):
-        axes.plot(*sample_vectors, "o", alpha=alpha)
+        axes.plot(*sample_vectors, marker=marker)
         despine(axes)
         axes.figure.canvas = canvas_cls(axes.figure)
         benchmark(axes.figure.canvas.draw)
@@ -76,22 +80,12 @@ def test_circles(
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
 @pytest.mark.parametrize("threshold", [1 / 8, 0])
-def test_squares(
-        benchmark, canvas_cls, threshold, axes, sample_vectors):
-    with mpl.rc_context({"path.simplify_threshold": threshold}):
-        axes.plot(*sample_vectors, "s")
-        despine(axes)
-        axes.figure.canvas = canvas_cls(axes.figure)
-        benchmark(axes.figure.canvas.draw)
-
-
-@pytest.mark.parametrize("canvas_cls", _canvas_classes)
-@pytest.mark.parametrize("threshold", [1 / 8, 0])
+@pytest.mark.parametrize("marker", ["o", "s"])
 def test_scatter_multicolor(
-        benchmark, canvas_cls, threshold, axes, sample_vectors):
+        benchmark, canvas_cls, threshold, marker, axes, sample_vectors):
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         a, b = sample_vectors
-        axes.scatter(a, a, c=b)
+        axes.scatter(a, a, c=b, marker=marker)
         despine(axes)
         axes.figure.canvas = canvas_cls(axes.figure)
         benchmark(axes.figure.canvas.draw)

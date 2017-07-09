@@ -78,7 +78,7 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 // Set the current path of `cr` to `path`, after transformation by `matrix`,
 // ignoring the CTM ("exact").
 //
-// TODO: Deal with overflow when transformed values do not fit in a 24-bit
+// FIXME: Deal with overflow when transformed values do not fit in a 24-bit
 // signed integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091
 // and test_simplification.test_overflow) by running everything through
 // Path.cleanup's clipping step (although it does not handle Beziers).
@@ -189,15 +189,37 @@ void fill_and_stroke_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix,
     std::optional<rgba_t> fill, std::optional<rgba_t> stroke) {
   cairo_save(cr);
-  load_path_exact(cr, path, matrix);
+  auto path_loaded = false;
   if (fill) {
     auto [r, g, b, a] = *fill;
     cairo_set_source_rgba(cr, r, g, b, a);
-    cairo_fill_preserve(cr);
+    if (path == UNIT_CIRCLE) {
+      // Abuse the degenerate-segment handling by cairo to draw circles
+      // efficiently.
+      cairo_save(cr);
+      cairo_new_path(cr);
+      cairo_move_to(cr, matrix->x0, matrix->y0);
+      cairo_close_path(cr);
+      cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+      cairo_set_line_width(cr, 2);
+      cairo_set_matrix(cr, matrix);
+      cairo_stroke(cr);
+      cairo_restore(cr);
+    } else {
+      if (!path_loaded) {
+        load_path_exact(cr, path, matrix);
+        path_loaded = true;
+      }
+      cairo_fill_preserve(cr);
+    }
   }
   if (stroke) {
     auto [r, g, b, a] = *stroke;
     cairo_set_source_rgba(cr, r, g, b, a);
+    if (!path_loaded) {
+      load_path_exact(cr, path, matrix);
+      path_loaded = true;
+    }
     cairo_stroke_preserve(cr);
   }
   cairo_restore(cr);

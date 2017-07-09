@@ -68,59 +68,6 @@ GraphicsContextRenderer::additional_context() {
   return {this};
 }
 
-bool GraphicsContextRenderer::try_draw_circles(
-    GraphicsContextRenderer& gc,
-    py::object marker_path,
-    cairo_matrix_t* marker_matrix,
-    py::object path,
-    cairo_matrix_t* matrix,
-    std::optional<py::object> rgb_fc) {
-  // Abuse the degenerate-segment handling by cairo to quickly draw fully
-  // opaque circles.
-  if ((marker_path != UNIT_CIRCLE)
-      // yy = -xx due to the flipping in transform_to_matrix().
-      || (marker_matrix->yy != -marker_matrix->xx)
-      || marker_matrix->xy || marker_matrix->yx
-      || !rgb_fc) {
-    return false;
-  }
-  if (rgb_fc) {
-    double r, g, b, a{1};
-    if (py::len(*rgb_fc) == 3) {
-      std::tie(r, g, b) = rgb_fc->cast<rgb_t>();
-    } else {
-      std::tie(r, g, b, a) = rgb_fc->cast<rgba_t>();
-    }
-    if (auto alpha = get_additional_state().alpha; alpha) {
-      a = *alpha;
-    }
-    if ((rgba_t{r, g, b, a} != get_rgba())  // Can't draw edge with another color.
-        || (a != 1)) {  // Can't handle alpha.  // FIXME Try drawing one at a time.
-      return false;
-    }
-  }
-  cairo_save(cr_);
-  auto [r, g, b, a] = get_rgba();
-  cairo_set_source_rgba(cr_, r, g, b, a);
-  cairo_transform(cr_, matrix);
-  auto vertices = path.attr("vertices").cast<py::array_t<double>>();
-  // NOTE: For efficiency, we ignore codes, which is the documented behavior
-  // even though not the actual one of other backends.
-  auto n = vertices.shape(0);
-  for (size_t i = 0; i < n; ++i) {
-    auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
-    cairo_move_to(cr_, x, y);
-    cairo_close_path(cr_);
-  }
-  cairo_restore(cr_);
-  cairo_save(cr_);
-  cairo_set_line_cap(cr_, CAIRO_LINE_CAP_ROUND);
-  cairo_set_line_width(cr_, 2 * std::abs(marker_matrix->xx));
-  cairo_stroke(cr_);
-  cairo_restore(cr_);
-  return true;
-}
-
 GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
   cr_{nullptr},
   dpi_{dpi},
@@ -576,10 +523,6 @@ void GraphicsContextRenderer::draw_markers(
     }
 
   } else {
-    if (try_draw_circles(
-          gc, marker_path, &marker_matrix, path, &matrix, fc)) {
-      return;
-    }
     for (size_t i = 0; i < n_vertices; ++i) {
       cairo_save(cr_);
       auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);

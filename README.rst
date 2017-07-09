@@ -5,9 +5,9 @@ This is a new, fairly complete implementation of a Cairo backend for
 Matplotlib.  Currently, it is designed to be used with the qt-cairo backend
 proposed in Matplotlib's PR #8771.
 
-Depending on the specific task, the backend can be anywhere from ~4.5x faster
-(e.g., stamping markers of variable colors) to ~10% faster (e.g., drawing
-lines) than Agg.
+Depending on the specific task, the backend can be anywhere from ~10x faster
+(e.g., stamping circular markers of variable colors) to ~10% faster (e.g.,
+drawing lines) than Agg.
 
 Installation
 ------------
@@ -88,7 +88,6 @@ Known issues
 Possible optimizations
 ----------------------
 
-- Further abuse the line cap drawer to quickly draw circles.
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
 - ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
   redirects to ``draw_path_collection``).

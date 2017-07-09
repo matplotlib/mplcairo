@@ -28,7 +28,7 @@ for i, phi in enumerate(np.linspace(0, 180. / np.pi, 100)):
         break
     ax.lines.clear()
     Z = generate(X, Y, phi)
-    ax.plot(X.flat, Z.flat, "ok", alpha=.99)  # Don't use the "fast" path.
+    ax.plot(X.flat, Z.flat, "ok")
     plt.pause(.001)
 
 print("Average FPS: {}".format((i + 1) / (time.process_time() - tstart)))

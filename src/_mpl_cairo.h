@@ -58,13 +58,6 @@ class GraphicsContextRenderer {
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
   AdditionalContext additional_context();
-  bool try_draw_circles(
-      GraphicsContextRenderer& gc,
-      py::object marker_path,
-      cairo_matrix_t* marker_matrix,
-      py::object path,
-      cairo_matrix_t* matrix,
-      std::optional<py::object> rgb_fc);
 
   public:
   py::object text2path_;
