@@ -31,7 +31,6 @@ class GraphicsContextRendererCairo(
     def __init__(self, dpi):
         super().__init__(dpi)
         # So that we can implement start/stop_filter.
-        self._dpi = dpi
         self._filter_stack = []
 
     def option_image_nocomposite(self):
@@ -47,7 +46,7 @@ class GraphicsContextRendererCairo(
 
     def stop_filter(self, filter_func):
         # NOTE: we don't try to restrict the filter to the drawn region.
-        img, dx, dy = filter_func(_get_rgba_data(self)[::-1] / 255, self._dpi)
+        img, dx, dy = filter_func(_get_rgba_data(self)[::-1] / 255, self.dpi)
         if img.dtype.kind == "f":
             img = np.asarray(img * 255, np.uint8)
         self.set_ctx_from_image_args(

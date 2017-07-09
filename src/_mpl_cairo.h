@@ -51,8 +51,6 @@ class GraphicsContextRenderer {
   };
 
   cairo_t* cr_;
-  double dpi_;
-  py::object mathtext_parser_;
 
   private:
   double pixels_to_points(double pixels);
@@ -60,6 +58,8 @@ class GraphicsContextRenderer {
   AdditionalContext additional_context();
 
   public:
+  double dpi_;
+  py::object mathtext_parser_;
   py::object text2path_;
 
   GraphicsContextRenderer(double dpi);

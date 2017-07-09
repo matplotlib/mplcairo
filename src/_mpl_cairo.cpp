@@ -719,11 +719,12 @@ void GraphicsContextRenderer::draw_text(
     // we should let it know about the destination subpixel position?  If
     // angle % 90 != 0, all hope is lost anyways.
     if (fmod(angle, 90) == 0) {
-      cairo_translate(cr_, round(x), round(y));
+      cairo_translate(cr_, std::round(x), std::round(y));
     } else {
       cairo_translate(cr_, x, y);
     }
-    cairo_rotate(cr_, -angle * M_PI / 180);
+    auto radians = angle * M_PI / 180;
+    cairo_rotate(cr_, -radians);
     auto [ox, oy, width, height, descent, image, chars] =
       mathtext_parser_.attr("parse")(s, dpi_, prop)
       .cast<std::tuple<
@@ -739,7 +740,12 @@ void GraphicsContextRenderer::draw_text(
     }
     auto surface = cairo_image_surface_create_for_data(
         buf.get(), CAIRO_FORMAT_A8, nj, ni, stride);
-    cairo_mask_surface(cr_, surface, ox, oy - ni);
+    auto dx = ox, dy = oy + descent - ni;
+    if (fmod(angle, 90) == 0) {  // See NOTE above.
+      dx = std::round(dx);
+      dy = std::round(dy);
+    }
+    cairo_mask_surface(cr_, surface, dx, dy);
     cairo_surface_destroy(surface);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
@@ -762,9 +768,12 @@ GraphicsContextRenderer::get_text_width_height_descent(
     std::string s, py::object prop, py::object ismath) {
   // NOTE: ismath can be True, False, "TeX".
   if (rc_param("text.usetex").cast<bool>() || py::bool_(ismath)) {
+    // NOTE: It may seem natural to use
+    // RendererBase.get_text_width_height_descent, but it relies on text2path's
+    // mathtext parser, which is less precise.
     return
-      py::module::import("matplotlib.backend_bases")
-        .attr("RendererBase").attr("get_text_width_height_descent")(
+      py::module::import("matplotlib.backends.backend_agg")
+        .attr("RendererAgg").attr("get_text_width_height_descent")(
             this, s, prop, ismath).cast<std::tuple<double, double, double>>();
   }
   cairo_save(cr_);
@@ -918,6 +927,10 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("restore", &GraphicsContextRenderer::restore)
 
     // Renderer API.
+    // NOTE: Needed for RendererAgg.get_text_width_height_descent.
+    .def_readonly("dpi", &GraphicsContextRenderer::dpi_)
+    .def_readonly(
+        "mathtext_parser", &GraphicsContextRenderer::mathtext_parser_)
     // NOTE: Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
