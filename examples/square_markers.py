@@ -4,6 +4,9 @@ from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+backend = plt.rcParams["backend"]
+plt.rcdefaults()
+plt.rcParams["backend"] = backend
 
 
 def generate(X, Y, phi):

@@ -14,7 +14,7 @@ Installation
 
 Dependencies:
 - Python 3,
-- cairo >=1.12,
+- cairo >=1.12 (needed for mesh gradient support),
 - a C++ compiler with C++17 support, e.g. GCC≥7.1.
 
 Run::
@@ -34,9 +34,9 @@ Run::
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable to ``module://mpl_cairo.qt``.
 
-The ``examples`` folder contains a few cases where the output of this backend
-is arguably more accurate (thanks to the use of subpixel marker stamping, with
-an accuracy controlled by the ``path.simplify_threshold`` rcparam).
+The ``examples`` folder contains a few cases where the output of this renderer
+is arguably more accurate than the one of the default renderer, Agg (better and
+faster marker stamping, and better text kerning).
 
 Benchmarks
 ----------
@@ -61,6 +61,14 @@ Notes
   artist property can also take the ``mpl_cairo.antialias_t.GOOD`` (or
   ``BEST``, etc.) value for additional control.  ``GOOD``/``BEST`` antialiasing
   of lines is ~3x slower than using Agg.
+
+  **NOTE**: When drawing very thin lines (e.g.,
+  ``test_cycles.test_property_collision_plot``), ``CAIRO_ANTIALIAS_FAST`` may
+  lead to artefacts, such that the line disappears in certain areas.  In that
+  case, switching to ``GOOD``/``BEST`` antialiasing solves the issue.  (It may
+  be possible to do this automatically from within the backend, just as the
+  miter limit is set whenever the line width is set.)
+
 - ``path.simplify_threshold`` is also used to control the accuracy of marker
   stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
   than that will use the exact (slower) marker drawing path.  Marker stamping
