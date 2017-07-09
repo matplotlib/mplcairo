@@ -380,28 +380,16 @@ void GraphicsContextRenderer::draw_image(
   }
   auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
   auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
-  if (auto alpha = get_additional_state().alpha; alpha) {
-    for (size_t i = 0; i < ni; ++i) {
-      auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
-      for (size_t j = 0; j < nj; ++j) {
-        auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
-             b = *im_raw.data(i, j, 2);
-        auto a = *alpha * *im_raw.data(i, j, 3);
-        *(ptr++) =
-          (uint8_t(a) << 24) | (uint8_t(a / 255. * r) << 16)
-          | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
-      }
-    }
-  } else {
-    for (size_t i = 0; i < ni; ++i) {
-      auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
-      for (size_t j = 0; j < nj; ++j) {
-        auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
-             b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
-        *(ptr++) =
-          (a << 24) | (uint8_t(a / 255. * r) << 16)
-          | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
-      }
+  // NOTE: The gcr's alpha has already been applied by ImageBase._make_image,
+  // we just need to convert to premultiplied ARGB format.
+  for (size_t i = 0; i < ni; ++i) {
+    auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
+    for (size_t j = 0; j < nj; ++j) {
+      auto r = *im_raw.data(i, j, 0), g = *im_raw.data(i, j, 1),
+           b = *im_raw.data(i, j, 2), a = *im_raw.data(i, j, 3);
+      *(ptr++) =
+        (uint8_t(a) << 24) | (uint8_t(a / 255. * r) << 16)
+        | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
     }
   }
   auto surface = cairo_image_surface_create_for_data(
