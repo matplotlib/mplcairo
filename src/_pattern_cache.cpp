@@ -189,8 +189,8 @@ void PatternCache::mask(
         cairo_set_line_width(cr, key.linewidth);
         cairo_set_miter_limit(cr, key.linewidth); // cf. set_linewidth.
         set_dashes(cr, key.dash);
-        cairo_restore(cr);
         cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
+        cairo_restore(cr);
         break;
     }
     // Must be nullptr-initialized.
