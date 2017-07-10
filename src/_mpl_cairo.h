@@ -60,6 +60,7 @@ class GraphicsContextRenderer {
   public:
   double dpi_;
   py::object mathtext_parser_;
+  py::object texmanager_;
   py::object text2path_;
 
   // NOTE: The renderer signature is not uniform.  (dpi) matches the old
