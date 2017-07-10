@@ -1,9 +1,11 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
-This is a new, fairly complete implementation of a Cairo backend for
-Matplotlib.  Currently, it is designed to be used with the qt-cairo backend
-proposed in Matplotlib's PR #8771.
+This is a new, near-complete implementation of a Cairo backend for Matplotlib.
+Currently, it is designed to be used with the qt-cairo backend proposed in
+Matplotlib's PR #8771.  It "passes" Matplotlib's entire image comparison test
+suite -- after accounting for inevitable differences in rasterization, and with
+the exceptions noted below.
 
 Depending on the specific task, the backend can be anywhere from ~10x faster
 (e.g., stamping circular markers of variable colors) to ~10% faster (e.g.,
@@ -66,9 +68,9 @@ Notes
   ``BEST``, etc.) value for additional control.  ``GOOD``/``BEST`` antialiasing
   of lines is ~3x slower than using Agg.
 
-  **NOTE**: When drawing very thin lines (e.g.,
+  **NOTE**: When drawing very thin lines (<0.5px, e.g.
   ``test_cycles.test_property_collision_plot``), ``CAIRO_ANTIALIAS_FAST`` may
-  lead to artefacts, such that the line disappears in certain areas.  In that
+  lead to artefacts, such that the line disappearing in certain areas.  In that
   case, switching to ``GOOD``/``BEST`` antialiasing solves the issue.  (It may
   be possible to do this automatically from within the backend, just as the
   miter limit is set whenever the line width is set.)
@@ -80,11 +82,12 @@ Notes
   Likewise, markers of different sizes get mapped into markers of discretized
   sizes, with an error bounded by the threshold.
 
-  **NOTE**: ``plot_surface`` (from mplot3d) displays some artfacts where
-  the facets join each other.  This is because that function internally uses a
-  ``PathCollection``, thus triggering the approximate stamping.  Instead, the
-  surface should be represented as a ``QuadMesh``, which is drawn without such
-  artefacts.
+  **NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
+  where the facets join each other.  This is because these functions internally
+  use a ``PathCollection``, thus triggering the approximate stamping.
+  ``pcolor`` should be deprecated in favor of ``pcolormesh`` (internally using
+  a ``QuadMesh``), and ``plot_surface`` should likewise instead represent the
+  surface using ``QuadMesh``, which is drawn without such artefacts.
 
 - ``draw_markers`` draws a marker at each control point of the given path,
   which is the documented behavior, even though all builtin renderers only draw
@@ -100,8 +103,8 @@ Other known issues
 
 - Very large inputs (transforming to pixel values greater than ``2**23`` in
   absolute value) will be drawn incorrectly due to overflow in cairo (cairo
-  #20091).  A temporary workaround handles the issue when only one of the two
-  coordinates is too large, but not when both are.
+  #20091).  A temporary workaround partially handles the issue when only one of
+  the two coordinates is too large, but not when both are.
 - Blitting-based animation leaves small artefacts at the edges of the blitted
   region.
 
@@ -109,8 +112,6 @@ Possible optimizations
 ----------------------
 
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
-- ``draw_quad_mesh`` (not clear it's needed -- even the Agg backend just
-  redirects to ``draw_path_collection``).
 - Path simplification (although cairo appears to use vertex reduction and
   Douglas-Peucker internally?).
 - Use QtOpenGLWidget and the cairo-gl backend.
@@ -121,6 +122,7 @@ Possible optimizations
 Other ideas
 -----------
 
+- Expose the cairo PDF, PS and SVG backends.
 - Native mathtext backend (to optimize antialiasing).
 - Complex text layout (e.g. using libraqm).
 
