@@ -213,7 +213,7 @@ void GraphicsContextRenderer::set_dashes(
     for (size_t i = 0; i < n; ++i) {
       buf[i] = points_to_pixels(dashes_raw[i]);
     }
-    cairo_set_dash(cr_, buf.get(), n, *dash_offset);
+    cairo_set_dash(cr_, buf.get(), n, points_to_pixels(*dash_offset));
   } else {
     cairo_set_dash(cr_, nullptr, 0, 0);
   }
