@@ -385,7 +385,7 @@ void GraphicsContextRenderer::draw_image(
   auto im_raw = im.unchecked<3>();
   auto ni = im_raw.shape(0), nj = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
-    throw std::invalid_argument("RGBA array must have size (m, n, 4)");
+    throw std::invalid_argument("RGBA array must have shape (m, n, 4)");
   }
   auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
   auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
@@ -626,7 +626,7 @@ void GraphicsContextRenderer::draw_path_collection(
   //   - NOTE: offset_position is set to "data".  This feature is only used by
   //     hexbin(), so it should really just be deprecated; hexbin() should
   //     provide its own Container class which correctly adjusts the transforms
-  //     at draw time.
+  //     at draw time (or just be drawn as a quadmesh, see draw_quad_mesh).
   if ((py::bool_(py::cast(this).attr("get_hatch")()))
       || (offset_position == "data")) {
     py::module::import("matplotlib.backend_bases")

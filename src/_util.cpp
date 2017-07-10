@@ -20,11 +20,15 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
-  auto py_matrix = transform.cast<py::array_t<double>>();
+  auto py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
+  if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
+    throw std::invalid_argument(
+        "Transformation matrix must have shape (3, 3)");
+  }
   return cairo_matrix_t{
-    *py_matrix.data(0, 0), -*py_matrix.data(1, 0),
-    *py_matrix.data(0, 1), -*py_matrix.data(1, 1),
-    *py_matrix.data(0, 2), y0 - *py_matrix.data(1, 2)};
+    py_matrix(0, 0), -py_matrix(1, 0),
+    py_matrix(0, 1), -py_matrix(1, 1),
+    py_matrix(0, 2), y0 - py_matrix(1, 2)};
 }
 
 cairo_matrix_t matrix_from_transform(
@@ -32,12 +36,16 @@ cairo_matrix_t matrix_from_transform(
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
-  auto py_matrix = transform.cast<py::array_t<double>>();
+  auto py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
+  if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
+    throw std::invalid_argument(
+        "Transformation matrix must have shape (3, 3)");
+  }
   // The y flip is already handled by the master matrix.
   auto matrix = cairo_matrix_t{
-    *py_matrix.data(0, 0), *py_matrix.data(1, 0),
-    *py_matrix.data(0, 1), *py_matrix.data(1, 1),
-    *py_matrix.data(0, 2), *py_matrix.data(1, 2)};
+    py_matrix(0, 0), py_matrix(1, 0),
+    py_matrix(0, 1), py_matrix(1, 1),
+    py_matrix(0, 2), py_matrix(1, 2)};
   cairo_matrix_multiply(&matrix, &matrix, master_matrix);
   return matrix;
 }
@@ -83,10 +91,18 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 //
 // FIXME: Deal with overflow when transformed values do not fit in a 24-bit
 // signed integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091
-// and test_simplification.test_overflow) by running everything through
-// Path.cleanup's clipping step (although it does not handle Beziers).
+// and test_simplification.test_overflow) by clipping the segments.
+//
+// Note that we do not need to perform a full line clipping, as cairo will
+// do one too; we just need the coordinates to stay valid for cairo.  Thus,
+// for example, if a segment goes from (-bignum, y0) to (+bignum, y1), it is
+// sufficient to clip it to [(-2**22, y0), (2**22, y1)] -- it will be drawn
+// as a horizontal line at position (y0+y1)/2 anyways.  Still, the simple
+// clamping is insufficient to deal with slanted lines, and is just a temporary
+// workaround.
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+  auto const min = double(-(1 << 22)), max = double(1 << 22);
   // We don't need to cairo_save()/cairo_restore() the whole state, we can just
   // store the CTM.
   cairo_matrix_t ctm;
@@ -95,17 +111,30 @@ void load_path_exact(
   // We can't simply call cairo_transform(cr, matrix) because matrix may be
   // degenerate (e.g., for zero-sized markers).  Fortunately, the cost of doing
   // the transformation ourselves seems negligible (if any).
-  auto vertices = path.attr("vertices").cast<py::array_t<double>>();
+  auto vertices =
+    path.attr("vertices").cast<py::array_t<double>>().unchecked<2>();
   auto maybe_codes = path.attr("codes");
   auto n = vertices.shape(0);
+  if (vertices.shape(1) != 2) {
+    throw std::invalid_argument("vertices must have shape (n, 2)");
+  }
   cairo_new_path(cr);
   if (!maybe_codes.is_none()) {
-    auto codes = maybe_codes.cast<py::array_t<int>>();
+    // codes may not be an integer array, in which case the following makes a
+    // copy, so we need to keep it around.
+    auto codes_keepref = maybe_codes.cast<py::array_t<int>>();
+    auto codes = codes_keepref.unchecked<1>();
+    if (codes.shape(0) != n) {
+      throw std::invalid_argument(
+          "Lengths of vertices and codes do not match");
+    }
     for (size_t i = 0; i < n; ++i) {
-      auto x0 = *vertices.data(i, 0), y0 = *vertices.data(i, 1);
+      auto x0 = vertices(i, 0), y0 = vertices(i, 1);
       cairo_matrix_transform_point(matrix, &x0, &y0);
       auto is_finite = std::isfinite(x0) && std::isfinite(y0);
-      switch (static_cast<PathCode>(*codes.data(i))) {
+      x0 = std::clamp(x0, min, max);
+      y0 = std::clamp(y0, min, max);
+      switch (static_cast<PathCode>(codes(i))) {
         case PathCode::STOP:
           break;
         case PathCode::MOVETO:
@@ -127,11 +156,13 @@ void load_path_exact(
         // finite, it sets the current point for the next curve; otherwise,
         // a new sub-path is created.
         case PathCode::CURVE3: {
-          auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1);
+          auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
           cairo_matrix_transform_point(matrix, &x1, &y1);
           i += 1;
           auto last_finite = std::isfinite(x1) && std::isfinite(y1);
           if (last_finite) {
+            x1 = std::clamp(x1, min, max);
+            y1 = std::clamp(y1, min, max);
             if (is_finite && cairo_has_current_point(cr)) {
               double x_prev, y_prev;
               cairo_get_current_point(cr, &x_prev, &y_prev);
@@ -148,13 +179,17 @@ void load_path_exact(
           break;
         }
         case PathCode::CURVE4: {
-          auto x1 = *vertices.data(i + 1, 0), y1 = *vertices.data(i + 1, 1),
-               x2 = *vertices.data(i + 2, 0), y2 = *vertices.data(i + 2, 1);
+          auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1),
+               x2 = vertices(i + 2, 0), y2 = vertices(i + 2, 1);
           cairo_matrix_transform_point(matrix, &x1, &y1);
           cairo_matrix_transform_point(matrix, &x2, &y2);
           i += 2;
           auto last_finite = std::isfinite(x2) && std::isfinite(y2);
           if (last_finite) {
+            x1 = std::clamp(x1, min, max);
+            y1 = std::clamp(y1, min, max);
+            x2 = std::clamp(x2, min, max);
+            y2 = std::clamp(y2, min, max);
             if (is_finite && std::isfinite(x1) && std::isfinite(y1)
                 && cairo_has_current_point(cr)) {
               cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
@@ -173,9 +208,11 @@ void load_path_exact(
     }
   } else {
     for (size_t i = 0; i < n; ++i) {
-      auto x = *vertices.data(i, 0), y = *vertices.data(i, 1);
+      auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(matrix, &x, &y);
       auto isfinite = std::isfinite(x) && std::isfinite(y);
+      x = std::clamp(x, min, max);
+      y = std::clamp(y, min, max);
       if (isfinite) {
         cairo_line_to(cr, x, y);
       } else {
