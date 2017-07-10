@@ -1,7 +1,7 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
-This is a new, near-complete implementation of a Cairo backend for Matplotlib.
+This is a new, near-complete implementation of a cairo backend for Matplotlib.
 Currently, it is designed to be used with the qt-cairo backend proposed in
 Matplotlib's PR #8771.  It "passes" Matplotlib's entire image comparison test
 suite -- after accounting for inevitable differences in rasterization, and with
@@ -11,33 +11,56 @@ Depending on the specific task, the backend can be anywhere from ~10x faster
 (e.g., stamping circular markers of variable colors) to ~10% faster (e.g.,
 drawing lines) than Agg.
 
-Installation
-------------
+Installation (Linux only)
+-------------------------
 
 Dependencies:
+
 - Python 3,
-- cairo >=1.12 (needed for mesh gradient support),
+- cairo≥1.12 (needed for mesh gradient support),
 - a C++ compiler with C++17 support, e.g. GCC≥7.1.
 
-Run::
+Such dependencies are available on conda and conda-forge.  Using conda, the
+following commands will build and install mpl_cairo.
 
-   $ python -mvenv /path/to/venv
-   $ source /path/to/venv/bin/activate
-   $ git clone https://github.com/matplotlib/matplotlib.git
-   $ cd matplotlib
-   $ git pull origin pull/8771/head:pr/8771
-   $ git checkout pr/8771
-   $ pip install -ve .
-   $ cd ..
-   $ git clone https://github.com/anntzer/mpl_cairo.git
-   $ cd mpl_cairo
-   $ pip install -ve .
+.. code-block:: sh
+
+   # Unfortunately, the g++ install from rdonnelly/gxx_linux-64 sets some
+   # include paths incorrectly, making it impossible to build Matplotlib with
+   # it.  So, we build a Matplotlib wheel using the system compiler, and later
+   # install it into the conda environment.
+   git clone https://github.com/matplotlib/matplotlib.git
+   (cd matplotlib
+    git pull origin pull/8771/head:pr/8771
+    git checkout pr/8771
+    python setup.py bdist_wheel)
+
+   # - pkgconfig and cairo from the anaconda channel will *not* work; thus, we
+   #   may as well install everything from conda-forge.  Note that the Python
+   #   version here needs to match the Python version used to build the
+   #   Matplotlib wheel; thus, you may need to build the wheel in its own
+   #   environment as well.
+   # - numpy could be built from source too but conda saves us some time.
+   # - pyqt is necessary to have an interactive backend.
+   conda create -n mpl_cairo -c conda-forge \
+       python=3.6 pkgconfig cairo pybind11\>=2.1 numpy pyqt
+   conda install -n mpl_cairo -c rdonnelly gxx_linux-64\>=7.1
+
+   # Activation needs to happen *after* installing gcc_linux-64\>=7.1
+   source activate mpl_cairo
+
+   pip install matplotlib/dist/*.whl
+
+   git clone https://github.com/anntzer/mpl_cairo.git
+   (cd mpl_cairo
+    pip install -ve .)
 
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable to ``module://mpl_cairo.qt``.
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:
+
 - ``circle_markers.py`` and ``square_markers.py``: more accurate and faster
   marker stamping.
 - ``markevery.py``: more accurate marker stamping.
@@ -49,9 +72,11 @@ Benchmarks
 ----------
 
 Install (in the virtualenv) ``pytest>=3.1.0`` and ``pytest-benchmark``, then
-call (e.g.)::
+call (e.g.):
 
-   $ pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
+.. code-block:: sh
+
+   pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
 
 Test suite
 ----------
