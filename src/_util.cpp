@@ -2,7 +2,10 @@
 
 namespace mpl_cairo {
 
-static cairo_user_data_key_t const FT_KEY = {0};
+namespace {
+cairo_user_data_key_t const FT_KEY = {0};
+}
+
 FT_Library FT_LIB = nullptr;
 py::object UNIT_CIRCLE = {};
 

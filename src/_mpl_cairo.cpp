@@ -9,7 +9,9 @@ namespace mpl_cairo {
 
 using namespace pybind11::literals;
 
-static cairo_user_data_key_t const STATE_KEY = {0};
+namespace {
+cairo_user_data_key_t const STATE_KEY = {0};
+}
 
 Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
   bbox{bbox}, buf{buf} {}
