@@ -75,6 +75,13 @@ GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
     py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {}
 
+GraphicsContextRenderer::GraphicsContextRenderer(
+    double width, double height, double dpi) :
+  GraphicsContextRenderer(dpi) {
+  set_ctx_from_image_args(
+      CAIRO_FORMAT_ARGB32, std::round(width), std::round(height));
+}
+
 GraphicsContextRenderer::~GraphicsContextRenderer() {
   if (cr_) {
     cairo_destroy(cr_);
@@ -957,6 +964,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
     .def(py::init<double>())
+    .def(py::init<double, double, double>())
 
     // Backend-specific API.
     .def("set_ctx_from_surface",

@@ -62,7 +62,12 @@ class GraphicsContextRenderer {
   py::object mathtext_parser_;
   py::object text2path_;
 
+  // NOTE: The renderer signature is not uniform.  (dpi) matches the old
+  // cairo backend constructor; (width, height, dpi) matches the Agg backend
+  // constructor, which is also expected by backend_mixed (... which passes
+  // width and height as floats, not ints...).
   GraphicsContextRenderer(double dpi);
+  GraphicsContextRenderer(double width, double height, double dpi);
   ~GraphicsContextRenderer();
 
   void set_ctx_from_surface(py::object surface);
