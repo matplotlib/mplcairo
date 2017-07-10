@@ -40,6 +40,7 @@ The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:
 - ``circle_markers.py`` and ``square_markers.py``: more accurate and faster
   marker stamping.
+- ``markevery.py``: more accurate marker stamping.
 - ``quadmesh.py``: better antialiasing of quad meshes, fewer artefacts with
   masked data.
 - ``text_kerning.py``: improved text kerning.
