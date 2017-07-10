@@ -714,6 +714,85 @@ void GraphicsContextRenderer::draw_path_collection(
   }
 }
 
+// While draw_quad_mesh is technically optional, the fallback is to use
+// draw_path_collections, which creates artefacts at the junctions due to
+// stamping.
+// NOTE: The spec for this method is overly general; it is only used by
+// the QuadMesh class, which does not provide a way to set its offsets or
+// edge colors (or per-quad antialiasing), so we just drop these.  The
+// mesh_{width,height} arguments are also redundant with the coordinates shape.
+void GraphicsContextRenderer::draw_quad_mesh(
+    GraphicsContextRenderer& gc,
+    py::object master_transform,
+    size_t mesh_width, size_t mesh_height,
+    py::array_t<double> coordinates,
+    py::array_t<double> offsets,
+    py::object offset_transform,
+    py::array_t<double> fcs,
+    py::object aas,
+    py::object ecs) {
+  if (!cr_) {
+    return;
+  }
+  if (&gc != this) {
+    throw std::invalid_argument("Non-matching GraphicsContext");
+  }
+  auto ac = additional_context();
+  auto matrix = matrix_from_transform(master_transform, get_height());
+  auto fcs_raw = fcs.unchecked<2>();
+  if ((coordinates.shape(0) != mesh_height + 1)
+      || (coordinates.shape(1) != mesh_width + 1)
+      || (coordinates.shape(2) != 2)
+      || (fcs_raw.shape(0) != mesh_height * mesh_width)
+      || (fcs_raw.shape(1) != 4)) {
+    throw std::invalid_argument("Non-matching shapes");
+  }
+  if ((offsets.ndim() != 2)
+      || (offsets.shape(0) != 1) || (offsets.shape(1) != 2)
+      || (*offsets.data(0, 0) != 0) || (*offsets.data(0, 1) != 0)) {
+    throw std::invalid_argument("Non-trivial offsets not supported");
+  }
+  if (py::len(ecs)) {
+    throw std::invalid_argument("Edge colors not supported");
+  }
+  auto coords_raw_keepref =  // We may as well let numpy manage the buffer.
+    coordinates.attr("copy")().cast<py::array_t<double>>();
+  auto coords_raw = coords_raw_keepref.mutable_unchecked<3>();
+  for (size_t i = 0; i < mesh_height + 1; ++i) {
+    for (size_t j = 0; j < mesh_width + 1; ++j) {
+      cairo_matrix_transform_point(
+          &matrix,
+          coords_raw.mutable_data(i, j, 0),
+          coords_raw.mutable_data(i, j, 1));
+    }
+  }
+  auto pattern = cairo_pattern_create_mesh();
+  for (size_t i = 0; i < mesh_height; ++i) {
+    for (size_t j = 0; j < mesh_width; ++j) {
+      cairo_mesh_pattern_begin_patch(pattern);
+      cairo_mesh_pattern_move_to(
+          pattern, coords_raw(i, j, 0), coords_raw(i, j, 1));
+      cairo_mesh_pattern_line_to(
+          pattern, coords_raw(i, j + 1, 0), coords_raw(i, j + 1, 1));
+      cairo_mesh_pattern_line_to(
+          pattern, coords_raw(i + 1, j + 1, 0), coords_raw(i + 1, j + 1, 1));
+      cairo_mesh_pattern_line_to(
+          pattern, coords_raw(i + 1, j, 0), coords_raw(i + 1, j, 1));
+      auto r = fcs_raw(i * mesh_width + j, 0),
+           g = fcs_raw(i * mesh_width + j, 1),
+           b = fcs_raw(i * mesh_width + j, 2),
+           a = fcs_raw(i * mesh_width + j, 3);
+      for (size_t k = 0; k < 4; ++k) {
+        cairo_mesh_pattern_set_corner_color_rgba(pattern, k, r, g, b, a);
+      }
+      cairo_mesh_pattern_end_patch(pattern);
+    }
+  }
+  cairo_set_source(cr_, pattern);
+  cairo_paint(cr_);
+  cairo_pattern_destroy(pattern);
+}
+
 void GraphicsContextRenderer::draw_text(
     GraphicsContextRenderer& gc,
     double x, double y, std::string s, py::object prop, double angle,
@@ -918,7 +997,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         return gcr.get_additional_state().hatch_color; })
     .def("get_hatch_linewidth", [](GraphicsContextRenderer& gcr) {
         return gcr.get_additional_state().hatch_linewidth; })
-    // Needed by the default impl. of draw_quad_mesh.
+    // Not strictly needed now.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
     .def("get_rgb", &GraphicsContextRenderer::get_rgb)
@@ -964,6 +1043,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         "gc"_a, "path"_a, "transform"_a, "rgbFace"_a=nullptr)
     .def("draw_path_collection",
         &GraphicsContextRenderer::draw_path_collection)
+    .def("draw_quad_mesh", &GraphicsContextRenderer::draw_quad_mesh)
     .def("draw_text", &GraphicsContextRenderer::draw_text,
         "gc"_a, "x"_a, "y"_a, "s"_a, "prop"_a, "angle"_a,
         "ismath"_a=false, "mtext"_a=nullptr)

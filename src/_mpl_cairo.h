@@ -132,6 +132,16 @@ class GraphicsContextRenderer {
       py::object aas,
       py::object urls,
       std::string offset_position);
+  void draw_quad_mesh(
+      GraphicsContextRenderer& gc,
+      py::object master_transform,
+      size_t mesh_width, size_t mesh_height,
+      py::array_t<double> coordinates,
+      py::array_t<double> offsets,
+      py::object offset_transform,
+      py::array_t<double> fcs,
+      py::object aas,
+      py::object ecs);
   void draw_text(
       GraphicsContextRenderer& gc,
       double x, double y, std::string s, py::object prop, double angle,

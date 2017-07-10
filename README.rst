@@ -75,6 +75,13 @@ Notes
   is also implemented for scatter plots (which can have multiple colors).
   Likewise, markers of different sizes get mapped into markers of discretized
   sizes, with an error bounded by the threshold.
+
+  **NOTE**: ``plot_surface`` (from mplot3d) displays some artfacts where
+  the facets join each other.  This is because that function internally uses a
+  ``PathCollection``, thus triggering the approximate stamping.  Instead, the
+  surface should be represented as a ``QuadMesh``, which is drawn without such
+  artefacts.
+
 - ``draw_markers`` draws a marker at each control point of the given path,
   which is the documented behavior, even though all builtin renderers only draw
   markers at straight or Bézier segment ends.
@@ -84,8 +91,8 @@ Missing features
 
 - Snapping.
 
-Known issues
-------------
+Other known issues
+------------------
 
 - Very large inputs (transforming to pixel values greater than ``2**23`` in
   absolute value) will be drawn incorrectly due to overflow in cairo (cairo
