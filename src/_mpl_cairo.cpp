@@ -737,7 +737,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
     py::object offset_transform,
     py::array_t<double> fcs,
     py::object aas,
-    py::object ecs) {
+    py::array_t<double> ecs) {
   if (!cr_) {
     return;
   }
@@ -746,21 +746,19 @@ void GraphicsContextRenderer::draw_quad_mesh(
   }
   auto ac = additional_context();
   auto matrix = matrix_from_transform(master_transform, get_height());
-  auto fcs_raw = fcs.unchecked<2>();
+  auto fcs_raw = fcs.unchecked<2>(), ecs_raw = ecs.unchecked<2>();
   if ((coordinates.shape(0) != mesh_height + 1)
       || (coordinates.shape(1) != mesh_width + 1)
       || (coordinates.shape(2) != 2)
       || (fcs_raw.shape(0) != mesh_height * mesh_width)
-      || (fcs_raw.shape(1) != 4)) {
+      || (fcs_raw.shape(1) != 4)
+      || (ecs_raw.shape(1) != 4)) {
     throw std::invalid_argument("Non-matching shapes");
   }
   if ((offsets.ndim() != 2)
       || (offsets.shape(0) != 1) || (offsets.shape(1) != 2)
       || (*offsets.data(0, 0) != 0) || (*offsets.data(0, 1) != 0)) {
     throw std::invalid_argument("Non-trivial offsets not supported");
-  }
-  if (py::len(ecs)) {
-    throw std::invalid_argument("Edge colors not supported");
   }
   auto coords_raw_keepref =  // We may as well let numpy manage the buffer.
     coordinates.attr("copy")().cast<py::array_t<double>>();
@@ -773,31 +771,61 @@ void GraphicsContextRenderer::draw_quad_mesh(
           coords_raw.mutable_data(i, j, 1));
     }
   }
-  auto pattern = cairo_pattern_create_mesh();
-  for (size_t i = 0; i < mesh_height; ++i) {
-    for (size_t j = 0; j < mesh_width; ++j) {
-      cairo_mesh_pattern_begin_patch(pattern);
-      cairo_mesh_pattern_move_to(
-          pattern, coords_raw(i, j, 0), coords_raw(i, j, 1));
-      cairo_mesh_pattern_line_to(
-          pattern, coords_raw(i, j + 1, 0), coords_raw(i, j + 1, 1));
-      cairo_mesh_pattern_line_to(
-          pattern, coords_raw(i + 1, j + 1, 0), coords_raw(i + 1, j + 1, 1));
-      cairo_mesh_pattern_line_to(
-          pattern, coords_raw(i + 1, j, 0), coords_raw(i + 1, j, 1));
-      auto r = fcs_raw(i * mesh_width + j, 0),
-           g = fcs_raw(i * mesh_width + j, 1),
-           b = fcs_raw(i * mesh_width + j, 2),
-           a = fcs_raw(i * mesh_width + j, 3);
-      for (size_t k = 0; k < 4; ++k) {
-        cairo_mesh_pattern_set_corner_color_rgba(pattern, k, r, g, b, a);
+  // If edge colors are set, we need to draw the quads one at a time in order
+  // to be able to draw the edges as well.  If they are not set, using cairo's
+  // mesh pattern support instead avoids conflation artifacts.  (NOTE: In fact,
+  // it may make sense to rewrite hexbin in terms of quadmeshes in order to fix
+  // their long-standing issues with such artifacts.)
+  if (ecs_raw.shape(0)) {
+    for (size_t i = 0; i < mesh_height; ++i) {
+      for (size_t j = 0; j < mesh_width; ++j) {
+        cairo_move_to(
+            cr_, coords_raw(i, j, 0), coords_raw(i, j, 1));
+        cairo_line_to(
+            cr_, coords_raw(i, j + 1, 0), coords_raw(i, j + 1, 1));
+        cairo_line_to(
+            cr_, coords_raw(i + 1, j + 1, 0), coords_raw(i + 1, j + 1, 1));
+        cairo_line_to(
+            cr_, coords_raw(i + 1, j, 0), coords_raw(i + 1, j, 1));
+        cairo_close_path(cr_);
+        auto n = i * mesh_width + j;
+        auto r = fcs_raw(n, 0), g = fcs_raw(n, 1),
+             b = fcs_raw(n, 2), a = fcs_raw(n, 3);
+        cairo_set_source_rgba(cr_, r, g, b, a);
+        cairo_fill_preserve(cr_);
+        n %= ecs_raw.shape(0);
+        r = ecs_raw(n, 0); g = ecs_raw(n, 1);
+        b = ecs_raw(n, 2); a = ecs_raw(n, 3);
+        cairo_set_source_rgba(cr_, r, g, b, a);
+        cairo_stroke(cr_);
       }
-      cairo_mesh_pattern_end_patch(pattern);
     }
+  } else {
+    auto pattern = cairo_pattern_create_mesh();
+    for (size_t i = 0; i < mesh_height; ++i) {
+      for (size_t j = 0; j < mesh_width; ++j) {
+        cairo_mesh_pattern_begin_patch(pattern);
+        cairo_mesh_pattern_move_to(
+            pattern, coords_raw(i, j, 0), coords_raw(i, j, 1));
+        cairo_mesh_pattern_line_to(
+            pattern, coords_raw(i, j + 1, 0), coords_raw(i, j + 1, 1));
+        cairo_mesh_pattern_line_to(
+            pattern, coords_raw(i + 1, j + 1, 0), coords_raw(i + 1, j + 1, 1));
+        cairo_mesh_pattern_line_to(
+            pattern, coords_raw(i + 1, j, 0), coords_raw(i + 1, j, 1));
+        auto n = i * mesh_width + j;
+        auto r = fcs_raw(n, 0), g = fcs_raw(n, 1),
+             b = fcs_raw(n, 2), a = fcs_raw(n, 3);
+        for (size_t k = 0; k < 4; ++k) {
+          cairo_mesh_pattern_set_corner_color_rgba(pattern, k, r, g, b, a);
+        }
+        cairo_mesh_pattern_end_patch(pattern);
+      }
+    }
+    cairo_set_source(cr_, pattern);
+    cairo_paint(cr_);
+    cairo_pattern_destroy(pattern);
   }
-  cairo_set_source(cr_, pattern);
-  cairo_paint(cr_);
-  cairo_pattern_destroy(pattern);
 }
 
 void GraphicsContextRenderer::draw_text(

@@ -146,7 +146,7 @@ class GraphicsContextRenderer {
       py::object offset_transform,
       py::array_t<double> fcs,
       py::object aas,
-      py::object ecs);
+      py::array_t<double> ecs);
   void draw_text(
       GraphicsContextRenderer& gc,
       double x, double y, std::string s, py::object prop, double angle,
