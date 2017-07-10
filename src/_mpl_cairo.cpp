@@ -897,8 +897,12 @@ GraphicsContextRenderer::get_text_width_height_descent(
     // NOTE: It may seem natural to use
     // RendererBase.get_text_width_height_descent, but it relies on text2path's
     // mathtext parser, which is less precise.
+    // NOTE: We look for RendererAgg in backend_mixed rather than in
+    // backend_agg because the test runner will completely swap out the
+    // backend_agg module, but we still need the real RendererAgg here
+    // (otherwise, we get a RecursionError).
     return
-      py::module::import("matplotlib.backends.backend_agg")
+      py::module::import("matplotlib.backends.backend_mixed")
         .attr("RendererAgg").attr("get_text_width_height_descent")(
             this, s, prop, ismath).cast<std::tuple<double, double, double>>();
   }

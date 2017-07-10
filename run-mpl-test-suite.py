@@ -3,6 +3,12 @@ from pathlib import Path
 import sys
 
 import matplotlib.backends.backend_agg
+# We are going to completely swap out matplotlib.backends.backend_agg.  Because
+# get_text_width_descent relies on the actual RendererAgg's implementation, we
+# need to make sure that class is still available somewhere.  So we import
+# backend_mixed, which has a reference to the correct RendererAgg.
+import matplotlib.backends.backend_mixed
+
 # Use mpl_cairo.qt instead of mpl_cairo.base so that we can insert calls to
 # show() from within the test suite for debugging purposes.
 import mpl_cairo.qt
