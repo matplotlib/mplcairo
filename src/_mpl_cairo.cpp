@@ -91,14 +91,7 @@ GraphicsContextRenderer::~GraphicsContextRenderer() {
   }
 }
 
-void GraphicsContextRenderer::set_ctx_from_image_args(
-    cairo_format_t format, int width, int height) {
-  if (cr_) {
-    cairo_destroy(cr_);
-  }
-  auto surface = cairo_image_surface_create(format, width, height);
-  cr_ = cairo_create(surface);
-  cairo_surface_destroy(surface);
+void GraphicsContextRenderer::init_ctx() {
   set_ctx_defaults(cr_);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
@@ -107,6 +100,17 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
   cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
+}
+
+void GraphicsContextRenderer::set_ctx_from_image_args(
+    cairo_format_t format, int width, int height) {
+  if (cr_) {
+    cairo_destroy(cr_);
+  }
+  auto surface = cairo_image_surface_create(format, width, height);
+  cr_ = cairo_create(surface);
+  cairo_surface_destroy(surface);
+  init_ctx();
 }
 
 void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
@@ -130,13 +134,55 @@ void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
   }
   cr_ = ptr->ctx;
   set_ctx_defaults(cr_);
-  auto stack = new std::stack<AdditionalState>({AdditionalState{}});
-  stack->top().clip_path = {nullptr, &cairo_path_destroy};
-  stack->top().hatch = {};
-  stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
-  stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
-  stack->top().sketch = py::none();
-  cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
+  init_ctx();
+}
+
+void GraphicsContextRenderer::set_ctx_from_current_gl() {
+    if (cr_) {
+        cairo_destroy(cr_);
+    }
+
+    cairo_surface_t* surface;
+    // This is set up by Qt before paintGL() is called.
+    // On Linux, Qt uses GLX by default, but uses EGL if QT_XCB_GL_INTEGRATION
+    // is set to xcb_egl.
+    if (auto [draw, dpy, ctx] =
+          std::tuple{
+            glXGetCurrentDrawable(),
+            glXGetCurrentDisplay(),
+            glXGetCurrentContext()};
+        draw && dpy && ctx) {
+      unsigned int width, height;
+      glXQueryDrawable(dpy, draw, GLX_WIDTH, &width);
+      glXQueryDrawable(dpy, draw, GLX_HEIGHT, &height);
+      py::print(width, height);  // FIXME
+      auto device = cairo_glx_device_create(dpy, ctx);
+      surface =
+        cairo_gl_surface_create_for_window(device, draw, width, height);
+      cairo_device_destroy(device);
+      goto create_surface;
+    }
+    if (auto [draw, dpy, ctx] =
+          std::tuple{
+            eglGetCurrentSurface(1),  // FIXME I guess 1 is draw?
+            eglGetCurrentDisplay(),
+            eglGetCurrentContext()};
+        draw && dpy && ctx) {
+      EGLint width, height;
+      eglQuerySurface(dpy, draw, EGL_WIDTH, &width);
+      eglQuerySurface(dpy, draw, EGL_HEIGHT, &height);
+      py::print(width, height);  // FIXME
+      auto device = cairo_egl_device_create(dpy, ctx);
+      surface = cairo_gl_surface_create_for_egl(device, draw, width, height);
+      goto create_surface;
+    }
+    throw std::runtime_error("Neither GLX nor EGL contexts are current");
+create_surface:
+    return;
+    cr_ = cairo_create(surface);
+    cairo_surface_destroy(surface);
+    init_ctx();
+    // cairo_gl_surface_swapbuffers(surface);
 }
 
 uintptr_t GraphicsContextRenderer::get_data_address() {
@@ -1037,10 +1083,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def(py::init<double, double, double>())
 
     // Backend-specific API.
-    .def("set_ctx_from_pycairo_ctx",
-        &GraphicsContextRenderer::set_ctx_from_pycairo_ctx)
     .def("set_ctx_from_image_args",
         &GraphicsContextRenderer::set_ctx_from_image_args)
+    .def("set_ctx_from_pycairo_ctx",
+        &GraphicsContextRenderer::set_ctx_from_pycairo_ctx)
+    .def("set_ctx_from_current_gl",
+        &GraphicsContextRenderer::set_ctx_from_current_gl)
     .def("get_data_address", &GraphicsContextRenderer::get_data_address)
 
     // GraphicsContext API.

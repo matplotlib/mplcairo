@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <cairo/cairo.h>
+#include <cairo/cairo-gl.h>
 #if CAIRO_HAS_XLIB_SURFACE && __has_include(<X11/Xlib.h>)
 #include <cairo/cairo-xlib.h>
 #define MPLCAIRO_HAS_X11
@@ -76,8 +77,11 @@ class GraphicsContextRenderer {
   GraphicsContextRenderer(double width, double height, double dpi);
   ~GraphicsContextRenderer();
 
+  void init_ctx();
   void set_ctx_from_image_args(cairo_format_t format, int width, int height);
   void set_ctx_from_pycairo_ctx(py::object surface);
+  void set_ctx_from_current_gl();
+
   uintptr_t get_data_address();
 
   void set_alpha(std::optional<double> alpha);
