@@ -2,10 +2,13 @@ A (new) cairo backend for Matplotlib
 ====================================
 
 This is a new, near-complete implementation of a cairo backend for Matplotlib.
-Currently, it is designed to be used with the qt-cairo backend proposed in
-Matplotlib's PR #8771.  It "passes" Matplotlib's entire image comparison test
-suite -- after accounting for inevitable differences in rasterization, and with
-the exceptions noted below.
+Currently, it can be used with either the Qt backend proposed in Matplotlib's
+PR #8771, or the Gtk3 backend proposed in #8772 (which is also included in
+#8771).
+
+This implementation "passes" Matplotlib's entire image comparison test suite
+-- after accounting for inevitable differences in rasterization, and with the
+exceptions noted below.
 
 Depending on the specific task, the backend can be anywhere from ~10x faster
 (e.g., stamping circular markers of variable colors) to ~10% faster (e.g.,
@@ -41,7 +44,8 @@ following commands will build and install mpl_cairo.
    #   Matplotlib wheel; thus, you may need to build the wheel in its own
    #   environment as well.
    # - numpy could be built from source too but conda saves us some time.
-   # - pyqt is necessary to have an interactive backend.
+   # - PyQt is necessary to have an interactive backend (PyGObject, i.e. Gtk3,
+   #   can also be used, but it is not conda-installable).
    conda create -n mpl_cairo -c conda-forge \
        python=3.6 pkgconfig cairo pybind11\>=2.1 numpy pyqt
    conda install -n mpl_cairo -c rdonnelly gxx_linux-64\>=7.1
@@ -56,7 +60,7 @@ following commands will build and install mpl_cairo.
     pip install -ve .)
 
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
-variable to ``module://mpl_cairo.qt``.
+variable to ``module://mpl_cairo.qt`` (or ``module://mpl_cairo.gtk3``).
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:

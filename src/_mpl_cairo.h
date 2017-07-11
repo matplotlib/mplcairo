@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <cairo/cairo.h>
-#include <cairo/cairo-ft.h>
+#include <cairo/cairo-xlib.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/eval.h>
@@ -71,8 +71,8 @@ class GraphicsContextRenderer {
   GraphicsContextRenderer(double width, double height, double dpi);
   ~GraphicsContextRenderer();
 
-  void set_ctx_from_surface(py::object surface);
   void set_ctx_from_image_args(cairo_format_t format, int width, int height);
+  void set_ctx_from_pycairo_ctx(py::object surface);
   uintptr_t get_data_address();
 
   void set_alpha(std::optional<double> alpha);

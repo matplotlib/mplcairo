@@ -91,19 +91,15 @@ GraphicsContextRenderer::~GraphicsContextRenderer() {
   }
 }
 
-void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
-  if (py_surface.attr("__module__").cast<std::string>()
-      != "cairocffi.surfaces") {
-    throw std::invalid_argument(
-        "Could not convert argument to cairo_surface_t*");
-  }
+void GraphicsContextRenderer::set_ctx_from_image_args(
+    cairo_format_t format, int width, int height) {
   if (cr_) {
     cairo_destroy(cr_);
   }
-  auto surface = reinterpret_cast<cairo_surface_t*>(
-      py::module::import("cairocffi").attr("ffi").attr("cast")(
-        "int", py_surface.attr("_pointer")).cast<uintptr_t>());
-  cr_ = context_with_defaults(surface);
+  auto surface = cairo_image_surface_create(format, width, height);
+  cr_ = cairo_create(surface);
+  cairo_surface_destroy(surface);
+  set_ctx_defaults(cr_);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
@@ -113,18 +109,27 @@ void GraphicsContextRenderer::set_ctx_from_surface(py::object py_surface) {
   cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
 }
 
-void GraphicsContextRenderer::set_ctx_from_image_args(
-    cairo_format_t format, int width, int height) {
-  // NOTE: This API will ultimately be favored over set_ctx_from_surface as
-  // it bypasses the need to construct a surface in the Python-level using
-  // yet another cairo wrapper.  In particular, cairocffi (which relies on
-  // dlopen()) prevents the use of cairo-trace (which relies on LD_PRELOAD).
+void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
   if (cr_) {
     cairo_destroy(cr_);
   }
-  auto surface = cairo_image_surface_create(format, width, height);
-  cr_ = context_with_defaults(surface);
-  cairo_surface_destroy(surface);
+  if ((ctx.get_type().attr("__module__").cast<std::string>() != "cairo")
+      || (ctx.get_type().attr("__name__").cast<std::string>() != "Context")) {
+    throw std::invalid_argument("Argument is not a Pycairo context");
+  }
+  typedef struct {  // Copy-pasted from pycairo.h.
+    PyObject_HEAD
+    cairo_t *ctx;
+    PyObject *base; /* base object used to create context, or NULL */
+  } PycairoContext;
+  PycairoContext* ptr = reinterpret_cast<PycairoContext*>(ctx.ptr());
+  if (auto status = cairo_status(ptr->ctx); status != CAIRO_STATUS_SUCCESS) {
+    throw std::invalid_argument(
+        "Context is in an error state:"
+        + std::string{cairo_status_to_string(status)});
+  }
+  cr_ = ptr->ctx;
+  set_ctx_defaults(cr_);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
@@ -138,6 +143,9 @@ uintptr_t GraphicsContextRenderer::get_data_address() {
   // NOTE: The image buffer is not necessarily contiguous; see
   // cairo_image_surface_get_stride().
   auto surface = cairo_get_target(cr_);
+  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error("Only image surfaces are supported");
+  }
   auto buf = cairo_image_surface_get_data(surface);
   return reinterpret_cast<uintptr_t>(buf);
 }
@@ -320,14 +328,30 @@ int GraphicsContextRenderer::get_width() {
   if (!cr_) {
     return 0;
   }
-  return cairo_image_surface_get_width(cairo_get_target(cr_));
+  auto surface = cairo_get_target(cr_);
+  switch (cairo_surface_get_type(surface)) {
+    case CAIRO_SURFACE_TYPE_IMAGE:
+      return cairo_image_surface_get_width(cairo_get_target(cr_));
+    case CAIRO_SURFACE_TYPE_XLIB:  // For Gtk3.
+      return cairo_xlib_surface_get_width(cairo_get_target(cr_));
+    default:
+      throw std::runtime_error("Unsupported surface type");
+  }
 }
 
 int GraphicsContextRenderer::get_height() {
   if (!cr_) {
     return 0;
   }
-  return cairo_image_surface_get_height(cairo_get_target(cr_));
+  auto surface = cairo_get_target(cr_);
+  switch (cairo_surface_get_type(surface)) {
+    case CAIRO_SURFACE_TYPE_IMAGE:
+      return cairo_image_surface_get_height(cairo_get_target(cr_));
+    case CAIRO_SURFACE_TYPE_XLIB:  // For Gtk3.
+      return cairo_xlib_surface_get_height(cairo_get_target(cr_));
+    default:
+      throw std::runtime_error("Unsupported surface type");
+  }
 }
 
 double GraphicsContextRenderer::points_to_pixels(double points) {
@@ -574,8 +598,9 @@ void GraphicsContextRenderer::draw_path(
     auto dpi = int(dpi_);  // Truncating is good enough.
     auto hatch_surface = cairo_image_surface_create(
         CAIRO_FORMAT_ARGB32, dpi, dpi);
-    auto hatch_cr = context_with_defaults(hatch_surface);
+    auto hatch_cr = cairo_create(hatch_surface);
     cairo_surface_destroy(hatch_surface);
+    set_ctx_defaults(hatch_cr);
     auto hatch_color = get_additional_state().hatch_color;
     cairo_set_line_width(
         hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));
@@ -936,6 +961,9 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
   // 4 bytes per pixel throughout!
   auto buf = std::shared_ptr<char[]>(new char[4 * width * height]);
   auto surface = cairo_get_target(cr_);
+  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error("Only image surfaces are supported");
+  }
   auto raw = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
   for (int y = y0; y < y1; ++y) {
@@ -951,6 +979,9 @@ void GraphicsContextRenderer::restore_region(Region& region) {
   auto [x0, y0, width, height] = bbox;
   int /* x1 = x0 + width, */ y1 = y0 + height;
   auto surface = cairo_get_target(cr_);
+  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error("Only image surfaces are supported");
+  }
   auto raw = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
   cairo_surface_flush(surface);
@@ -1002,8 +1033,8 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def(py::init<double, double, double>())
 
     // Backend-specific API.
-    .def("set_ctx_from_surface",
-        &GraphicsContextRenderer::set_ctx_from_surface)
+    .def("set_ctx_from_pycairo_ctx",
+        &GraphicsContextRenderer::set_ctx_from_pycairo_ctx)
     .def("set_ctx_from_image_args",
         &GraphicsContextRenderer::set_ctx_from_image_args)
     .def("get_data_address", &GraphicsContextRenderer::get_data_address)
