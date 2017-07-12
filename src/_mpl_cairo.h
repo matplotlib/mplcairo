@@ -83,6 +83,7 @@ class GraphicsContextRenderer {
   void set_ctx_from_current_gl();
 
   uintptr_t get_data_address();
+  void flush();
 
   void set_alpha(std::optional<double> alpha);
   void set_antialiased(cairo_antialias_t aa);

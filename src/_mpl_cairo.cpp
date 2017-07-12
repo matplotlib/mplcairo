@@ -144,41 +144,30 @@ void GraphicsContextRenderer::set_ctx_from_current_gl() {
 
     cairo_surface_t* surface;
     // This is set up by Qt before paintGL() is called.
-    // On Linux, Qt uses GLX by default, but uses EGL if QT_XCB_GL_INTEGRATION
-    // is set to xcb_egl.
     if (auto [draw, dpy, ctx] =
           std::tuple{
             glXGetCurrentDrawable(),
             glXGetCurrentDisplay(),
             glXGetCurrentContext()};
         draw && dpy && ctx) {
-      unsigned int width, height;
-      glXQueryDrawable(dpy, draw, GLX_WIDTH, &width);
-      glXQueryDrawable(dpy, draw, GLX_HEIGHT, &height);
-      py::print(width, height);  // FIXME
+      GLint dims[4];  // x, y, w, h.
+      glGetIntegerv(GL_VIEWPORT, dims);
+      GLint x{dims[0]}, y{dims[1]}, width{dims[2]}, height{dims[3]};
+      // NOTE: glXQueryDrawable(dpy, draw, GLX_{WIDTH,HEIGHT}, &out) sets out
+      // to 1?
+      if (x || y) {
+        throw std::runtime_error("Expected framebuffer with origin at (0, 0)");
+      }
       auto device = cairo_glx_device_create(dpy, ctx);
       surface =
         cairo_gl_surface_create_for_window(device, draw, width, height);
       cairo_device_destroy(device);
       goto create_surface;
     }
-    if (auto [draw, dpy, ctx] =
-          std::tuple{
-            eglGetCurrentSurface(1),  // FIXME I guess 1 is draw?
-            eglGetCurrentDisplay(),
-            eglGetCurrentContext()};
-        draw && dpy && ctx) {
-      EGLint width, height;
-      eglQuerySurface(dpy, draw, EGL_WIDTH, &width);
-      eglQuerySurface(dpy, draw, EGL_HEIGHT, &height);
-      py::print(width, height);  // FIXME
-      auto device = cairo_egl_device_create(dpy, ctx);
-      surface = cairo_gl_surface_create_for_egl(device, draw, width, height);
-      goto create_surface;
-    }
-    throw std::runtime_error("Neither GLX nor EGL contexts are current");
+    // (Other GL interfaces, e.g. EGL and WGL, could go here.)
+    throw std::runtime_error(
+        "No current GLX context; other OpenGL interfaces not implemented");
 create_surface:
-    return;
     cr_ = cairo_create(surface);
     cairo_surface_destroy(surface);
     init_ctx();
@@ -194,6 +183,18 @@ uintptr_t GraphicsContextRenderer::get_data_address() {
   }
   auto buf = cairo_image_surface_get_data(surface);
   return reinterpret_cast<uintptr_t>(buf);
+}
+
+void GraphicsContextRenderer::flush(void) {
+    py::print("cr", cairo_status_to_string(cairo_status(cr_)));
+    py::print("surface", cairo_status_to_string(
+                cairo_surface_status(cairo_get_target(cr_))));
+    py::print("device", cairo_status_to_string(
+                cairo_device_status(cairo_surface_get_device(cairo_get_target(cr_)))));
+    cairo_surface_flush(cairo_get_target(cr_));
+    cairo_device_flush(cairo_surface_get_device(cairo_get_target(cr_)));
+    cairo_gl_surface_swapbuffers(cairo_get_target(cr_));
+    py::print("gl", glGetError());
 }
 
 void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
@@ -377,11 +378,13 @@ int GraphicsContextRenderer::get_width() {
   auto surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
-      return cairo_image_surface_get_width(cairo_get_target(cr_));
+      return cairo_image_surface_get_width(surface);
 #ifdef MPLCAIRO_HAS_X11
     case CAIRO_SURFACE_TYPE_XLIB:  // For Gtk3.
-      return cairo_xlib_surface_get_width(cairo_get_target(cr_));
+      return cairo_xlib_surface_get_width(surface);
 #endif
+    case CAIRO_SURFACE_TYPE_GL:
+      return cairo_gl_surface_get_width(surface);
     default:
       throw std::runtime_error("Unsupported surface type");
   }
@@ -394,11 +397,13 @@ int GraphicsContextRenderer::get_height() {
   auto surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
-      return cairo_image_surface_get_height(cairo_get_target(cr_));
+      return cairo_image_surface_get_height(surface);
 #ifdef MPLCAIRO_HAS_X11
     case CAIRO_SURFACE_TYPE_XLIB:  // For Gtk3.
-      return cairo_xlib_surface_get_height(cairo_get_target(cr_));
+      return cairo_xlib_surface_get_height(surface);
 #endif
+    case CAIRO_SURFACE_TYPE_GL:
+      return cairo_gl_surface_get_height(surface);
     default:
       throw std::runtime_error("Unsupported surface type");
   }
@@ -1089,7 +1094,9 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         &GraphicsContextRenderer::set_ctx_from_pycairo_ctx)
     .def("set_ctx_from_current_gl",
         &GraphicsContextRenderer::set_ctx_from_current_gl)
+
     .def("get_data_address", &GraphicsContextRenderer::get_data_address)
+    .def("flush", &GraphicsContextRenderer::flush)
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)

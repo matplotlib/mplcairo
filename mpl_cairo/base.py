@@ -73,7 +73,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         self._renderer = None
         self._last_renderer_args = None
 
-    # NOTE: Not documented, but needed for tight_layout.
+    # NOTE: Should be documented upstream, as it is needed by tight_layout.
     def get_renderer(self):
         renderer_args = self.get_width_height(), self.figure.dpi
         if renderer_args != self._last_renderer_args:
