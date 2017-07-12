@@ -416,8 +416,8 @@ void GraphicsContextRenderer::draw_image(
   }
   auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
   auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
-  // NOTE: The gcr's alpha has already been applied by ImageBase._make_image,
-  // we just need to convert to premultiplied ARGB format.
+  // The gcr's alpha has already been applied by ImageBase._make_image, we just
+  // need to convert to premultiplied ARGB format.
   for (size_t i = 0; i < ni; ++i) {
     auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
     for (size_t j = 0; j < nj; ++j) {
@@ -752,10 +752,10 @@ void GraphicsContextRenderer::draw_path_collection(
 // While draw_quad_mesh is technically optional, the fallback is to use
 // draw_path_collections, which creates artefacts at the junctions due to
 // stamping.
-// NOTE: The spec for this method is overly general; it is only used by
-// the QuadMesh class, which does not provide a way to set its offsets or
-// edge colors (or per-quad antialiasing), so we just drop these.  The
-// mesh_{width,height} arguments are also redundant with the coordinates shape.
+// NOTE: The spec for this method is overly general; it is only used by the
+// QuadMesh class, which does not provide a way to set its offsets (or per-quad
+// antialiasing), so we just drop them.  The mesh_{width,height} arguments are
+// also redundant with the coordinates shape.
 void GraphicsContextRenderer::draw_quad_mesh(
     GraphicsContextRenderer& gc,
     py::object master_transform,
@@ -1062,9 +1062,6 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         return gcr.get_additional_state().clip_rectangle; })
     .def("get_clip_path", [](GraphicsContextRenderer& gcr) {
         return gcr.get_additional_state().clip_path; })
-    // NOTE: Needed by get_hatch_path, which should call get_hatch().
-    .def_property_readonly("_hatch", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch; })
     .def("get_hatch", [](GraphicsContextRenderer& gcr) {
         return gcr.get_additional_state().hatch; })
     .def("get_hatch_color", [](GraphicsContextRenderer& gcr) {
