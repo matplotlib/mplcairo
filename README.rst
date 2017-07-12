@@ -27,6 +27,7 @@ Such dependencies are available on conda and conda-forge.  Using conda, the
 following commands will build and install mpl_cairo.
 
 .. code-block:: sh
+   export PIP_CONFIG_FILE=/dev/null  # Just to be sure.
 
    # Unfortunately, the g++ install from rdonnelly/gxx_linux-64 sets some
    # include paths incorrectly, making it impossible to build Matplotlib with

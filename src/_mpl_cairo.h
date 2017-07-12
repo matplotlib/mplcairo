@@ -5,7 +5,12 @@
 #include <vector>
 
 #include <cairo/cairo.h>
+#if CAIRO_HAS_XLIB_SURFACE && __has_include(<X11/Xlib.h>)
 #include <cairo/cairo-xlib.h>
+#define MPLCAIRO_HAS_X11
+#else
+#undef MPLCAIRO_HAS_X11
+#endif
 
 #include <pybind11/pybind11.h>
 #include <pybind11/eval.h>

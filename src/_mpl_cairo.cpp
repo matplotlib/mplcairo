@@ -332,8 +332,10 @@ int GraphicsContextRenderer::get_width() {
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
       return cairo_image_surface_get_width(cairo_get_target(cr_));
+#ifdef MPLCAIRO_HAS_X11
     case CAIRO_SURFACE_TYPE_XLIB:  // For Gtk3.
       return cairo_xlib_surface_get_width(cairo_get_target(cr_));
+#endif
     default:
       throw std::runtime_error("Unsupported surface type");
   }
@@ -347,8 +349,10 @@ int GraphicsContextRenderer::get_height() {
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
       return cairo_image_surface_get_height(cairo_get_target(cr_));
+#ifdef MPLCAIRO_HAS_X11
     case CAIRO_SURFACE_TYPE_XLIB:  // For Gtk3.
       return cairo_xlib_surface_get_height(cairo_get_target(cr_));
+#endif
     default:
       throw std::runtime_error("Unsupported surface type");
   }
