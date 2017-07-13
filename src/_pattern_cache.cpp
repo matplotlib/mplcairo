@@ -104,10 +104,14 @@ void PatternCache::mask(
     double x, double y) {
   // The matrix gets cached, so we may as well take it by value instead of by
   // pointer.
-  auto key = CacheKey{
-    path, matrix, draw_func, linewidth, dash,
-    // TODO Actually we can skip these if draw_func == stroke.
-    cairo_get_line_cap(cr), cairo_get_line_join(cr)};
+  auto key =
+    draw_func == draw_func_t::Fill
+    ? CacheKey{
+        path, matrix, draw_func, 0, {},
+        static_cast<cairo_line_cap_t>(-1), static_cast<cairo_line_join_t>(-1)}
+    : CacheKey{
+        path, matrix, draw_func, linewidth, dash,
+        cairo_get_line_cap(cr), cairo_get_line_join(cr)};
   if (!n_subpix_) {
     double r, g, b, a;
     cairo_pattern_get_rgba(cairo_get_source(cr), &r, &g, &b, &a);
@@ -116,8 +120,8 @@ void PatternCache::mask(
   }
   // Get the untransformed path bbox with cairo_path_extents(), so that we
   // know how to quantize the transformation matrix.  Note that this ignores
-  // the additional size from linewidths (they will not be scaled anyways)...
-  // although TODO: we may have some issues with miters?
+  // the additional size from linewidths, including miters (they will only
+  // contribute a constant offset).
   // Importantly, cairo_*_extents() ignores surface dimensions and clipping.
   auto it_bboxes = bboxes_.find(key.path);
   if (it_bboxes == bboxes_.end()) {

@@ -101,6 +101,8 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 // as a horizontal line at position (y0+y1)/2 anyways.  Still, the simple
 // clamping is insufficient to deal with slanted lines, and is just a temporary
 // workaround.
+//
+// TODO: Path snapping.
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
   auto const min = double(-(1 << 22)), max = double(1 << 22);
