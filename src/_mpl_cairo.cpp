@@ -70,32 +70,25 @@ GraphicsContextRenderer::additional_context() {
   return {this};
 }
 
-GraphicsContextRenderer::GraphicsContextRenderer(double dpi) :
+GraphicsContextRenderer::GraphicsContextRenderer(
+    double width, double height, double dpi) :
   cr_{},
   dpi_{dpi},
   mathtext_parser_{
     py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")},
   texmanager_{py::none()},
-  text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {}
-
-GraphicsContextRenderer::GraphicsContextRenderer(
-    double width, double height, double dpi) :
-  GraphicsContextRenderer(dpi) {
+  text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
   set_ctx_from_image_args(
       CAIRO_FORMAT_ARGB32, std::round(width), std::round(height));
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
-  if (cr_) {
-    cairo_destroy(cr_);
-  }
+  cairo_destroy(cr_);
 }
 
 void GraphicsContextRenderer::set_ctx_from_image_args(
     cairo_format_t format, int width, int height) {
-  if (cr_) {
-    cairo_destroy(cr_);
-  }
+  cairo_destroy(cr_);
   auto surface = cairo_image_surface_create(format, width, height);
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
@@ -110,9 +103,7 @@ void GraphicsContextRenderer::set_ctx_from_image_args(
 }
 
 void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
-  if (cr_) {
-    cairo_destroy(cr_);
-  }
+  cairo_destroy(cr_);
   if ((ctx.get_type().attr("__module__").cast<std::string>() != "cairo")
       || (ctx.get_type().attr("__name__").cast<std::string>() != "Context")) {
     throw std::invalid_argument("Argument is not a Pycairo context");
@@ -129,6 +120,9 @@ void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
         + std::string{cairo_status_to_string(status)});
   }
   cr_ = ptr->ctx;
+  // Keep a reference to it even after Pycairo deletes it, to allow deletion by
+  // ourselves.
+  cairo_reference(cr_);
   set_ctx_defaults(cr_);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
@@ -157,30 +151,18 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
 }
 
 void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
-  if (!cr_) {
-    return;
-  }
   get_additional_state().alpha = alpha;
 }
 
 void GraphicsContextRenderer::set_antialiased(cairo_antialias_t aa) {
-  if (!cr_) {
-    return;
-  }
   cairo_set_antialias(cr_, aa);
 }
 void GraphicsContextRenderer::set_antialiased(py::object aa) {
-  if (!cr_) {
-    return;
-  }
   cairo_set_antialias(
       cr_, py::bool_(aa) ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
 }
 
 void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
-  if (!cr_) {
-    return;
-  }
   if (capstyle == "butt") {
     cairo_set_line_cap(cr_, CAIRO_LINE_CAP_BUTT);
   } else if (capstyle == "round") {
@@ -254,9 +236,6 @@ void GraphicsContextRenderer::set_hatch_color(py::object hatch_color) {
 }
 
 void GraphicsContextRenderer::set_joinstyle(std::string joinstyle) {
-  if (!cr_) {
-    return;
-  }
   if (joinstyle == "miter") {
     cairo_set_line_join(cr_, CAIRO_LINE_JOIN_MITER);
   } else if (joinstyle == "round") {
@@ -269,9 +248,6 @@ void GraphicsContextRenderer::set_joinstyle(std::string joinstyle) {
 }
 
 void GraphicsContextRenderer::set_linewidth(double lw) {
-  if (!cr_) {
-    return;
-  }
   cairo_set_line_width(cr_, points_to_pixels(lw));
   // NOTE: Somewhat weird setting, but that's what the Agg backend does
   // (_backend_agg.h).
@@ -295,9 +271,6 @@ rgb_t GraphicsContextRenderer::get_rgb() {
 }
 
 GraphicsContextRenderer& GraphicsContextRenderer::new_gc() {
-  if (!cr_) {
-    return *this;
-  }
   cairo_save(cr_);
   auto& states =
     *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
@@ -315,9 +288,6 @@ void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer* other) {
 }
 
 void GraphicsContextRenderer::restore() {
-  if (!cr_) {
-    return;
-  }
   auto& states =
     *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
         cairo_get_user_data(cr_, &STATE_KEY));
@@ -330,9 +300,6 @@ std::tuple<int, int> GraphicsContextRenderer::get_canvas_width_height() {
 }
 
 int GraphicsContextRenderer::get_width() {
-  if (!cr_) {
-    return 0;
-  }
   auto surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
@@ -347,9 +314,6 @@ int GraphicsContextRenderer::get_width() {
 }
 
 int GraphicsContextRenderer::get_height() {
-  if (!cr_) {
-    return 0;
-  }
   auto surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_IMAGE:
@@ -372,9 +336,6 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     py::array_t<double> triangles,
     py::array_t<double> colors,
     py::object transform) {
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -411,9 +372,6 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
 
 void GraphicsContextRenderer::draw_image(
     GraphicsContextRenderer& gc, double x, double y, py::array_t<uint8_t> im) {
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -455,9 +413,6 @@ void GraphicsContextRenderer::draw_markers(
     py::object path,
     py::object transform,
     std::optional<py::object> fc) {
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -576,9 +531,6 @@ void GraphicsContextRenderer::draw_path(
     py::object path,
     py::object transform,
     std::optional<py::object> fc) {
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -647,9 +599,6 @@ void GraphicsContextRenderer::draw_path_collection(
     py::object urls,
     std::string offset_position) {
   // TODO: Persistent cache; cache eviction policy.
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -775,9 +724,6 @@ void GraphicsContextRenderer::draw_quad_mesh(
     py::array_t<double> fcs,
     py::object aas,
     py::array_t<double> ecs) {
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -869,9 +815,6 @@ void GraphicsContextRenderer::draw_text(
     GraphicsContextRenderer& gc,
     double x, double y, std::string s, py::object prop, double angle,
     bool ismath, py::object mtext) {
-  if (!cr_) {
-    return;
-  }
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
@@ -1067,7 +1010,6 @@ PYBIND11_PLUGIN(_mpl_cairo) {
   py::class_<Region>(m, "_Region");
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
-    .def(py::init<double>())
     .def(py::init<double, double, double>())
 
     // Backend-specific API.

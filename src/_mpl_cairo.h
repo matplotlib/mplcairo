@@ -68,16 +68,15 @@ class GraphicsContextRenderer {
   py::object texmanager_;
   py::object text2path_;
 
-  // NOTE: The renderer signature is not uniform.  (dpi) matches the old
-  // cairo backend constructor; (width, height, dpi) matches the Agg backend
-  // constructor, which is also expected by backend_mixed (... which passes
-  // width and height as floats, not ints...).
-  GraphicsContextRenderer(double dpi);
+  // NOTE: We reuse the signature of the Agg renderer, which is also expected
+  // by backend_mixed (... which passes width and height as floats, not
+  // ints...)  Note that this differs from the signature given in backend_bases
+  // (no arguments) and of the one of the old cairo renderer (just dpi).
   GraphicsContextRenderer(double width, double height, double dpi);
   ~GraphicsContextRenderer();
 
   void set_ctx_from_image_args(cairo_format_t format, int width, int height);
-  void set_ctx_from_pycairo_ctx(py::object surface);
+  void set_ctx_from_pycairo_ctx(py::object ctx);
   py::array_t<uint8_t> _get_buffer();
 
   void set_alpha(std::optional<double> alpha);
