@@ -3,7 +3,6 @@ import subprocess
 import sys
 
 from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
 
 
 __version__ = "0.0"
@@ -33,34 +32,24 @@ ext_modules = [
         include_dirs=[
             get_pybind_include(), get_pybind_include(user=True)
         ],
-        extra_compile_args=shlex.split(
-            " ".join(subprocess.check_output(["pkg-config", "--cflags", lib],
-                                             universal_newlines=True)
-                     for lib in ["cairo", "freetype2"])),
-        extra_link_args=shlex.split(
-            " ".join(subprocess.check_output(["pkg-config", "--libs", lib],
-                                             universal_newlines=True)
-                     for lib in ["cairo", "freetype2"])),
+        extra_compile_args=
+            shlex.split(
+                " ".join(subprocess.check_output(["pkg-config", "--cflags", lib],
+                                                 universal_newlines=True)
+                         for lib in ["cairo", "freetype2"]))
+            + {"linux": ["-std=c++17", "-fvisibility=hidden"],
+               "win32": ["/EHsc"],
+               "darwin": ["-std=c++17", "-fvisibility=hidden",
+                          "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
+                   sys.platform],
+        extra_link_args=
+            shlex.split(
+                " ".join(subprocess.check_output(["pkg-config", "--libs", lib],
+                                                 universal_newlines=True)
+                         for lib in ["cairo", "freetype2"])),
     ),
 ]
 
-
-class BuildExt(build_ext):
-    """A custom build extension for adding compiler-specific options."""
-    c_opts = {
-        "msvc": ["/EHsc"],
-        "unix": ["-std=c++17", "-fvisibility=hidden"],
-    }
-
-    if sys.platform == "darwin":
-        c_opts["unix"] += ["-stdlib=libc++", "-mmacosx-version-min=10.7"]
-
-    def build_extensions(self):
-        ct = self.compiler.compiler_type
-        opts = self.c_opts.get(ct, [])
-        for ext in self.extensions:
-            ext.extra_compile_args = ext.extra_compile_args + opts
-        build_ext.build_extensions(self)
 
 setup(
     name="mpl_cairo",
@@ -70,6 +59,5 @@ setup(
     long_description="",
     ext_modules=ext_modules,
     install_requires=["pybind11"],
-    cmdclass={"build_ext": BuildExt},
     zip_safe=False,
 )
