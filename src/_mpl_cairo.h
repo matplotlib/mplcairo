@@ -78,7 +78,7 @@ class GraphicsContextRenderer {
 
   void set_ctx_from_image_args(cairo_format_t format, int width, int height);
   void set_ctx_from_pycairo_ctx(py::object surface);
-  uintptr_t get_data_address();
+  py::array_t<uint8_t> _get_buffer();
 
   void set_alpha(std::optional<double> alpha);
   void set_antialiased(cairo_antialias_t aa);
@@ -159,6 +159,9 @@ class GraphicsContextRenderer {
       bool ismath, py::object mtext);
   std::tuple<double, double, double> get_text_width_height_descent(
       std::string s, py::object prop, py::object ismath);
+
+  void start_filter();
+  py::array_t<uint8_t> _stop_filter();
 
   Region copy_from_bbox(py::object bbox);
   void restore_region(Region& region);

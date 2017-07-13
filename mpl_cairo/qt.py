@@ -1,5 +1,6 @@
 from matplotlib import rcsetup
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
+import numpy as np
 
 from .base import FigureCanvasCairo
 
@@ -11,12 +12,13 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
     def paintEvent(self, event):
         if self._renderer is None:
             self.draw()
-        buf_address = self._renderer.get_data_address()
+        buf = self._renderer._get_buffer()
+        address, _ = buf.__array_interface__["data"]
         width, height = self._renderer.get_canvas_width_height()
         # The image buffer is not necessarily contiguous, but the padding in
         # the ARGB32 case (each scanline is 32-bit aligned) happens to match
         # what QImage requires.
-        qimage = QtGui.QImage(buf_address, width, height,
+        qimage = QtGui.QImage(address, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         painter = QtGui.QPainter(self)
         painter.drawImage(0, 0, qimage)

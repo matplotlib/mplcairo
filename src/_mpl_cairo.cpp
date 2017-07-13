@@ -139,15 +139,21 @@ void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
   cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
 }
 
-uintptr_t GraphicsContextRenderer::get_data_address() {
-  // NOTE: The image buffer is not necessarily contiguous; see
-  // cairo_image_surface_get_stride().
+py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
     throw std::runtime_error("Only image surfaces are supported");
   }
   auto buf = cairo_image_surface_get_data(surface);
-  return reinterpret_cast<uintptr_t>(buf);
+  auto [width, height] = get_canvas_width_height();
+  auto stride = cairo_image_surface_get_stride(surface);
+  cairo_surface_reference(surface);
+  return
+    py::array_t<uint8_t>{
+      {height, width, 4}, {stride, 4, 1}, buf,
+      py::capsule(surface, [](void* surface) {
+        cairo_surface_destroy(reinterpret_cast<cairo_surface_t*>(surface));
+      })};
 }
 
 void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
@@ -292,7 +298,6 @@ GraphicsContextRenderer& GraphicsContextRenderer::new_gc() {
   if (!cr_) {
     return *this;
   }
-  cairo_reference(cr_);
   cairo_save(cr_);
   auto& states =
     *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
@@ -414,17 +419,17 @@ void GraphicsContextRenderer::draw_image(
   }
   auto ac = additional_context();
   auto im_raw = im.unchecked<3>();
-  auto ni = im_raw.shape(0), nj = im_raw.shape(1);
+  auto height = im_raw.shape(0), width = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
     throw std::invalid_argument("RGBA array must have shape (m, n, 4)");
   }
-  auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, nj);
-  auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
+  auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
+  auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[height * stride]);
   // The gcr's alpha has already been applied by ImageBase._make_image, we just
   // need to convert to premultiplied ARGB format.
-  for (size_t i = 0; i < ni; ++i) {
+  for (size_t i = 0; i < height; ++i) {
     auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
-    for (size_t j = 0; j < nj; ++j) {
+    for (size_t j = 0; j < width; ++j) {
       auto r = im_raw(i, j, 0), g = im_raw(i, j, 1),
            b = im_raw(i, j, 2), a = im_raw(i, j, 3);
       *(ptr++) =
@@ -433,7 +438,7 @@ void GraphicsContextRenderer::draw_image(
     }
   }
   auto surface = cairo_image_surface_create_for_data(
-      buf.get(), CAIRO_FORMAT_ARGB32, nj, ni, stride);
+      buf.get(), CAIRO_FORMAT_ARGB32, width, height, stride);
   auto pattern = cairo_pattern_create_for_surface(surface);
   cairo_surface_destroy(surface);
   auto matrix = cairo_matrix_t{1, 0, 0, -1, -x, -y + get_height()};
@@ -883,22 +888,23 @@ void GraphicsContextRenderer::draw_text(
     }
     auto radians = angle * M_PI / 180;
     cairo_rotate(cr_, -radians);
-    auto [ox, oy, width, height, descent, image, chars] =
+    auto [ox, oy, w_, h_, descent, image, chars] =
       mathtext_parser_.attr("parse")(s, dpi_, prop)
       .cast<std::tuple<
           double, double, double, double, double, py::object, py::object>>();
     auto im_raw =
       py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
-    auto ni = im_raw.shape(0), nj = im_raw.shape(1);
-    auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, nj);
+    auto height = im_raw.shape(0), width = im_raw.shape(1);
+    auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, width);
     // 1 byte per pixel!
-    auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[ni * stride]);
-    for (size_t i = 0; i < ni; ++i) {
-      std::memcpy(buf.get() + i * stride, im_raw.data(0, 0) + i * nj, nj);
+    auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[height * stride]);
+    for (size_t i = 0; i < height; ++i) {
+      std::memcpy(
+          buf.get() + i * stride, im_raw.data(0, 0) + i * width, width);
     }
     auto surface = cairo_image_surface_create_for_data(
-        buf.get(), CAIRO_FORMAT_A8, nj, ni, stride);
-    auto dx = ox, dy = oy + descent - ni;
+        buf.get(), CAIRO_FORMAT_A8, width, height, stride);
+    auto dx = ox, dy = oy + descent - height;
     if (fmod(angle, 90) == 0) {  // See NOTE above.
       dx = std::round(dx);
       dy = std::round(dy);
@@ -949,6 +955,34 @@ GraphicsContextRenderer::get_text_width_height_descent(
   cairo_font_face_destroy(font_face);
   cairo_restore(cr_);
   return {extents.width, extents.height, extents.height + extents.y_bearing};
+}
+
+void GraphicsContextRenderer::start_filter() {
+  cairo_push_group(cr_);
+  new_gc();
+}
+
+py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter() {
+  restore();
+  auto pattern = cairo_pop_group(cr_);
+  auto [width, height] = get_canvas_width_height();
+  auto raster_surface =
+    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+  auto raster_cr = cairo_create(raster_surface);
+  cairo_set_source(raster_cr, pattern);
+  cairo_pattern_destroy(pattern);
+  cairo_paint(raster_cr);
+  cairo_destroy(raster_cr);
+  cairo_surface_flush(raster_surface);
+  auto buf = cairo_image_surface_get_data(raster_surface);
+  auto stride = cairo_image_surface_get_stride(raster_surface);
+  return
+    py::array_t<uint8_t>{
+      {height, width, 4}, {stride, 4, 1}, buf,
+      py::capsule(raster_surface, [](void* raster_surface) {
+        cairo_surface_destroy(
+            reinterpret_cast<cairo_surface_t*>(raster_surface));
+      })};
 }
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
@@ -1041,7 +1075,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         &GraphicsContextRenderer::set_ctx_from_pycairo_ctx)
     .def("set_ctx_from_image_args",
         &GraphicsContextRenderer::set_ctx_from_image_args)
-    .def("get_data_address", &GraphicsContextRenderer::get_data_address)
+    .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)
@@ -1129,6 +1163,9 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("get_text_width_height_descent",
         &GraphicsContextRenderer::get_text_width_height_descent,
         "s"_a, "prop"_a, "ismath"_a)
+
+    .def("start_filter", &GraphicsContextRenderer::start_filter)
+    .def("_stop_filter", &GraphicsContextRenderer::_stop_filter)
 
     // Canvas API.
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)
