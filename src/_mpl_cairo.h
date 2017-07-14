@@ -25,9 +25,9 @@ namespace py = pybind11;
 
 struct Region {
   cairo_rectangle_int_t bbox;
-  std::shared_ptr<char[]> buf;
+  std::shared_ptr<uint8_t[]> buf;
 
-  Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf);
+  Region(cairo_rectangle_int_t bbox, std::shared_ptr<uint8_t[]> buf);
 };
 
 class GraphicsContextRenderer {
@@ -114,7 +114,7 @@ class GraphicsContextRenderer {
       py::object transform);
   void draw_image(
       GraphicsContextRenderer& gc,
-      double x, double y, py::array_t<uint8_t>);
+      double x, double y, py::array_t<uint8_t> im);
   void draw_markers(
       GraphicsContextRenderer& gc,
       py::object marker_path,

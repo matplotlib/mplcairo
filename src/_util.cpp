@@ -7,7 +7,7 @@ cairo_user_data_key_t const FT_KEY = {0};
 }
 
 FT_Library FT_LIB = nullptr;
-py::object UNIT_CIRCLE = {};
+py::object RENDERER_AGG = {}, UNIT_CIRCLE = {};
 
 py::object rc_param(std::string key) {
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];

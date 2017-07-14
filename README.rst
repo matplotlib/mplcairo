@@ -27,6 +27,7 @@ Such dependencies are available on conda and conda-forge.  Using conda, the
 following commands will build and install mpl_cairo.
 
 .. code-block:: sh
+
    export PIP_CONFIG_FILE=/dev/null  # Just to be sure.
 
    # Unfortunately, the g++ install from rdonnelly/gxx_linux-64 sets some
@@ -62,6 +63,10 @@ following commands will build and install mpl_cairo.
 
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable to ``module://mpl_cairo.qt`` (or ``module://mpl_cairo.gtk3``).
+Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
+to fully replace the Agg renderer by the cairo renderer throughout Matplotlib
+(but plotting is *much* less efficient in that case, due to the need of copies
+and conversions between various formats).
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:

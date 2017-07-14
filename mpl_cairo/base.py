@@ -5,8 +5,7 @@ import numpy as np
 
 from matplotlib import _png, cbook, colors, rcParams
 from matplotlib.backend_bases import (
-    _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
-    RendererBase)
+    FigureCanvasBase, FigureManagerBase, GraphicsContextBase, RendererBase)
 
 from . import _mpl_cairo, format_t
 
@@ -31,6 +30,13 @@ def _get_drawn_subarray_and_bounds(data):
     l, r = drawn.any(axis=0).nonzero()[0][[0, -1]]
     b, t = drawn.any(axis=1).nonzero()[0][[0, -1]]
     return data[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
+
+
+_mpl_cairo._Region.to_string_argb = (
+    lambda self:
+    _to_rgba(self._get_buffer())[
+        ..., [2, 1, 0, 3] if sys.byteorder == "little" else [3, 0, 1, 2]]
+    .tobytes())
 
 
 class GraphicsContextRendererCairo(
@@ -72,6 +78,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             self._last_renderer_args = renderer_args
         return self._renderer
 
+    renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
+
     def draw(self):
         self.figure.draw(self.get_renderer())
         super().draw()
@@ -98,7 +106,12 @@ class FigureCanvasCairo(FigureCanvasBase):
             _png.write_png(data, file)
 
 
-@_Backend.export
-class _BackendCairo(_Backend):
-    FigureCanvas = FigureCanvasCairo
-    FigureManager = FigureManagerBase
+try:  # NOTE: try... except until #8773 gets in.
+    from matplotlib.backend_bases import _Backend
+except ImportError:
+    pass
+else:
+    @_Backend.export
+    class _BackendCairo(_Backend):
+        FigureCanvas = FigureCanvasCairo
+        FigureManager = FigureManagerBase

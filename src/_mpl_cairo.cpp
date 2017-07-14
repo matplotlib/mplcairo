@@ -13,7 +13,7 @@ namespace {
 cairo_user_data_key_t const STATE_KEY = {0};
 }
 
-Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<char[]> buf) :
+Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<uint8_t[]> buf) :
   bbox{bbox}, buf{buf} {}
 
 GraphicsContextRenderer::AdditionalContext::AdditionalContext(
@@ -878,14 +878,8 @@ GraphicsContextRenderer::get_text_width_height_descent(
     // NOTE: It may seem natural to use
     // RendererBase.get_text_width_height_descent, but it relies on text2path's
     // mathtext parser, which is less precise.
-    // NOTE: We look for RendererAgg in backend_mixed rather than in
-    // backend_agg because the test runner will completely swap out the
-    // backend_agg module, but we still need the real RendererAgg here
-    // (otherwise, we get a RecursionError).
-    return
-      py::module::import("matplotlib.backends.backend_mixed")
-        .attr("RendererAgg").attr("get_text_width_height_descent")(
-            this, s, prop, ismath).cast<std::tuple<double, double, double>>();
+    return RENDERER_AGG.attr("get_text_width_height_descent")(
+        this, s, prop, ismath).cast<std::tuple<double, double, double>>();
   }
   cairo_save(cr_);
   auto font_face = ft_font_from_prop(prop);
@@ -934,13 +928,13 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
       x1 = std::ceil(bbox.attr("x1").cast<double>()),
       y0 = std::floor(bbox.attr("y0").cast<double>()),
       y1 = std::ceil(bbox.attr("y1").cast<double>());
-  if (!((0 <= x0) && (x0 <= x1) && (x1 < get_width())
-        && (0 <= y0) && (y0 <= y1) && (y1 < get_height()))) {
+  if (!((0 <= x0) && (x0 <= x1) && (x1 <= get_width())
+        && (0 <= y0) && (y0 <= y1) && (y1 <= get_height()))) {
     throw std::invalid_argument("Invalid bbox");
   }
   auto width = x1 - x0, height = y1 - y0;
   // 4 bytes per pixel throughout!
-  auto buf = std::shared_ptr<char[]>(new char[4 * width * height]);
+  auto buf = std::shared_ptr<uint8_t[]>(new uint8_t[4 * width * height]);
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
     throw std::runtime_error("Only image surfaces are supported");
@@ -987,6 +981,12 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     }
   });
   m.add_object("_cleanup", clean_ft_lib);
+  // NOTE: Keep a local reference to RendererAgg rather than looking it up in
+  // the backend_agg module because both mpl_cairo.pth and the test runner can
+  // completely swap out that module, but we still need the real RendererAgg
+  // here (otherwise, we get a RecursionError).
+  RENDERER_AGG =
+    py::module::import("matplotlib.backends.backend_agg").attr("RendererAgg");
   UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
@@ -1007,7 +1007,13 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
     .value("RGB30", CAIRO_FORMAT_RGB30);
 
-  py::class_<Region>(m, "_Region");
+  py::class_<Region>(m, "_Region")
+    // NOTE: Only for patching Agg.
+    .def("_get_buffer", [](Region& r) {
+        return py::array_t<uint8_t>{
+          {r.bbox.height, r.bbox.width, 4},
+          {r.bbox.width * 4, 4, 1},
+          r.buf.get()}; });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
     .def(py::init<double, double, double>())

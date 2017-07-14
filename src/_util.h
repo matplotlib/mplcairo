@@ -17,7 +17,7 @@ using rgb_t = std::tuple<double, double, double>;
 using rgba_t = std::tuple<double, double, double, double>;
 
 extern FT_Library FT_LIB;
-extern py::object UNIT_CIRCLE;
+extern py::object RENDERER_AGG, UNIT_CIRCLE;
 
 enum class PathCode {
   STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79
