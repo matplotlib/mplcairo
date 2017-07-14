@@ -55,7 +55,7 @@ class GraphicsContextRenderer {
     AdditionalContext operator=(AdditionalContext&& other) = delete;
   };
 
-  cairo_t* cr_;
+  cairo_t* const cr_;
 
   private:
   double pixels_to_points(double pixels);
@@ -68,15 +68,14 @@ class GraphicsContextRenderer {
   py::object texmanager_;
   py::object text2path_;
 
-  // NOTE: We reuse the signature of the Agg renderer, which is also expected
-  // by backend_mixed (... which passes width and height as floats, not
-  // ints...)  Note that this differs from the signature given in backend_bases
-  // (no arguments) and of the one of the old cairo renderer (just dpi).
-  GraphicsContextRenderer(double width, double height, double dpi);
+  GraphicsContextRenderer(cairo_t* cr, double dpi);
   ~GraphicsContextRenderer();
 
-  void set_ctx_from_image_args(cairo_format_t format, int width, int height);
-  void set_ctx_from_pycairo_ctx(py::object ctx);
+  static cairo_t* cr_from_image_args(double width, double height);
+  GraphicsContextRenderer(double width, double height, double dpi);
+  static cairo_t* cr_from_pycairo_ctx(py::object ctx);
+  GraphicsContextRenderer(py::object ctx, double dpi);
+
   py::array_t<uint8_t> _get_buffer();
 
   void set_alpha(std::optional<double> alpha);

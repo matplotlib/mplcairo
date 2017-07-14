@@ -45,6 +45,16 @@ class GraphicsContextRendererCairo(
         GraphicsContextBase,
         RendererBase):
 
+    def __init__(self, width, height, dpi):
+        # Hide the overloaded constructor, provided by from_pycairo_ctx.
+        super().__init__(width, height, dpi)
+
+    @classmethod
+    def from_pycairo_ctx(cls, ctx, dpi):
+        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, ctx, dpi)
+        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, ctx, dpi)
+        return obj
+
     def option_image_nocomposite(self):
         return True  # Similarly to Agg.
 
@@ -66,17 +76,22 @@ class GraphicsContextRendererCairo(
 class FigureCanvasCairo(FigureCanvasBase):
     def __init__(self, figure):
         super().__init__(figure=figure)
-        self._renderer = None
-        self._last_renderer_args = None
+        self._last_renderer_call = None, None
+
+    def _get_cached_or_new_renderer(self, func, *args, **kwargs):
+        last_call, last_renderer = self._last_renderer_call
+        if (func, args, kwargs) == last_call:
+            return last_renderer
+        else:
+            renderer = func(*args, **kwargs)
+            self._last_renderer_call = (func, args, kwargs), renderer
+            return renderer
 
     # NOTE: Not documented, but needed for tight_layout.
     def get_renderer(self):
-        renderer_args = self.get_width_height(), self.figure.dpi
-        if renderer_args != self._last_renderer_args:
-            self._renderer = GraphicsContextRendererCairo(
-                *self.get_width_height(), self.figure.dpi)
-            self._last_renderer_args = renderer_args
-        return self._renderer
+        return self._get_cached_or_new_renderer(
+            GraphicsContextRendererCairo,
+            *self.get_width_height(), self.figure.dpi)
 
     renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
 

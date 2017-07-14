@@ -71,39 +71,42 @@ GraphicsContextRenderer::additional_context() {
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(
-    double width, double height, double dpi) :
-  cr_{},
+    cairo_t* cr, double dpi) :
+  // This does *not* incref the cairo_t, but the destructor *will* decref it.
+  cr_{cr},
   dpi_{dpi},
   mathtext_parser_{
     py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")},
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
-  set_ctx_from_image_args(
-      CAIRO_FORMAT_ARGB32, std::round(width), std::round(height));
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
   cairo_destroy(cr_);
 }
 
-void GraphicsContextRenderer::set_ctx_from_image_args(
-    cairo_format_t format, int width, int height) {
-  cairo_destroy(cr_);
-  auto surface = cairo_image_surface_create(format, width, height);
-  cr_ = cairo_create(surface);
+cairo_t* GraphicsContextRenderer::cr_from_image_args(
+    double width, double height) {
+  auto surface =
+    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+  auto cr = cairo_create(surface);
   cairo_surface_destroy(surface);
-  set_ctx_defaults(cr_);
+  set_ctx_defaults(cr);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
-  cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
+  cairo_set_user_data(cr, &STATE_KEY, stack, operator delete);
+  return cr;
 }
 
-void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
-  cairo_destroy(cr_);
+GraphicsContextRenderer::GraphicsContextRenderer(
+    double width, double height, double dpi) :
+  GraphicsContextRenderer{cr_from_image_args(width, height), dpi} {}
+
+cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx) {
   if ((ctx.get_type().attr("__module__").cast<std::string>() != "cairo")
       || (ctx.get_type().attr("__name__").cast<std::string>() != "Context")) {
     throw std::invalid_argument("Argument is not a Pycairo context");
@@ -119,19 +122,21 @@ void GraphicsContextRenderer::set_ctx_from_pycairo_ctx(py::object ctx) {
         "Context is in an error state:"
         + std::string{cairo_status_to_string(status)});
   }
-  cr_ = ptr->ctx;
-  // Keep a reference to it even after Pycairo deletes it, to allow deletion by
-  // ourselves.
-  cairo_reference(cr_);
-  set_ctx_defaults(cr_);
+  auto cr = ptr->ctx;
+  cairo_reference(cr);
+  set_ctx_defaults(cr);
   auto stack = new std::stack<AdditionalState>({AdditionalState{}});
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
-  cairo_set_user_data(cr_, &STATE_KEY, stack, operator delete);
+  cairo_set_user_data(cr, &STATE_KEY, stack, operator delete);
+  return cr;
 }
+
+GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
+  GraphicsContextRenderer{cr_from_pycairo_ctx(ctx), dpi} {}
 
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
   auto surface = cairo_get_target(cr_);
@@ -1016,13 +1021,11 @@ PYBIND11_PLUGIN(_mpl_cairo) {
           r.buf.get()}; });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
+    // The RendererAgg signature, which is also expected by MixedModeRenderer
+    // (with doubles!).
     .def(py::init<double, double, double>())
+    .def(py::init<py::object, double>())
 
-    // Backend-specific API.
-    .def("set_ctx_from_pycairo_ctx",
-        &GraphicsContextRenderer::set_ctx_from_pycairo_ctx)
-    .def("set_ctx_from_image_args",
-        &GraphicsContextRenderer::set_ctx_from_image_args)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
 
     // GraphicsContext API.
