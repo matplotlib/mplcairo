@@ -78,20 +78,24 @@ class FigureCanvasCairo(FigureCanvasBase):
         super().__init__(figure=figure)
         self._last_renderer_call = None, None
 
-    def _get_cached_or_new_renderer(self, func, *args, **kwargs):
+    def _get_cached_or_new_renderer(
+            self, func, *args, _draw_if_new=False, **kwargs):
         last_call, last_renderer = self._last_renderer_call
         if (func, args, kwargs) == last_call:
             return last_renderer
         else:
             renderer = func(*args, **kwargs)
             self._last_renderer_call = (func, args, kwargs), renderer
+            if _draw_if_new:
+                self.figure.draw(renderer)
             return renderer
 
     # NOTE: Not documented, but needed for tight_layout.
-    def get_renderer(self):
+    def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
-            *self.get_width_height(), self.figure.dpi)
+            *self.get_width_height(), self.figure.dpi,
+            _draw_if_new=_draw_if_new)
 
     renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
 

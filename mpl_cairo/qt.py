@@ -10,10 +10,10 @@ rcsetup.interactive_bk += ["module://mpl_cairo.qt"]  # NOTE: Should be fixed in 
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
     def paintEvent(self, event):
-        renderer = self.get_renderer()
+        renderer = self.get_renderer(_draw_if_new=True)
         buf = renderer._get_buffer()
         address, _ = buf.__array_interface__["data"]
-        width, height = renderer.get_canvas_width_height()
+        height, width, _ = buf.shape
         # The image buffer is not necessarily contiguous, but the padding in
         # the ARGB32 case (each scanline is 32-bit aligned) happens to match
         # what QImage requires.
