@@ -102,5 +102,5 @@ setup(
     packages=find_packages(include=["mpl_cairo", "mpl_cairo.*"]),
     ext_modules=ext_modules,
     python_requires=">=3.4",
-    install_requires=["pybind11"],
+    install_requires=["pybind11>=2.1"],
 )

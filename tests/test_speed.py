@@ -49,6 +49,8 @@ def test_axes(benchmark, canvas_cls, axes):
     [(FigureCanvasQTAgg, False),
      (FigureCanvasQTAgg, True),
      (FigureCanvasQTCairo, antialias_t.NONE),
+     (FigureCanvasQTCairo, antialias_t.GRAY),
+     (FigureCanvasQTCairo, antialias_t.SUBPIXEL),
      (FigureCanvasQTCairo, antialias_t.FAST),
      (FigureCanvasQTCairo, antialias_t.GOOD),
      (FigureCanvasQTCairo, antialias_t.BEST)])
