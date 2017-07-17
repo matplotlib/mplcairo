@@ -1,4 +1,6 @@
+from collections import OrderedDict
 from contextlib import ExitStack
+from functools import partialmethod
 import sys
 
 import numpy as np
@@ -7,7 +9,8 @@ from matplotlib import _png, cbook, colors, rcParams
 from matplotlib.backend_bases import (
     FigureCanvasBase, FigureManagerBase, GraphicsContextBase, RendererBase)
 
-from . import _mpl_cairo, format_t
+from . import _mpl_cairo
+from ._mpl_cairo import surface_type_t
 
 
 def _to_rgba(data):
@@ -53,6 +56,20 @@ class GraphicsContextRendererCairo(
     def from_pycairo_ctx(cls, ctx, dpi):
         obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, ctx, dpi)
         _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, ctx, dpi)
+        return obj
+
+    @classmethod
+    def _for_pdf_output(cls, file, width, height, dpi):
+        args = surface_type_t.PDF, file, width, height, dpi
+        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
+        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        return obj
+
+    @classmethod
+    def _for_svg_output(cls, file, width, height, dpi):
+        args = surface_type_t.SVG, file, width, height, dpi
+        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
+        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
         return obj
 
     def option_image_nocomposite(self):
@@ -114,15 +131,43 @@ class FigureCanvasCairo(FigureCanvasBase):
         self._renderer.restore_region(region)
         self.update()
 
-    def print_png(self, filename_or_obj, **kwargs):
+    def print_png(self, filename_or_obj, *, metadata=None):
         self.draw()
         data = _to_rgba(self._renderer._get_buffer())
+        full_metadata = OrderedDict(
+            [("Software",
+              "matplotlib version {}, https://matplotlib.org"
+              .format(matplotlib.__version__))])
+        full_metadata.update(metadata or {})
         file, needs_close = cbook.to_filehandle(
             filename_or_obj, "wb", return_opened=True)
         with ExitStack() as stack:
             if needs_close:
                 stack.enter_context(file)
-            _png.write_png(data, file)
+            _png.write_png(data, file, metadata=full_metadata)
+
+    # FIXME Native mathtext support (otherwise math looks awful).
+
+    def _print_method(
+            self, renderer_factory,
+            filename_or_obj, *, dpi=72,
+            # These arguments are already taken care of by print_figure.
+            facecolor=None, edgecolor=None, orientation="portrait",
+            dryrun=False, bbox_inches_restore=None):
+        self.figure.set_dpi(72)
+        file, needs_close = cbook.to_filehandle(
+            filename_or_obj, "wb", return_opened=True)
+        with ExitStack() as stack:
+            if needs_close:
+                stack.enter_context(file)
+            renderer = renderer_factory(file, *self.get_width_height(), dpi)
+            self.figure.draw(renderer)
+            renderer._finish()
+
+    print_pdf = partialmethod(
+        _print_method, GraphicsContextRendererCairo._for_pdf_output)
+    print_svg = partialmethod(
+        _print_method, GraphicsContextRendererCairo._for_svg_output)
 
 
 try:  # NOTE: try... except until #8773 gets in.

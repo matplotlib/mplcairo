@@ -5,12 +5,6 @@
 #include <vector>
 
 #include <cairo/cairo.h>
-#if CAIRO_HAS_XLIB_SURFACE && __has_include(<X11/Xlib.h>)
-#include <cairo/cairo-xlib.h>
-#define MPLCAIRO_HAS_X11
-#else
-#undef MPLCAIRO_HAS_X11
-#endif
 
 #include <pybind11/pybind11.h>
 #include <pybind11/eval.h>
@@ -57,26 +51,34 @@ class GraphicsContextRenderer {
 
   cairo_t* const cr_;
 
-  private:
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
   AdditionalContext additional_context();
 
   public:
+  // Extents cannot be easily recovered from PDF/SVG surfaces, so record them.
+  int const width_, height_;
   double dpi_;
   py::object mathtext_parser_;
   py::object texmanager_;
   py::object text2path_;
 
-  GraphicsContextRenderer(cairo_t* cr, double dpi);
+  GraphicsContextRenderer(cairo_t* cr, int width, int height, double dpi);
   ~GraphicsContextRenderer();
 
   static cairo_t* cr_from_image_args(double width, double height);
   GraphicsContextRenderer(double width, double height, double dpi);
   static cairo_t* cr_from_pycairo_ctx(py::object ctx);
   GraphicsContextRenderer(py::object ctx, double dpi);
+  static cairo_t* cr_from_fileformat_args(
+      cairo_surface_type_t type, py::object file,
+      double width, double height, double dpi);
+  GraphicsContextRenderer(
+      cairo_surface_type_t type, py::object file,
+      double width, double height, double dpi);
 
   py::array_t<uint8_t> _get_buffer();
+  void _finish();
 
   void set_alpha(std::optional<double> alpha);
   void set_antialiased(cairo_antialias_t aa);
@@ -101,9 +103,6 @@ class GraphicsContextRenderer {
   void copy_properties(GraphicsContextRenderer* other);
   void restore();
 
-  std::tuple<int, int> get_canvas_width_height();
-  int get_width();
-  int get_height();
   double points_to_pixels(double points);
 
   void draw_gouraud_triangles(
