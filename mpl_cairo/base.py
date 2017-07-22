@@ -14,9 +14,13 @@ import matplotlib
 from matplotlib import _png, cbook, colors, rcParams
 from matplotlib.backend_bases import (
     FigureCanvasBase, FigureManagerBase, GraphicsContextBase, RendererBase)
+from matplotlib.mathtext import MathTextParser
 
 from . import _mpl_cairo
 from ._mpl_cairo import surface_type_t
+
+
+MathTextParser._backend_mapping["cairo"] = _mpl_cairo.MathtextBackendCairo
 
 
 def _to_rgba(buf):

@@ -8,6 +8,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+extern FT_Library _ft2Library;
+
 namespace mpl_cairo {
 
 namespace py = pybind11;
@@ -16,8 +18,7 @@ using rectangle_t = std::tuple<double, double, double, double>;
 using rgb_t = std::tuple<double, double, double>;
 using rgba_t = std::tuple<double, double, double, double>;
 
-extern FT_Library FT_LIB;
-extern py::object RENDERER_AGG, UNIT_CIRCLE;
+extern py::object UNIT_CIRCLE;
 
 enum class PathCode {
   STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79
@@ -36,6 +37,9 @@ void load_path_exact(
 void fill_and_stroke_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix,
     std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
-cairo_font_face_t* ft_font_from_prop(py::object prop);
+std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
+    std::string path);
+std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(
+    py::object prop);
 
 }

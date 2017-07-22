@@ -6,8 +6,7 @@ namespace {
 cairo_user_data_key_t const FT_KEY = {0};
 }
 
-FT_Library FT_LIB = nullptr;
-py::object RENDERER_AGG = {}, UNIT_CIRCLE = {};
+py::object UNIT_CIRCLE = {};
 
 py::object rc_param(std::string key) {
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
@@ -269,25 +268,31 @@ void fill_and_stroke_exact(
   cairo_restore(cr);
 }
 
-cairo_font_face_t* ft_font_from_prop(py::object prop) {
-  // It is probably not worth implementing an additional layer of caching here
-  // as findfont already has its cache and object equality needs would also
-  // need to go through Python anyways.
-  auto font_path =
-    py::module::import("matplotlib.font_manager").attr("findfont")(prop)
-    .cast<std::string>();
+std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
+    std::string path) {
   FT_Face ft_face;
-  if (FT_New_Face(FT_LIB, font_path.c_str(), 0, &ft_face)) {
+  if (FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error("FT_New_Face failed");
   }
   auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
   if (cairo_font_face_set_user_data(
-        font_face, &FT_KEY, ft_face, (cairo_destroy_func_t)FT_Done_Face)) {
+        font_face, &FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face))) {
     cairo_font_face_destroy(font_face);
     FT_Done_Face(ft_face);
     throw std::runtime_error("cairo_font_face_set_user_data failed");
   }
-  return font_face;
+  return {ft_face, font_face};
+}
+
+std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(
+    py::object prop) {
+  // It is probably not worth implementing an additional layer of caching here
+  // as findfont already has its cache and object equality needs would also
+  // need to go through Python anyways.
+  auto path =
+    py::module::import("matplotlib.font_manager").attr("findfont")(prop)
+    .cast<std::string>();
+  return ft_face_and_font_face_from_path(path);
 }
 
 }

@@ -7,6 +7,8 @@ from tempfile import NamedTemporaryFile
 from setuptools import Extension, find_packages, setup
 from setuptools.command.install_lib import install_lib
 
+import matplotlib.ft2font
+
 
 __version__ = "0.0"
 
@@ -46,10 +48,13 @@ ext_modules = [
                           "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
                    sys.platform],
         extra_link_args=
-            shlex.split(
+            ["-Wl,-rpath,{}".format(Path(matplotlib.ft2font.__file__).parent),
+             "-L{}".format(Path(matplotlib.ft2font.__file__).parent),
+             "-l:{}".format(Path(matplotlib.ft2font.__file__).name)]
+            + shlex.split(
                 " ".join(subprocess.check_output(["pkg-config", "--libs", lib],
                                                  universal_newlines=True)
-                         for lib in ["cairo", "freetype2"])),
+                         for lib in ["cairo"])),
     ),
 ]
 

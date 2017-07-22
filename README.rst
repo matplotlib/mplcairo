@@ -61,16 +61,21 @@ following commands will build and install mpl_cairo.
    (cd mpl_cairo
     pip install -ve .)
 
+.. warning::
+
+   Do *not* build matplotlib with the "local freetype" option set (i.e., do not
+   set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
+   ``local_freetype`` entry in ``setup.cfg``).  This option will statically
+   link to a fixed version of freetype, which may be different from the version
+   of freetype cairo is built against, causing binary incompatibilites.
+
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable one of
 
 - ``module://mpl_cairo.qt`` (Qt5 GUI),
 - ``module://mpl_cairo.gtk3`` (GTK3 GUI),
 - ``module://mpl_cairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
-  SVGZ using cairo's implementation, rather than Matplotlib's.  Due to the lack
-  of a native mathtext backend (an implementation is in progress, which should
-  also help with antialiasing and hinting in the general case), mathtext will
-  be (poorly) rasterized).
+  SVGZ using cairo's implementation, rather than Matplotlib's).
 
 Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
 to fully replace the Agg renderer by the cairo renderer throughout Matplotlib
@@ -153,6 +158,7 @@ Other known issues
 - Blitting-based animations to image-base backends (e.g., ``mpl_cairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
   affect Xlib-based backends (e.g., ``mpl_cairo.gtk3``).
+- SVG output does not render mathtext at all.  This needs to be investigated.
 
 Possible optimizations
 ----------------------
@@ -160,6 +166,10 @@ Possible optimizations
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
 - Path simplification (although cairo appears to use vertex reduction and
   Douglas-Peucker internally?).
+- mathtext rendering currently reloads a ``FT_Face`` for each glyph, as
+  artefacts appear when reusing the instance in ``FT2Font``.  This needs to be
+  investigated; as a workaround, one could also cache the newly constructed
+  ``FT_Face``\s.
 - Use QtOpenGLWidget and the cairo-gl backend.
 - ``hexbin`` currently falls back on the slow implementation due to its use of
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's

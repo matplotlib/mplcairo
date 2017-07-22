@@ -154,7 +154,7 @@ class GraphicsContextRenderer {
   void draw_text(
       GraphicsContextRenderer& gc,
       double x, double y, std::string s, py::object prop, double angle,
-      bool ismath, py::object mtext);
+      bool ismath, py::object /* mtext */);
   std::tuple<double, double, double> get_text_width_height_descent(
       std::string s, py::object prop, py::object ismath);
 
@@ -163,6 +163,19 @@ class GraphicsContextRenderer {
 
   Region copy_from_bbox(py::object bbox);
   void restore_region(Region& region);
+};
+
+class MathtextBackend {
+  cairo_t* cr_;
+
+  public:
+  MathtextBackend();
+  void set_canvas_size(double width, double height, double depth);
+  void render_glyph(double ox, double oy, py::object info);
+  void render_rect_filled(double x1, double y1, double x2, double y2);
+  // NOTE: The base class fails to document the second argument.
+  py::capsule get_results(py::object box, py::object /* used_characters */);
+  py::object get_hinting_type();
 };
 
 }

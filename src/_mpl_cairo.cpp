@@ -35,7 +35,14 @@ namespace mpl_cairo {
 using namespace pybind11::literals;
 
 namespace {
-cairo_user_data_key_t const STATE_KEY = {0}, FILE_KEY = {0};
+cairo_user_data_key_t const
+  STATE_KEY{0}, FILE_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0};
+// NOTE: The current dpi setting is needed by MathtextBackend to set the
+// correct font size (specifically, to convert points to pixels; apparently,
+// cairo does not retrieve the face size from the FT_Face object as freetype
+// does not provide a way to read it).  So, we update this global variable
+// every time before mathtext parsing.
+double CURRENT_DPI{72};
 }
 
 Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<uint8_t[]> buf) :
@@ -103,11 +110,11 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   height_{height},
   dpi_{dpi},
   mathtext_parser_{
-      py::module::import("matplotlib.mathtext").attr("MathTextParser")("agg")},
+      py::module::import("matplotlib.mathtext").attr("MathTextParser")("cairo")},
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
   set_ctx_defaults(cr);
-  auto stack = new std::stack<AdditionalState>({AdditionalState{}});
+  auto stack = new std::stack<AdditionalState>{{AdditionalState{}}};
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
@@ -132,19 +139,20 @@ cairo_t* GraphicsContextRenderer::cr_from_image_args(
 GraphicsContextRenderer::GraphicsContextRenderer(
     double width, double height, double dpi) :
   GraphicsContextRenderer{
-    cr_from_image_args(width, height), width, height, dpi} {}
+    cr_from_image_args(int(width), int(height)), int(width), int(height), dpi}
+  {}
 
 cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx) {
   if ((ctx.get_type().attr("__module__").cast<std::string>() != "cairo")
       || (ctx.get_type().attr("__name__").cast<std::string>() != "Context")) {
-    throw std::invalid_argument("Argument is not a Pycairo context");
+    throw std::invalid_argument("Argument is not a cairo.Context");
   }
   typedef struct {  // Copy-pasted from pycairo.h.
     PyObject_HEAD
     cairo_t *ctx;
     PyObject *base; /* base object used to create context, or NULL */
   } PycairoContext;
-  PycairoContext* ptr = reinterpret_cast<PycairoContext*>(ctx.ptr());
+  auto ptr = reinterpret_cast<PycairoContext*>(ctx.ptr());
   if (auto status = cairo_status(ptr->ctx); status != CAIRO_STATUS_SUCCESS) {
     throw std::invalid_argument(
         "Context is in an error state:"
@@ -215,7 +223,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     double width, double height, double dpi) :
   GraphicsContextRenderer{
       cr_from_fileformat_args(type, file, width, height, dpi),
-      width, height, 72} {}
+      int(width), int(height), 72} {}
 
 void GraphicsContextRenderer::_finish() {
   cairo_surface_finish(cairo_get_target(cr_));
@@ -881,53 +889,30 @@ void GraphicsContextRenderer::draw_quad_mesh(
 void GraphicsContextRenderer::draw_text(
     GraphicsContextRenderer& gc,
     double x, double y, std::string s, py::object prop, double angle,
-    bool ismath, py::object mtext) {
+    bool ismath, py::object /* mtext */) {
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto ac = additional_context();
   if (ismath) {
-    // NOTE: If angle % 90 == 0, we can round x and y to avoid additional
-    // aliasing on top of the one already provided by freetype.  Perhaps
-    // we should let it know about the destination subpixel position?  If
-    // angle % 90 != 0, all hope is lost anyways.
-    if (fmod(angle, 90) == 0) {
-      cairo_translate(cr_, std::round(x), std::round(y));
-    } else {
-      cairo_translate(cr_, x, y);
-    }
-    auto radians = angle * M_PI / 180;
-    cairo_rotate(cr_, -radians);
-    auto [ox, oy, w_, h_, descent, image, chars] =
-      mathtext_parser_.attr("parse")(s, dpi_, prop)
-      .cast<std::tuple<
-          double, double, double, double, double, py::object, py::object>>();
-    auto im_raw =
-      py::array_t<uint8_t, py::array::c_style>{image}.mutable_unchecked<2>();
-    auto height = im_raw.shape(0), width = im_raw.shape(1);
-    auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_A8, width);
-    // 1 byte per pixel!
-    auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[height * stride]);
-    for (size_t i = 0; i < height; ++i) {
-      std::memcpy(
-          buf.get() + i * stride, im_raw.data(0, 0) + i * width, width);
-    }
-    auto surface = cairo_image_surface_create_for_data(
-        buf.get(), CAIRO_FORMAT_A8, width, height, stride);
-    auto dx = ox, dy = oy + descent - height;
-    if (fmod(angle, 90) == 0) {  // See NOTE above.
-      dx = std::round(dx);
-      dy = std::round(dy);
-    }
-    cairo_mask_surface(cr_, surface, dx, dy);
-    cairo_surface_destroy(surface);
+    cairo_translate(cr_, x, y);
+    cairo_rotate(cr_, -angle * M_PI / 180);
+    CURRENT_DPI = dpi_;
+    auto capsule =  // Keep a reference to it.
+      mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
+    auto record = static_cast<cairo_surface_t*>(capsule);
+    capsule.release();  // Don't decref it.
+    double depth = *static_cast<double*>(
+        cairo_surface_get_user_data(record, &MATHTEXT_TO_BASELINE_KEY));
+    cairo_set_source_surface(cr_, record, 0, -depth);
+    cairo_paint(cr_);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
     // regardless of cairo_translate).
     cairo_translate(cr_, x, y);
     cairo_rotate(cr_, -angle * M_PI / 180);
     cairo_move_to(cr_, 0, 0);
-    auto font_face = ft_font_from_prop(prop);
+    auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
     cairo_set_font_size(
         cr_,
@@ -940,25 +925,42 @@ void GraphicsContextRenderer::draw_text(
 std::tuple<double, double, double>
 GraphicsContextRenderer::get_text_width_height_descent(
     std::string s, py::object prop, py::object ismath) {
-  // NOTE: ismath can be True, False, "TeX".
-  if (rc_param("text.usetex").cast<bool>() || py::bool_(ismath)) {
-    // NOTE: It may seem natural to use
-    // RendererBase.get_text_width_height_descent, but it relies on text2path's
-    // mathtext parser, which is less precise.
-    return RENDERER_AGG.attr("get_text_width_height_descent")(
-        this, s, prop, ismath).cast<std::tuple<double, double, double>>();
+  // NOTE: "height" includes "descent", and "descent" is (normally) positive
+  // (see MathtextBackendAgg.get_results()).
+  // NOTE: ismath can be True, False, "TeX" (i.e., usetex).
+  // NOTE: RendererAgg relies on the text.usetex rcParam, whereas RendererBase
+  // relies (correctly?) on the value of ismath.
+  if (py::module::import("operator").attr("eq")(ismath, "TeX").cast<bool>()) {
+    return
+      py::module::import("matplotlib.backend_bases").attr("RendererBase")
+      .attr("get_text_width_height_descent")(this, s, prop, ismath)
+      .cast<std::tuple<double, double, double>>();
   }
-  cairo_save(cr_);
-  auto font_face = ft_font_from_prop(prop);
-  cairo_set_font_face(cr_, font_face);
-  cairo_set_font_size(
-      cr_,
-      points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
-  cairo_text_extents_t extents;
-  cairo_text_extents(cr_, s.c_str(), &extents);
-  cairo_font_face_destroy(font_face);
-  cairo_restore(cr_);
-  return {extents.width, extents.height, extents.height + extents.y_bearing};
+  if (ismath.cast<bool>()) {
+    // NOTE: Agg reports nonzero descents for seemingly zero-descent cases.
+    CURRENT_DPI = dpi_;
+    auto capsule =  // Keep a reference to the capsule.
+      mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
+    auto record = static_cast<cairo_surface_t*>(capsule);
+    capsule.release();  // ... and don't decref it.
+    double to_baseline = *static_cast<double*>(
+        cairo_surface_get_user_data(record, &MATHTEXT_TO_BASELINE_KEY));
+    double x0, y0, width, height;
+    cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
+    return {width, height, y0 + height - to_baseline};
+  } else {
+    cairo_save(cr_);
+    auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
+    cairo_set_font_face(cr_, font_face);
+    cairo_set_font_size(
+        cr_,
+        points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
+    cairo_text_extents_t extents;
+    cairo_text_extents(cr_, s.c_str(), &extents);
+    cairo_font_face_destroy(font_face);
+    cairo_restore(cr_);
+    return {extents.width, extents.height, extents.height + extents.y_bearing};
+  }
 }
 
 void GraphicsContextRenderer::start_filter() {
@@ -1021,6 +1023,8 @@ void GraphicsContextRenderer::restore_region(Region& region) {
   int /* x1 = x0 + width, */ y1 = y0 + height;
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
+    // NOTE: We can probably use cairo_surface_map_to_image, but I'm not sure
+    // there's an use for it anyways.
     throw std::runtime_error("Only image surfaces are supported");
   }
   auto raw = cairo_image_surface_get_data(surface);
@@ -1035,24 +1039,77 @@ void GraphicsContextRenderer::restore_region(Region& region) {
   cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
 }
 
+MathtextBackend::MathtextBackend() : cr_{} {}
+
+void MathtextBackend::set_canvas_size(
+    double width, double height, double depth) {
+  // NOTE: "height" does *not* include "descent", and "descent" is (normally)
+  // positive (see MathtextBackendAgg.set_canvas_size()).  This is a different
+  // convention from get_text_width_height_descent()!
+  cairo_destroy(cr_);
+  auto rect = cairo_rectangle_t{0, 0, width, height + depth};
+  // NOTE: It would make sense to use {0, depth, width, -(height+depth)} as
+  // extents ("upper" character regions correspond to negative y's), but
+  // negative extents are buggy as of cairo 1.14.  Moreover, render_glyph() and
+  // render_rect_filled() use coordinates relative to the upper left corner, so
+  // that doesn't help anyways.
+  auto surface = cairo_recording_surface_create(CAIRO_CONTENT_ALPHA, &rect);
+  cr_ = cairo_create(surface);
+  cairo_surface_destroy(surface);
+  cairo_surface_set_user_data(
+      surface, &MATHTEXT_TO_BASELINE_KEY, new double{height}, operator delete);
+}
+
+void MathtextBackend::render_glyph(double ox, double oy, py::object info) {
+  auto [ft_face, font_face] =
+    ft_face_and_font_face_from_path(
+        info.attr("font").attr("fname").cast<std::string>());
+  cairo_set_font_face(cr_, font_face);
+  cairo_set_font_size(
+      cr_, info.attr("fontsize").cast<double>() * CURRENT_DPI / 72);
+  auto index = FT_Get_Char_Index(
+      ft_face, info.attr("num").cast<unsigned long>());
+  auto glyph = cairo_glyph_t{index, ox, oy};
+  cairo_show_glyphs(cr_, &glyph, 1);
+  cairo_font_face_destroy(font_face);
+}
+
+void MathtextBackend::render_rect_filled(
+    double x1, double y1, double x2, double y2) {
+  cairo_rectangle(cr_, x1, y1, x2 - x1, y2 - y1);
+  cairo_fill(cr_);
+}
+
+py::capsule MathtextBackend::get_results(
+    py::object box, py::object /* used_characters */) {
+  py::module::import("matplotlib.mathtext").attr("ship")(0, 0, box);
+  auto surface = cairo_get_target(cr_);
+  cairo_surface_reference(surface);
+  cairo_destroy(cr_);
+  cr_ = nullptr;
+  // NOTE: pybind11 2.2 will allow setting the capsule name, for additional
+  // safety.
+  return py::capsule(surface, [](void* surface){
+    cairo_surface_destroy(reinterpret_cast<cairo_surface_t*>(surface));
+  });
+}
+
+py::object MathtextBackend::get_hinting_type() {
+  // NOTE: Should be moved out of backend_agg.
+  // FIXME: Use cairo_hint_style_t.
+  return
+    py::module::import("matplotlib.backends.backend_agg")
+    .attr("get_hinting_flag")();
+}
+
 PYBIND11_PLUGIN(_mpl_cairo) {
   py::module m("_mpl_cairo", "A cairo backend for matplotlib.");
 
-  if (FT_Init_FreeType(&FT_LIB)) {
-    throw std::runtime_error("FT_Init_FreeType failed");
+  if (py::module::import("matplotlib.ft2font").attr("__freetype_build_type__")
+      .cast<std::string>() == "local") {
+    throw std::runtime_error("Local freetype builds are not supported");
   }
-  auto clean_ft_lib = py::capsule([]() {
-    if (FT_Done_FreeType(FT_LIB)) {
-      throw std::runtime_error("FT_Done_FreeType failed");
-    }
-  });
-  m.add_object("_cleanup", clean_ft_lib);
-  // NOTE: Keep a local reference to RendererAgg rather than looking it up in
-  // the backend_agg module because both mpl_cairo.pth and the test runner can
-  // completely swap out that module, but we still need the real RendererAgg
-  // here (otherwise, we get a RecursionError).
-  RENDERER_AGG =
-    py::module::import("matplotlib.backends.backend_agg").attr("RendererAgg");
+
   UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
@@ -1213,6 +1270,14 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     // Canvas API.
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)
     .def("restore_region", &GraphicsContextRenderer::restore_region);
+
+  py::class_<MathtextBackend>(m, "MathtextBackendCairo")
+    .def(py::init<>())
+    .def("set_canvas_size", &MathtextBackend::set_canvas_size)
+    .def("render_glyph", &MathtextBackend::render_glyph)
+    .def("render_rect_filled", &MathtextBackend::render_rect_filled)
+    .def("get_results", &MathtextBackend::get_results)
+    .def("get_hinting_type", &MathtextBackend::get_hinting_type);
 
   return m.ptr();
 }
