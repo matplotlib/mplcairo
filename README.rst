@@ -62,7 +62,16 @@ following commands will build and install mpl_cairo.
     pip install -ve .)
 
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
-variable to ``module://mpl_cairo.qt`` (or ``module://mpl_cairo.gtk3``).
+variable one of
+
+- ``module://mpl_cairo.qt`` (Qt5 GUI),
+- ``module://mpl_cairo.gtk3`` (GTK3 GUI),
+- ``module://mpl_cairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
+  SVGZ using cairo's implementation, rather than Matplotlib's.  Due to the lack
+  of a native mathtext backend (an implementation is in progress, which should
+  also help with antialiasing and hinting in the general case), mathtext will
+  be (poorly) rasterized).
+
 Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
 to fully replace the Agg renderer by the cairo renderer throughout Matplotlib
 (but plotting is *much* less efficient in that case, due to the need of copies
@@ -159,8 +168,6 @@ Possible optimizations
 Other ideas
 -----------
 
-- Expose the cairo PDF, PS and SVG backends.
-- Native mathtext backend (to optimize antialiasing).
 - Complex text layout (e.g. using libraqm).
 
 What about the already existing cairo (gtk3cairo) backend?

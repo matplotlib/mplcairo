@@ -124,7 +124,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 self.figure.draw(renderer)
             return renderer
 
-    # NOTE: Not documented, but needed for tight_layout.
+    # NOTE: Not documented, but needed for tight_layout().
     def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
@@ -144,10 +144,11 @@ class FigureCanvasCairo(FigureCanvasBase):
         self.get_renderer().restore_region(region)
         super().draw()
 
+    # Split out as a separate method for metadata support.
     def print_png(
             self, filename_or_obj, *,
             dpi=72, metadata=None,
-            # These arguments are already taken care of by print_figure.
+            # These arguments are already taken care of by print_figure().
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
         self.draw()
@@ -169,7 +170,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     def _print_method(
             self, renderer_factory,
             filename_or_obj, *, dpi=72,
-            # These arguments are already taken care of by print_figure.
+            # These arguments are already taken care of by print_figure().
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
         # NOTE: we do not write the metadata (this is only possible for some
@@ -182,6 +183,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                 stack.enter_context(file)
             renderer = renderer_factory(file, *self.get_width_height(), dpi)
             self.figure.draw(renderer)
+            # NOTE: _finish() corresponds finalize() in Matplotlib's PDF and
+            # SVG backends; it is inlined for Matplotlib's PS backend.
             renderer._finish()
 
     print_eps = partialmethod(
