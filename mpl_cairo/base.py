@@ -5,6 +5,10 @@ from gzip import GzipFile
 import sys
 
 import numpy as np
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 import matplotlib
 from matplotlib import _png, cbook, colors, rcParams
@@ -15,26 +19,27 @@ from . import _mpl_cairo
 from ._mpl_cairo import surface_type_t
 
 
-def _to_rgba(data):
+def _to_rgba(buf):
     # Native ARGB32 to (R, G, B, A).
-    data = data[
-        ..., [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0]]
+    # Using .take() instead of indexing ensures C-contiguity of the result.
+    rgba = buf.take(
+        [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0], axis=2)
     # Un-premultiply alpha.  The formula is the same as in cairo-png.c.
-    rgb = data[..., :-1]
-    alpha = data[..., -1]
+    rgb = rgba[..., :-1]
+    alpha = rgba[..., -1]
     mask = alpha != 0
     for channel in np.rollaxis(rgb, -1):
         channel[mask] = (
             (channel[mask].astype(int) * 255 + alpha[mask] // 2)
             // alpha[mask])
-    return data
+    return rgba
 
 
-def _get_drawn_subarray_and_bounds(data):
-    drawn = data[..., 3] != 0
+def _get_drawn_subarray_and_bounds(img):
+    drawn = img[..., 3] != 0
     l, r = drawn.any(axis=0).nonzero()[0][[0, -1]]
     b, t = drawn.any(axis=1).nonzero()[0][[0, -1]]
-    return data[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
+    return img[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
 
 
 _mpl_cairo._Region.to_string_argb = (
@@ -93,8 +98,8 @@ class GraphicsContextRendererCairo(
         return True  # Similarly to Agg.
 
     def stop_filter(self, filter_func):
-        buf = _to_rgba(self._stop_filter())
-        img, (l, b, w, h) = _get_drawn_subarray_and_bounds(buf)
+        img = _to_rgba(self._stop_filter())
+        img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         img, dx, dy = filter_func(img[::-1] / 255, self.dpi)
         if img.dtype.kind == "f":
             img = np.asarray(img * 255, np.uint8)
@@ -102,9 +107,9 @@ class GraphicsContextRendererCairo(
         self.draw_image(self, l + dx, height - b - h + dy, img)
 
     def tostring_rgba_minimized(self):  # NOTE: Needed by MixedModeRenderer.
-        data, bounds = _get_drawn_subarray_and_bounds(
+        img, bounds = _get_drawn_subarray_and_bounds(
             _to_rgba(self._get_buffer()))
-        return data.tobytes(), bounds
+        return img.tobytes(), bounds
 
 
 class FigureCanvasCairo(FigureCanvasBase):
@@ -144,27 +149,6 @@ class FigureCanvasCairo(FigureCanvasBase):
         self.get_renderer().restore_region(region)
         super().draw()
 
-    # Split out as a separate method for metadata support.
-    def print_png(
-            self, filename_or_obj, *,
-            dpi=72, metadata=None,
-            # These arguments are already taken care of by print_figure().
-            facecolor=None, edgecolor=None, orientation="portrait",
-            dryrun=False, bbox_inches_restore=None):
-        self.draw()
-        data = _to_rgba(self.get_renderer()._get_buffer())
-        full_metadata = OrderedDict(
-            [("Software",
-              "matplotlib version {}, https://matplotlib.org"
-              .format(matplotlib.__version__))])
-        full_metadata.update(metadata or {})
-        file, needs_close = cbook.to_filehandle(
-            filename_or_obj, "wb", return_opened=True)
-        with ExitStack() as stack:
-            if needs_close:
-                stack.enter_context(file)
-            _png.write_png(data, file, metadata=full_metadata)
-
     # FIXME: Native mathtext support (otherwise math looks awful).
 
     def _print_method(
@@ -197,6 +181,69 @@ class FigureCanvasCairo(FigureCanvasBase):
         _print_method, GraphicsContextRendererCairo._for_svg_output)
     print_svgz = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_svgz_output)
+
+    # Split out as a separate method for metadata support.
+    def print_png(
+            self, filename_or_obj, *, metadata=None,
+            # These arguments are already taken care of by print_figure().
+            dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
+            dryrun=False, bbox_inches_restore=None):
+        self.draw()
+        img = _to_rgba(self.get_renderer()._get_buffer())
+        full_metadata = OrderedDict(
+            [("Software",
+              "matplotlib version {}, https://matplotlib.org"
+              .format(matplotlib.__version__))])
+        full_metadata.update(metadata or {})
+        file, needs_close = cbook.to_filehandle(
+            filename_or_obj, "wb", return_opened=True)
+        with ExitStack() as stack:
+            if needs_close:
+                stack.enter_context(file)
+            _png.write_png(img, file, metadata=full_metadata)
+
+    if Image:
+
+        def print_jpeg(
+                self, filename_or_obj, *,
+                # These arguments are already taken care of by print_figure().
+                dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
+                dryrun=False, bbox_inches_restore=None,
+                # Remaining kwargs are passed to PIL.
+                **kwargs):
+            self.draw()
+            if dryrun:
+                return
+            img = _to_rgba(self.get_renderer()._get_buffer())
+            size = self.get_renderer().get_canvas_width_height()
+            img = Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
+            # Composite against the background.
+            # NOTE: Agg composites against rcParams["savefig.facecolor"].
+            background = tuple(
+                (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
+            composited = Image.new("RGB", size, background)
+            composited.paste(img, img)
+            kwargs.setdefault("quality", rcParams["savefig.jpeg_quality"])
+            composited.save(filename_or_obj, format="jpeg", **kwargs)
+
+        print_jpg = print_jpeg
+
+        def print_tiff(
+                self, filename_or_obj, *,
+                # These arguments are already taken care of by print_figure().
+                dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
+                dryrun=False, bbox_inches_restore=None):
+            self.draw()
+            if dryrun:
+                return
+            img = _to_rgba(self.get_renderer()._get_buffer())
+            size = self.get_renderer().get_canvas_width_height()
+            (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
+            .save(filename_or_obj, format="tiff",
+                dpi=(self.figure.dpi, self.figure.dpi)))
+
+        print_tif = print_tiff
+
 
 
 try:  # NOTE: try... except until #8773 gets in.
