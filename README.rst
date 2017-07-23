@@ -141,8 +141,9 @@ Other known issues
   absolute value) will be drawn incorrectly due to overflow in cairo (cairo
   #20091).  A temporary workaround partially handles the issue when only one of
   the two coordinates is too large, but not when both are.
-- Blitting-based animation leaves small artefacts at the edges of the blitted
-  region.
+- Blitting-based animations to image-base backends (e.g., ``mpl_cairo.qt``)
+  leaves small artefacts at the edges of the blitted region.  This does not
+  affect Xlib-based backends (e.g., ``mpl_cairo.gtk3``).
 
 Possible optimizations
 ----------------------

@@ -137,15 +137,11 @@ class FigureCanvasCairo(FigureCanvasBase):
         super().draw()
 
     def copy_from_bbox(self, bbox):
-        if self.get_renderer() is None:
-            self.draw()
-        return self.get_renderer().copy_from_bbox(bbox)
+        return self.get_renderer(_draw_if_new=True).copy_from_bbox(bbox)
 
     def restore_region(self, region):
-        if self.get_renderer() is None:
-            self.draw()
         self.get_renderer().restore_region(region)
-        self.update()
+        super().draw()
 
     def print_png(
             self, filename_or_obj, *,
