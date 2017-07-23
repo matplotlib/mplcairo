@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 
+import matplotlib
 from matplotlib import _png, cbook, colors, rcParams
 from matplotlib.backend_bases import (
     FigureCanvasBase, FigureManagerBase, GraphicsContextBase, RendererBase)
@@ -59,8 +60,23 @@ class GraphicsContextRendererCairo(
         return obj
 
     @classmethod
+    def _for_eps_output(cls, file, width, height, dpi):
+        args = surface_type_t.PS, file, width, height, dpi
+        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
+        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        obj._set_eps(True)
+        return obj
+
+    @classmethod
     def _for_pdf_output(cls, file, width, height, dpi):
         args = surface_type_t.PDF, file, width, height, dpi
+        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
+        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        return obj
+
+    @classmethod
+    def _for_ps_output(cls, file, width, height, dpi):
+        args = surface_type_t.PS, file, width, height, dpi
         obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
         _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
         return obj
@@ -121,19 +137,24 @@ class FigureCanvasCairo(FigureCanvasBase):
         super().draw()
 
     def copy_from_bbox(self, bbox):
-        if self._renderer is None:
+        if self.get_renderer() is None:
             self.draw()
-        return self._renderer.copy_from_bbox(bbox)
+        return self.get_renderer().copy_from_bbox(bbox)
 
     def restore_region(self, region):
-        if self._renderer is None:
+        if self.get_renderer() is None:
             self.draw()
-        self._renderer.restore_region(region)
+        self.get_renderer().restore_region(region)
         self.update()
 
-    def print_png(self, filename_or_obj, *, metadata=None):
+    def print_png(
+            self, filename_or_obj, *,
+            dpi=72, metadata=None,
+            # These arguments are already taken care of by print_figure.
+            facecolor=None, edgecolor=None, orientation="portrait",
+            dryrun=False, bbox_inches_restore=None):
         self.draw()
-        data = _to_rgba(self._renderer._get_buffer())
+        data = _to_rgba(self.get_renderer()._get_buffer())
         full_metadata = OrderedDict(
             [("Software",
               "matplotlib version {}, https://matplotlib.org"
@@ -146,7 +167,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 stack.enter_context(file)
             _png.write_png(data, file, metadata=full_metadata)
 
-    # FIXME Native mathtext support (otherwise math looks awful).
+    # FIXME: Native mathtext support (otherwise math looks awful).
 
     def _print_method(
             self, renderer_factory,
@@ -154,6 +175,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             # These arguments are already taken care of by print_figure.
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
+        # NOTE: we do not write the metadata (this is only possible for some
+        # cairo backends).
         self.figure.set_dpi(72)
         file, needs_close = cbook.to_filehandle(
             filename_or_obj, "wb", return_opened=True)
@@ -164,8 +187,12 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.figure.draw(renderer)
             renderer._finish()
 
+    print_eps = partialmethod(
+        _print_method, GraphicsContextRendererCairo._for_eps_output)
     print_pdf = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_pdf_output)
+    print_ps = partialmethod(
+        _print_method, GraphicsContextRendererCairo._for_ps_output)
     print_svg = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_svg_output)
 

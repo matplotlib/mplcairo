@@ -3,23 +3,29 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
-#if CAIRO_HAS_XLIB_SURFACE && __has_include(<X11/Xlib.h>)
-#include <cairo/cairo-xlib.h>
-#define MPLCAIRO_HAS_X11
-#else
-#undef MPLCAIRO_HAS_X11
-#endif
 #if CAIRO_HAS_PDF_SURFACE
 #include <cairo/cairo-pdf.h>
 #define MPLCAIRO_HAS_PDF
 #else
 #undef MPLCAIRO_HAS_PDF
 #endif
+#if CAIRO_HAS_PS_SURFACE
+#include <cairo/cairo-ps.h>
+#define MPLCAIRO_HAS_PS
+#else
+#undef MPLCAIRO_HAS_PS
+#endif
 #if CAIRO_HAS_SVG_SURFACE
 #include <cairo/cairo-svg.h>
 #define MPLCAIRO_HAS_SVG
 #else
 #undef MPLCAIRO_HAS_SVG
+#endif
+#if CAIRO_HAS_XLIB_SURFACE && __has_include(<X11/Xlib.h>)
+#include <cairo/cairo-xlib.h>
+#define MPLCAIRO_HAS_X11
+#else
+#undef MPLCAIRO_HAS_X11
 #endif
 
 #include <stack>
@@ -183,6 +189,11 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       surface = cairo_pdf_surface_create_for_stream(cb, write, width, height);
       break;
 #endif
+#ifdef MPLCAIRO_HAS_PS
+    case CAIRO_SURFACE_TYPE_PS:
+      surface = cairo_ps_surface_create_for_stream(cb, write, width, height);
+      break;
+#endif
 #ifdef MPLCAIRO_HAS_SVG
     case CAIRO_SURFACE_TYPE_SVG:
       surface = cairo_svg_surface_create_for_stream(cb, write, width, height);
@@ -208,6 +219,18 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 
 void GraphicsContextRenderer::_finish() {
   cairo_surface_finish(cairo_get_target(cr_));
+}
+
+void GraphicsContextRenderer::_set_eps(bool eps) {
+  auto surface = cairo_get_target(cr_);
+#ifdef MPLCAIRO_HAS_PS
+  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_PS) {
+    throw std::runtime_error("Only PS surfaces are supported");
+  }
+  cairo_ps_surface_set_eps(surface, eps);
+#else
+  throw std::runtime_error("cairo was built without PS support");
+#endif
 }
 
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
@@ -1091,6 +1114,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def(py::init<py::object, double>())
     .def(py::init<cairo_surface_type_t, py::object, double, double, double>())
 
+    .def("_set_eps", &GraphicsContextRenderer::_set_eps)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
     .def("_finish", &GraphicsContextRenderer::_finish)
 

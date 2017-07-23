@@ -77,6 +77,7 @@ class GraphicsContextRenderer {
       cairo_surface_type_t type, py::object file,
       double width, double height, double dpi);
 
+  void _set_eps(bool eps);
   py::array_t<uint8_t> _get_buffer();
   void _finish();
 
