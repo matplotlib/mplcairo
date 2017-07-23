@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from contextlib import ExitStack
 from functools import partialmethod
+from gzip import GzipFile
 import sys
 
 import numpy as np
@@ -60,32 +61,32 @@ class GraphicsContextRendererCairo(
         return obj
 
     @classmethod
-    def _for_eps_output(cls, file, width, height, dpi):
-        args = surface_type_t.PS, file, width, height, dpi
+    def _for_fmt_output(cls, fmt, file, width, height, dpi):
+        args = fmt, file, width, height, dpi
         obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
         _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        return obj
+
+    _for_ps_output = partialmethod(_for_fmt_output, surface_type_t.PS)
+    _for_pdf_output = partialmethod(_for_fmt_output, surface_type_t.PDF)
+    _for_svg_output = partialmethod(_for_fmt_output, surface_type_t.SVG)
+
+    @classmethod
+    def _for_eps_output(cls, file, width, height, dpi):
+        obj = cls._for_ps_output(file, width, height, dpi)
         obj._set_eps(True)
         return obj
 
     @classmethod
-    def _for_pdf_output(cls, file, width, height, dpi):
-        args = surface_type_t.PDF, file, width, height, dpi
-        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
-        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
-        return obj
+    def _for_svgz_output(cls, file, width, height, dpi):
+        gzip_file = GzipFile(fileobj=file)
+        obj = cls._for_svg_output(gzip_file, width, height, dpi)
 
-    @classmethod
-    def _for_ps_output(cls, file, width, height, dpi):
-        args = surface_type_t.PS, file, width, height, dpi
-        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
-        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
-        return obj
+        def _finish():
+            cls._finish(obj)
+            gzip_file.close()
 
-    @classmethod
-    def _for_svg_output(cls, file, width, height, dpi):
-        args = surface_type_t.SVG, file, width, height, dpi
-        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
-        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        obj._finish = _finish
         return obj
 
     def option_image_nocomposite(self):
@@ -191,6 +192,8 @@ class FigureCanvasCairo(FigureCanvasBase):
         _print_method, GraphicsContextRendererCairo._for_ps_output)
     print_svg = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_svg_output)
+    print_svgz = partialmethod(
+        _print_method, GraphicsContextRendererCairo._for_svgz_output)
 
 
 try:  # NOTE: try... except until #8773 gets in.
