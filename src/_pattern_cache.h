@@ -1,7 +1,6 @@
 #pragma once
 
-#include <functional>
-#include <unordered_map>
+#include "_util.h"
 
 #include <cairo/cairo.h>
 
@@ -10,7 +9,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include "_util.h"
+#include <functional>
+#include <unordered_map>
 
 namespace mpl_cairo {
 

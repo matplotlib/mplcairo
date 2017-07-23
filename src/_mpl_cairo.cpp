@@ -3,8 +3,6 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
-#include <stack>
-
 #if CAIRO_HAS_XLIB_SURFACE && __has_include(<X11/Xlib.h>)
 #include <cairo/cairo-xlib.h>
 #define MPLCAIRO_HAS_X11
@@ -23,6 +21,8 @@
 #else
 #undef MPLCAIRO_HAS_SVG
 #endif
+
+#include <stack>
 
 namespace mpl_cairo {
 
