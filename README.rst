@@ -158,7 +158,9 @@ Other known issues
 - Blitting-based animations to image-base backends (e.g., ``mpl_cairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
   affect Xlib-based backends (e.g., ``mpl_cairo.gtk3``).
-- SVG output does not render mathtext at all.  This needs to be investigated.
+- SVG and GTK3 (i.e, Xlib) output do not render mathtext at all.  This needs to
+  be investigated; a possible workaround is to generate an image surface for
+  use in these cases.
 
 Possible optimizations
 ----------------------
