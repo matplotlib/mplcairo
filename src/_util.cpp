@@ -111,6 +111,8 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 // workaround.
 //
 // TODO: Path snapping in the general case.
+// NOTE: Matplotlib also *rounds* the linewidth in some cases (see
+// RendererAgg::_draw_path), which helps with snappiness.
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
   auto const min = double(-(1 << 22)), max = double(1 << 22);
@@ -224,7 +226,9 @@ void load_path_exact(
     // Bezier control points (which is forced by SNAP_TRUE) does not make sense
     // anyways.
     auto snap = get_additional_state(cr).snap;
-    auto has_current = false;
+    // The previous point, if any, before snapping (so that we can check for
+    // coordinate equality with the new point).
+    auto prev = std::optional<std::tuple<double, double>>{};
     for (size_t i = 0; i < n; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(matrix, &x, &y);
@@ -233,43 +237,36 @@ void load_path_exact(
       y = std::clamp(y, min, max);
       if (is_finite) {
         cairo_path_data_t header, point;
-        if (has_current) {
-          header.header.type = CAIRO_PATH_LINE_TO;
-          header.header.length = 2;
+        if (prev) {
+          header.header = {CAIRO_PATH_LINE_TO, 2};
           if (snap) {
-            auto& [x_prev, y_prev] = path_data.back().point;
-            auto x_eq = x == x_prev, y_eq = y == y_prev;
-            if (x_eq ^ y_eq) {
+            auto [x_prev, y_prev] = *prev;
+            if ((x == x_prev) || (y == y_prev)) {
               // If we have a horizontal or a vertical line, snap both
               // coordinates.  NOTE: While it may make sense to only snap in
               // the direction orthogonal to the displacement, this would cause
               // e.g. axes spines to not line up properly, as they are drawn as
-              // completely independent segments.
-              x_prev = std::floor(x_prev) + .5;
-              y_prev = std::floor(y_prev) + .5;
-              point.point.x = std::floor(x) + .5;
-              point.point.y = std::floor(y) + .5;
+              // independent segments.
+              path_data.back().point =
+                {std::floor(x_prev) + .5, std::floor(y_prev) + .5};
+              point.point = {std::floor(x) + .5, std::floor(y) + .5};
             } else {
-              point.point.x = x;
-              point.point.y = y;
+              point.point = {x, y};
             }
           } else {
-            point.point.x = x;
-            point.point.y = y;
+            point.point = {x, y};
           }
           path_data.push_back(header);
           path_data.push_back(point);
         } else {
-          header.header.type = CAIRO_PATH_MOVE_TO;
-          header.header.length = 2;
-          point.point.x = x;
-          point.point.y = y;
+          header.header = {CAIRO_PATH_MOVE_TO, 2};
+          point.point = {x, y};
           path_data.push_back(header);
           path_data.push_back(point);
         }
-        has_current = true;
+        prev = {x, y};
       } else {
-        has_current = false;
+        prev = {};
       }
     }
     auto path =
