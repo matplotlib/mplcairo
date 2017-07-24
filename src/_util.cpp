@@ -98,23 +98,19 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 // Set the current path of `cr` to `path`, after transformation by `matrix`,
 // ignoring the CTM ("exact").
 //
-// FIXME: Deal with overflow when transformed values do not fit in a 24-bit
-// signed integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091
-// and test_simplification.test_overflow) by clipping the segments.
-//
-// Note that we do not need to perform a full line clipping, as cairo will
-// do one too; we just need the coordinates to stay valid for cairo.  Thus,
-// for example, if a segment goes from (-bignum, y0) to (+bignum, y1), it is
-// sufficient to clip it to [(-2**22, y0), (2**22, y1)] -- it will be drawn
-// as a horizontal line at position (y0+y1)/2 anyways.  Still, the simple
-// clamping is insufficient to deal with slanted lines, and is just a temporary
-// workaround.
-//
-// TODO: Path snapping in the general case.
+// TODO: Path clipping and snapping in the general case (with codes present).
 // NOTE: Matplotlib also *rounds* the linewidth in some cases (see
 // RendererAgg::_draw_path), which helps with snappiness.
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+  // NOTE: cairo requires coordinates to fit within a 24-bit signed
+  // integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091 and
+  // test_simplification.test_overflow).  We simply clamp the values in the
+  // general case (with codes) -- proper handling would involve clipping
+  // of polygons and of Beziers -- and use a simple clippling algorithm
+  // (Cohen-Sutherland) in the simple (codeless) case as we expect most
+  // segments to be within the clip rectangle -- cairo will run its own
+  // clipping later anyways.
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   // We don't need to cairo_save()/cairo_restore() the whole state, we can just
   // store the CTM.
@@ -145,6 +141,7 @@ void load_path_exact(
       auto x0 = vertices(i, 0), y0 = vertices(i, 1);
       cairo_matrix_transform_point(matrix, &x0, &y0);
       auto is_finite = std::isfinite(x0) && std::isfinite(y0);
+      // Better(?) than nothing.
       x0 = std::clamp(x0, min, max);
       y0 = std::clamp(y0, min, max);
       switch (static_cast<PathCode>(codes(i))) {
@@ -222,25 +219,93 @@ void load_path_exact(
   } else {
     auto path_data = std::vector<cairo_path_data_t>{};
     path_data.reserve(2 * n);
+    auto const LEFT = 1 << 0, RIGHT = 1 << 1, BOTTOM = 1 << 2, TOP = 1 << 3;
+    auto outcode = [&](double x, double y) {
+      auto code = 0;
+      if (x < min) {
+        code |= LEFT;
+      } else if (x > max) {
+        code |= RIGHT;
+      }
+      if (y < min) {
+        code |= BOTTOM;
+      } else if (y > max) {
+        code |= TOP;
+      }
+      return code;
+    };
     // NOTE: We do not implement full snapping control, as e.g. snapping of
     // Bezier control points (which is forced by SNAP_TRUE) does not make sense
     // anyways.
     auto snap = get_additional_state(cr).snap;
-    // The previous point, if any, before snapping (so that we can check for
-    // coordinate equality with the new point).
+    // The previous point, if any, before clipping and snapping.
     auto prev = std::optional<std::tuple<double, double>>{};
     for (size_t i = 0; i < n; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(matrix, &x, &y);
-      auto is_finite = std::isfinite(x) && std::isfinite(y);
-      x = std::clamp(x, min, max);
-      y = std::clamp(y, min, max);
-      if (is_finite) {
+      if (std::isfinite(x) && std::isfinite(y)) {
         cairo_path_data_t header, point;
         if (prev) {
           header.header = {CAIRO_PATH_LINE_TO, 2};
+          auto [x_prev, y_prev] = *prev;
+          prev = {x, y};
+          // Cohen-Sutherland clipping: we expect most segments to be within
+          // the 1 << 22 by 1 << 22 box.
+          auto code0 = outcode(x_prev, y_prev);
+          auto code1 = outcode(x, y);
+          auto accept = false, update_prev = false;
+          while (true) {
+            if (!(code0 | code1)) {
+              accept = true;
+              break;
+            } else if (code0 & code1) {
+              break;
+            } else {
+              auto xc = 0., yc = 0.;
+              auto code = code0 ? code0 : code1;
+              if (code & TOP) {
+                xc = x_prev + (x - x_prev) * (max - y_prev) / (y - y_prev);
+                yc = max;
+              } else if (code & BOTTOM) {
+                xc = x_prev + (x - x_prev) * (min - y_prev) / (y - y_prev);
+                yc = min;
+              } else if (code & RIGHT) {
+                yc = y_prev + (y - y_prev) * (max - x_prev) / (x - x_prev);
+                xc = max;
+              } else if (code & LEFT) {
+                yc = y_prev + (y - y_prev) * (min - x_prev) / (x - x_prev);
+                xc = min;
+              }
+              if (code == code0) {
+                update_prev = true;
+                x_prev = xc;
+                y_prev = yc;
+                code0 = outcode(x_prev, y_prev);
+              } else {
+                x = xc;
+                y = yc;
+                code1 = outcode(x, y);
+              }
+            }
+          }
+          if (accept) {
+            // If we accept the segment, but the previous point moved, record
+            // a MOVE_TO the new previous point (which will be followed by a
+            // LINE_TO the current point).
+            if (update_prev) {
+              cairo_path_data_t header_prev, point_prev;
+              header_prev.header = {CAIRO_PATH_MOVE_TO, 2};
+              point_prev.point = {x_prev, y_prev};
+              path_data.push_back(header_prev);
+              path_data.push_back(point_prev);
+            }
+          } else {
+            // If we don't accept the segment, still record a MOVE_TO the raw
+            // destination, as the next point may involve snapping.
+            header.header = {CAIRO_PATH_MOVE_TO, 2};
+          }
+          // Snapping.
           if (snap) {
-            auto [x_prev, y_prev] = *prev;
             if ((x == x_prev) || (y == y_prev)) {
               // If we have a horizontal or a vertical line, snap both
               // coordinates.  NOTE: While it may make sense to only snap in
@@ -256,15 +321,16 @@ void load_path_exact(
           } else {
             point.point = {x, y};
           }
+          // Record the point.
           path_data.push_back(header);
           path_data.push_back(point);
         } else {
+          prev = {x, y};
           header.header = {CAIRO_PATH_MOVE_TO, 2};
           point.point = {x, y};
           path_data.push_back(header);
           path_data.push_back(point);
         }
-        prev = {x, y};
       } else {
         prev = {};
       }
