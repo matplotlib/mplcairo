@@ -1,15 +1,15 @@
 #include "_util.h"
 
+#include <stack>
 #include <vector>
 
 namespace mpl_cairo {
 
 namespace detail {
-cairo_user_data_key_t const SNAP_KEY{0};
-}
-
-namespace {
-cairo_user_data_key_t const FT_KEY{0};
+cairo_user_data_key_t const
+  FILE_KEY{0}, FT_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0}, STATE_KEY{0};
+AdditionalState const DEFAULT_ADDITIONAL_STATE{
+  {}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
 }
 
 py::object UNIT_CIRCLE{};
@@ -64,15 +64,18 @@ void set_ctx_defaults(cairo_t* cr) {
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 }
 
-// Copy the whole path, as there is no cairo_path_reference().
-cairo_path_t* copy_path(cairo_path_t* path) {
-  auto surface = cairo_image_surface_create(CAIRO_FORMAT_A1, 0, 0);
-  auto cr = cairo_create(surface);
-  cairo_surface_destroy(surface);
-  cairo_append_path(cr, path);
-  auto new_path = cairo_copy_path(cr);
-  cairo_destroy(cr);
-  return new_path;
+// Variant of GraphicsContextRenderer::get_additional_state() that is able to
+// handle cairo_t* from other sources as well.
+AdditionalState const& get_additional_state(cairo_t* cr) {
+  auto data = cairo_get_user_data(cr, &detail::STATE_KEY);
+  if (!data) {
+    return detail::DEFAULT_ADDITIONAL_STATE;
+  }
+  auto stack = *static_cast<std::stack<AdditionalState>*>(data);
+  if (stack.empty()) {
+    return detail::DEFAULT_ADDITIONAL_STATE;
+  }
+  return stack.top();
 }
 
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
@@ -220,7 +223,7 @@ void load_path_exact(
     // NOTE: We do not implement full snapping control, as e.g. snapping of
     // Bezier control points (which is forced by SNAP_TRUE) does not make sense
     // anyways.
-    auto snap = bool(cairo_get_user_data(cr, &detail::SNAP_KEY));
+    auto snap = get_additional_state(cr).snap;
     auto has_current = false;
     for (size_t i = 0; i < n; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);
@@ -335,7 +338,8 @@ std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
   auto font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
   if (cairo_font_face_set_user_data(
-        font_face, &FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face))) {
+        font_face, &detail::FT_KEY,
+        ft_face, cairo_destroy_func_t(FT_Done_Face))) {
     cairo_font_face_destroy(font_face);
     FT_Done_Face(ft_face);
     throw std::runtime_error("cairo_font_face_set_user_data failed");

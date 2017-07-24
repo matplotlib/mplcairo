@@ -35,8 +35,6 @@ namespace mpl_cairo {
 using namespace pybind11::literals;
 
 namespace {
-cairo_user_data_key_t const
-  STATE_KEY{0}, FILE_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0};
 // NOTE: The current dpi setting is needed by MathtextBackend to set the
 // correct font size (specifically, to convert points to pixels; apparently,
 // cairo does not retrieve the face size from the FT_Face object as FreeType
@@ -115,12 +113,15 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
   set_ctx_defaults(cr);
   auto stack = new std::stack<AdditionalState>{{AdditionalState{}}};
+  stack->top().alpha = {};
+  stack->top().clip_rectangle = {};
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = py::none();
-  cairo_set_user_data(cr, &STATE_KEY, stack, operator delete);
+  stack->top().snap = true;  // Defaults to None, i.e. True for us.
+  cairo_set_user_data(cr, &detail::STATE_KEY, stack, operator delete);
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
@@ -214,7 +215,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   cairo_surface_set_fallback_resolution(surface, dpi, dpi);
   auto cr = cairo_create(surface);
   cairo_surface_destroy(surface);
-  cairo_set_user_data(cr, &FILE_KEY, write, dec_ref);
+  cairo_set_user_data(cr, &detail::FILE_KEY, write, dec_ref);
   return cr;
 }
 
@@ -264,6 +265,7 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
 void GraphicsContextRenderer::set_antialiased(cairo_antialias_t aa) {
   cairo_set_antialias(cr_, aa);
 }
+
 void GraphicsContextRenderer::set_antialiased(py::object aa) {
   cairo_set_antialias(
       cr_, py::bool_(aa) ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
@@ -363,16 +365,13 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
 
 void GraphicsContextRenderer::set_snap(std::optional<bool> snap) {
   // NOTE: We treat None as True (snap); see load_path_exact() for rationale.
-  // We use cr_ as a practical non-null pointer.
-  cairo_set_user_data(
-      cr_, &detail::SNAP_KEY, (!snap || *snap) ? cr_ : nullptr, nullptr);
+  get_additional_state().snap = !snap || *snap;
 }
 
-GraphicsContextRenderer::AdditionalState&
-GraphicsContextRenderer::get_additional_state() {
+AdditionalState& GraphicsContextRenderer::get_additional_state() {
   return
-    static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
-        cairo_get_user_data(cr_, &STATE_KEY))->top();
+    static_cast<std::stack<AdditionalState>*>(
+        cairo_get_user_data(cr_, &detail::STATE_KEY))->top();
 }
 
 double GraphicsContextRenderer::get_linewidth() {
@@ -387,8 +386,8 @@ rgb_t GraphicsContextRenderer::get_rgb() {
 GraphicsContextRenderer& GraphicsContextRenderer::new_gc() {
   cairo_save(cr_);
   auto& states =
-    *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
-        cairo_get_user_data(cr_, &STATE_KEY));
+    *static_cast<std::stack<AdditionalState>*>(
+        cairo_get_user_data(cr_, &detail::STATE_KEY));
   states.push(states.top());
   return *this;
 }
@@ -403,8 +402,8 @@ void GraphicsContextRenderer::copy_properties(GraphicsContextRenderer* other) {
 
 void GraphicsContextRenderer::restore() {
   auto& states =
-    *static_cast<std::stack<GraphicsContextRenderer::AdditionalState>*>(
-        cairo_get_user_data(cr_, &STATE_KEY));
+    *static_cast<std::stack<AdditionalState>*>(
+        cairo_get_user_data(cr_, &detail::STATE_KEY));
   states.pop();
   cairo_restore(cr_);
 }
@@ -909,8 +908,10 @@ void GraphicsContextRenderer::draw_text(
       mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
     capsule.release();  // Don't decref it.
-    double depth = *static_cast<double*>(
-        cairo_surface_get_user_data(record, &MATHTEXT_TO_BASELINE_KEY));
+    double depth =
+      *static_cast<double*>(
+          cairo_surface_get_user_data(
+            record, &detail::MATHTEXT_TO_BASELINE_KEY));
     cairo_set_source_surface(cr_, record, 0, -depth);
     cairo_paint(cr_);
   } else {
@@ -950,8 +951,10 @@ GraphicsContextRenderer::get_text_width_height_descent(
       mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
     capsule.release();  // ... and don't decref it.
-    double to_baseline = *static_cast<double*>(
-        cairo_surface_get_user_data(record, &MATHTEXT_TO_BASELINE_KEY));
+    double to_baseline =
+      *static_cast<double*>(
+          cairo_surface_get_user_data(
+            record, &detail::MATHTEXT_TO_BASELINE_KEY));
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
     return {width, height, y0 + height - to_baseline};
@@ -1067,7 +1070,8 @@ void MathtextBackend::set_canvas_size(
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
   cairo_surface_set_user_data(
-      surface, &MATHTEXT_TO_BASELINE_KEY, new double{height}, operator delete);
+      surface, &detail::MATHTEXT_TO_BASELINE_KEY,
+      new double{height}, operator delete);
 }
 
 void MathtextBackend::render_glyph(double ox, double oy, py::object info) {

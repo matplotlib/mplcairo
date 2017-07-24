@@ -25,18 +25,6 @@ struct Region {
 };
 
 class GraphicsContextRenderer {
-  // Store the additional state that needs to be pushed/popped as user data on
-  // the cairo_t* to tie their lifetimes.
-  struct AdditionalState {
-    std::optional<double> alpha;
-    std::optional<rectangle_t> clip_rectangle;
-    std::shared_ptr<cairo_path_t> clip_path;
-    std::optional<std::string> hatch;
-    rgba_t hatch_color;
-    double hatch_linewidth;
-    py::object sketch;
-  };
-
   class AdditionalContext {
     GraphicsContextRenderer* gcr_;
 
