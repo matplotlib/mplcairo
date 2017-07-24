@@ -268,13 +268,21 @@ void fill_and_stroke_exact(
   cairo_restore(cr);
 }
 
+long get_hinting_flag() {
+  // NOTE: Should be moved out of backend_agg.
+  return
+    py::module::import("matplotlib.backends.backend_agg")
+    .attr("get_hinting_flag")().cast<long>();
+}
+
 std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
     std::string path) {
   FT_Face ft_face;
   if (FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error("FT_New_Face failed");
   }
-  auto font_face = cairo_ft_font_face_create_for_ft_face(ft_face, 0);
+  auto font_face =
+    cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
   if (cairo_font_face_set_user_data(
         font_face, &FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face))) {
     cairo_font_face_destroy(font_face);

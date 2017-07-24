@@ -37,6 +37,7 @@ void load_path_exact(
 void fill_and_stroke_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix,
     std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
+long get_hinting_flag();
 std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
     std::string path);
 std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(

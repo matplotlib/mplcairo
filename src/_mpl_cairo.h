@@ -175,7 +175,6 @@ class MathtextBackend {
   void render_rect_filled(double x1, double y1, double x2, double y2);
   // NOTE: The base class fails to document the second argument.
   py::capsule get_results(py::object box, py::object /* used_characters */);
-  py::object get_hinting_type();
 };
 
 }

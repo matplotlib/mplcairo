@@ -1094,14 +1094,6 @@ py::capsule MathtextBackend::get_results(
   });
 }
 
-py::object MathtextBackend::get_hinting_type() {
-  // NOTE: Should be moved out of backend_agg.
-  // FIXME: Use cairo_hint_style_t.
-  return
-    py::module::import("matplotlib.backends.backend_agg")
-    .attr("get_hinting_flag")();
-}
-
 PYBIND11_PLUGIN(_mpl_cairo) {
   py::module m("_mpl_cairo", "A cairo backend for matplotlib.");
 
@@ -1162,7 +1154,8 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         return py::array_t<uint8_t>{
           {r.bbox.height, r.bbox.width, 4},
           {r.bbox.width * 4, 4, 1},
-          r.buf.get()}; });
+          r.buf.get()};
+      });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
     // The RendererAgg signature, which is also expected by MixedModeRenderer
@@ -1195,15 +1188,20 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
 
     .def("get_clip_rectangle", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().clip_rectangle; })
+        return gcr.get_additional_state().clip_rectangle;
+      })
     .def("get_clip_path", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().clip_path; })
+        return gcr.get_additional_state().clip_path;
+      })
     .def("get_hatch", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch; })
+        return gcr.get_additional_state().hatch;
+      })
     .def("get_hatch_color", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch_color; })
+        return gcr.get_additional_state().hatch_color;
+      })
     .def("get_hatch_linewidth", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch_linewidth; })
+        return gcr.get_additional_state().hatch_linewidth;
+      })
     // Not strictly needed now.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
@@ -1236,10 +1234,9 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     // NOTE: Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
-    .def("get_canvas_width_height",
-        [](GraphicsContextRenderer& gcr) {
-          return std::tuple{gcr.width_, gcr.height_};
-        })
+    .def("get_canvas_width_height", [](GraphicsContextRenderer& gcr) {
+        return std::tuple{gcr.width_, gcr.height_};
+      })
     // NOTE: Needed for patheffects, which should use get_canvas_width_height().
     .def_readonly("width", &GraphicsContextRenderer::width_)
     .def_readonly("height", &GraphicsContextRenderer::height_)
@@ -1277,7 +1274,9 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("render_glyph", &MathtextBackend::render_glyph)
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)
-    .def("get_hinting_type", &MathtextBackend::get_hinting_type);
+    .def("get_hinting_type", [](MathtextBackend& mb) {
+        return get_hinting_flag();
+      });
 
   return m.ptr();
 }
