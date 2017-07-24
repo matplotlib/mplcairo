@@ -146,7 +146,7 @@ Notes
 Missing features
 ----------------
 
-- Snapping.
+- Path snapping is currently only implemented for codeless Path objects.
 
 Other known issues
 ------------------
