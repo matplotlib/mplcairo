@@ -361,6 +361,13 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
   cairo_set_miter_limit(cr_, cairo_get_line_width(cr_));
 }
 
+void GraphicsContextRenderer::set_snap(std::optional<bool> snap) {
+  // NOTE: We treat None as True (snap); see load_path_exact() for rationale.
+  // We use cr_ as a practical non-null pointer.
+  cairo_set_user_data(
+      cr_, &detail::SNAP_KEY, (!snap || *snap) ? cr_ : nullptr, nullptr);
+}
+
 GraphicsContextRenderer::AdditionalState&
 GraphicsContextRenderer::get_additional_state() {
   return
@@ -1189,6 +1196,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("set_hatch_color", &GraphicsContextRenderer::set_hatch_color)
     .def("set_joinstyle", &GraphicsContextRenderer::set_joinstyle)
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
+    .def("set_snap", &GraphicsContextRenderer::set_snap)
 
     .def("get_clip_rectangle", [](GraphicsContextRenderer& gcr) {
         return gcr.get_additional_state().clip_rectangle;

@@ -95,6 +95,7 @@ class GraphicsContextRenderer {
   void set_hatch_color(py::object hatch);
   void set_joinstyle(std::string js);
   void set_linewidth(double lw);
+  void set_snap(std::optional<bool> snap);
 
   AdditionalState& get_additional_state();
   double get_linewidth();

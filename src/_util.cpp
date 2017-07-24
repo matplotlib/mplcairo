@@ -4,11 +4,15 @@
 
 namespace mpl_cairo {
 
-namespace {
-cairo_user_data_key_t const FT_KEY = {0};
+namespace detail {
+cairo_user_data_key_t const SNAP_KEY{0};
 }
 
-py::object UNIT_CIRCLE = {};
+namespace {
+cairo_user_data_key_t const FT_KEY{0};
+}
+
+py::object UNIT_CIRCLE{};
 
 py::object rc_param(std::string key) {
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
@@ -216,7 +220,7 @@ void load_path_exact(
     // NOTE: We do not implement full snapping control, as e.g. snapping of
     // Bezier control points (which is forced by SNAP_TRUE) does not make sense
     // anyways.
-    auto snap = rc_param("path.snap").cast<bool>();
+    auto snap = bool(cairo_get_user_data(cr, &detail::SNAP_KEY));
     auto has_current = false;
     for (size_t i = 0; i < n; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);

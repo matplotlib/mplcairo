@@ -14,6 +14,10 @@ namespace mpl_cairo {
 
 namespace py = pybind11;
 
+namespace detail {
+extern cairo_user_data_key_t const SNAP_KEY;
+}
+
 using rectangle_t = std::tuple<double, double, double, double>;
 using rgb_t = std::tuple<double, double, double>;
 using rgba_t = std::tuple<double, double, double, double>;
