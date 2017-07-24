@@ -39,7 +39,7 @@ cairo_user_data_key_t const
   STATE_KEY{0}, FILE_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0};
 // NOTE: The current dpi setting is needed by MathtextBackend to set the
 // correct font size (specifically, to convert points to pixels; apparently,
-// cairo does not retrieve the face size from the FT_Face object as freetype
+// cairo does not retrieve the face size from the FT_Face object as FreeType
 // does not provide a way to read it).  So, we update this global variable
 // every time before mathtext parsing.
 double CURRENT_DPI{72};
@@ -1047,13 +1047,16 @@ void MathtextBackend::set_canvas_size(
   // positive (see MathtextBackendAgg.set_canvas_size()).  This is a different
   // convention from get_text_width_height_descent()!
   cairo_destroy(cr_);
-  auto rect = cairo_rectangle_t{0, 0, width, height + depth};
   // NOTE: It would make sense to use {0, depth, width, -(height+depth)} as
   // extents ("upper" character regions correspond to negative y's), but
   // negative extents are buggy as of cairo 1.14.  Moreover, render_glyph() and
   // render_rect_filled() use coordinates relative to the upper left corner, so
   // that doesn't help anyways.
-  auto surface = cairo_recording_surface_create(CAIRO_CONTENT_ALPHA, &rect);
+  // NOTE: It would alternatively make sense to use {0, 0, width,
+  // -(height+depth)} as extents but the required size is actually
+  // underestimated by Matplotlib (possibly due to differing FreeType
+  // options?), leading to extraneous clipping.
+  auto surface = cairo_recording_surface_create(CAIRO_CONTENT_ALPHA, nullptr);
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
   cairo_surface_set_user_data(
@@ -1099,7 +1102,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
   if (py::module::import("matplotlib.ft2font").attr("__freetype_build_type__")
       .cast<std::string>() == "local") {
-    throw std::runtime_error("Local freetype builds are not supported");
+    throw std::runtime_error("Local FreeType builds are not supported");
   }
 
   UNIT_CIRCLE =
