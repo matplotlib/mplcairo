@@ -1,5 +1,7 @@
 #include "_util.h"
 
+#include <vector>
+
 namespace mpl_cairo {
 
 namespace {
@@ -209,6 +211,8 @@ void load_path_exact(
       }
     }
   } else {
+    auto path_data = std::vector<cairo_path_data_t>{};
+    path_data.reserve(2 * n);
     for (size_t i = 0; i < n; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(matrix, &x, &y);
@@ -216,11 +220,26 @@ void load_path_exact(
       x = std::clamp(x, min, max);
       y = std::clamp(y, min, max);
       if (isfinite) {
-        cairo_line_to(cr, x, y);
+        cairo_path_data_t header, point;
+        header.header.type = CAIRO_PATH_LINE_TO;
+        header.header.length = 2;
+        point.point.x = x;
+        point.point.y = y;
+        path_data.push_back(header);
+        path_data.push_back(point);
       } else {
-        cairo_new_sub_path(cr);
+        cairo_path_data_t header, point;
+        header.header.type = CAIRO_PATH_MOVE_TO;
+        header.header.length = 2;
+        point.point.x = x;
+        point.point.y = y;
+        path_data.push_back(header);
+        path_data.push_back(point);
       }
     }
+    auto path =
+      cairo_path_t{CAIRO_STATUS_SUCCESS, path_data.data(), path_data.size()};
+    cairo_append_path(cr, &path);
   }
   cairo_set_matrix(cr, &ctm);
 }
