@@ -1223,14 +1223,9 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("restore", &GraphicsContextRenderer::restore)
 
     // Renderer API.
-    // NOTE: Needed for RendererAgg.get_text_width_height_descent.
+    // Technically unneeded, but exposed by RendererAgg, and useful for
+    // stop_filter().
     .def_readonly("dpi", &GraphicsContextRenderer::dpi_)
-    // NOTE: Needed for RendererAgg.get_text_width_height_descent.
-    .def_readonly(
-        "mathtext_parser", &GraphicsContextRenderer::mathtext_parser_)
-    // NOTE: Needed for RendererAgg.get_text_width_height_descent.
-    .def_readwrite(
-        "_texmanager", &GraphicsContextRenderer::texmanager_)
     // NOTE: Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
