@@ -14,7 +14,8 @@ except ImportError:
 import matplotlib
 from matplotlib import _png, cbook, colors, rcParams
 from matplotlib.backend_bases import (
-    FigureCanvasBase, FigureManagerBase, GraphicsContextBase, RendererBase)
+    _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
+    RendererBase)
 from matplotlib.mathtext import MathTextParser
 
 from . import _mpl_cairo
@@ -267,13 +268,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         print_tif = print_tiff
 
 
-
-try:  # NOTE: try... except until #8773 gets in.
-    from matplotlib.backend_bases import _Backend
-except ImportError:
-    pass
-else:
-    @_Backend.export
-    class _BackendCairo(_Backend):
-        FigureCanvas = FigureCanvasCairo
-        FigureManager = FigureManagerBase
+@_Backend.export
+class _BackendCairo(_Backend):
+    FigureCanvas = FigureCanvasCairo
+    FigureManager = FigureManagerBase
