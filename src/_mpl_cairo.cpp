@@ -1274,7 +1274,16 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)
     .def("restore_region", &GraphicsContextRenderer::restore_region);
 
-  py::class_<MathtextBackend>(m, "MathtextBackendCairo")
+  py::class_<MathtextBackend>(m, "MathtextBackendCairo", R"__doc__(
+Backend rendering mathtext to a cairo recording surface, returned as a capsule.
+
+.. warning::
+
+   As it is not possible to retrieve the current dpi value from a `FT2Font`
+   object, this class relies on `GraphicsContextRendererCairo` to properly set
+   the dpi value (as a global variable, defaulting to 72) whenever `draw_text`
+   or `get_text_width_height_descent` is called.
+)__doc__")
     .def(py::init<>())
     .def("set_canvas_size", &MathtextBackend::set_canvas_size)
     .def("render_glyph", &MathtextBackend::render_glyph)

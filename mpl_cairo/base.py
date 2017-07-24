@@ -3,6 +3,7 @@ from contextlib import ExitStack
 from functools import partialmethod
 from gzip import GzipFile
 import sys
+from threading import RLock
 
 import numpy as np
 try:
@@ -21,6 +22,14 @@ from ._mpl_cairo import surface_type_t
 
 
 MathTextParser._backend_mapping["cairo"] = _mpl_cairo.MathtextBackendCairo
+
+
+# FreeType2 is thread-unsafe (as we rely on Matplotlib's unique FT_Library).
+# Moreover, because mathtext methods globally set the dpi (see _mpl_cairo.cpp
+# for rationale), the _mpl_cairo is also thread-unsafe.  Additionally, features
+# such as start/stop_filter() are essentially also single-threaded.  Thus do
+# not attempt to use fine-grained locks.
+_LOCK = RLock()
 
 
 def _to_rgba(buf):
@@ -130,7 +139,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             renderer = func(*args, **kwargs)
             self._last_renderer_call = (func, args, kwargs), renderer
             if _draw_if_new:
-                self.figure.draw(renderer)
+                with _LOCK:
+                    self.figure.draw(renderer)
             return renderer
 
     # NOTE: Not documented, but needed for tight_layout().
@@ -143,14 +153,16 @@ class FigureCanvasCairo(FigureCanvasBase):
     renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
 
     def draw(self):
-        self.figure.draw(self.get_renderer())
+        with _LOCK:
+            self.figure.draw(self.get_renderer())
         super().draw()
 
     def copy_from_bbox(self, bbox):
         return self.get_renderer(_draw_if_new=True).copy_from_bbox(bbox)
 
     def restore_region(self, region):
-        self.get_renderer().restore_region(region)
+        with _LOCK:
+            self.get_renderer().restore_region(region)
         super().draw()
 
     # FIXME: Native mathtext support (otherwise math looks awful).
@@ -192,8 +204,11 @@ class FigureCanvasCairo(FigureCanvasBase):
             # These arguments are already taken care of by print_figure().
             dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
-        self.draw()
-        img = _to_rgba(self.get_renderer()._get_buffer())
+        with _LOCK:
+            self.draw()
+            if dryrun:
+                return
+            img = _to_rgba(self.get_renderer()._get_buffer())
         full_metadata = OrderedDict(
             [("Software",
               "matplotlib version {}, https://matplotlib.org"
@@ -215,13 +230,15 @@ class FigureCanvasCairo(FigureCanvasBase):
                 dryrun=False, bbox_inches_restore=None,
                 # Remaining kwargs are passed to PIL.
                 **kwargs):
-            self.draw()
-            if dryrun:
-                return
-            img = _to_rgba(self.get_renderer()._get_buffer())
+            with _LOCK:
+                self.draw()
+                if dryrun:
+                    return
+                img = _to_rgba(self.get_renderer()._get_buffer())
             size = self.get_renderer().get_canvas_width_height()
             img = Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
-            # Composite against the background.
+            # Composite against the background (actually we could just skip the
+            # conversion to unpremultiplied RGBA earlier).
             # NOTE: Agg composites against rcParams["savefig.facecolor"].
             background = tuple(
                 (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
@@ -237,10 +254,11 @@ class FigureCanvasCairo(FigureCanvasBase):
                 # These arguments are already taken care of by print_figure().
                 dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
                 dryrun=False, bbox_inches_restore=None):
-            self.draw()
-            if dryrun:
-                return
-            img = _to_rgba(self.get_renderer()._get_buffer())
+            with _LOCK:
+                self.draw()
+                if dryrun:
+                    return
+                img = _to_rgba(self.get_renderer()._get_buffer())
             size = self.get_renderer().get_canvas_width_height()
             (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
             .save(filename_or_obj, format="tiff",
