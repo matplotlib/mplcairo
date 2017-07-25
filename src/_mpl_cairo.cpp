@@ -232,14 +232,10 @@ void GraphicsContextRenderer::_finish() {
 
 void GraphicsContextRenderer::_set_eps(bool eps) {
   auto surface = cairo_get_target(cr_);
-#ifdef MPLCAIRO_HAS_PS
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_PS) {
     throw std::runtime_error("Only PS surfaces are supported");
   }
   cairo_ps_surface_set_eps(surface, eps);
-#else
-  throw std::runtime_error("cairo was built without PS support");
-#endif
 }
 
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
@@ -365,7 +361,9 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
 
 void GraphicsContextRenderer::set_snap(std::optional<bool> snap) {
   // NOTE: We treat None as True (snap); see load_path_exact() for rationale.
-  get_additional_state().snap = !snap || *snap;
+  // NOTE: It appears that even when rcParams["path.snap"] is False, this is
+  // sometimes set to True.
+  get_additional_state().snap = snap.value_or(true);
 }
 
 AdditionalState& GraphicsContextRenderer::get_additional_state() {
@@ -522,7 +520,8 @@ void GraphicsContextRenderer::draw_markers(
   };
 
   double simplify_threshold =
-    rc_param("path.simplify_threshold").cast<double>();
+    has_vector_surface(cr_)
+    ? 0 : rc_param("path.simplify_threshold").cast<double>();
   std::unique_ptr<cairo_pattern_t*[]> patterns;
   size_t n_subpix = 0;
   if (simplify_threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
@@ -753,8 +752,10 @@ void GraphicsContextRenderer::draw_path_collection(
     n_dashes = 1;
     dashes_raw[0] = {};
   }
-  auto cache = PatternCache{
-      rc_param("path.simplify_threshold").cast<double>()};
+  double simplify_threshold =
+    has_vector_surface(cr_)
+    ? 0 : rc_param("path.simplify_threshold").cast<double>();
+  auto cache = PatternCache{simplify_threshold};
   for (size_t i = 0; i < n; ++i) {
     auto path = paths[i % n_paths];
     auto matrix = matrices[i % n_transforms];

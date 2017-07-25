@@ -58,6 +58,20 @@ cairo_matrix_t matrix_from_transform(
   return matrix;
 }
 
+bool has_vector_surface(cairo_t* cr) {
+  switch (cairo_surface_get_type(cairo_get_target(cr))) {
+    case CAIRO_SURFACE_TYPE_IMAGE:
+    case CAIRO_SURFACE_TYPE_XLIB:
+      return false;
+    case CAIRO_SURFACE_TYPE_PDF:
+    case CAIRO_SURFACE_TYPE_PS:
+    case CAIRO_SURFACE_TYPE_SVG:
+      return true;
+    default:
+      throw std::invalid_argument("Unexpected surface type");
+  }
+}
+
 void set_ctx_defaults(cairo_t* cr) {
   // NOTE: Collections and text PathEffects have no joinstyle and implicitly
   // rely on a "round" default.
@@ -71,7 +85,7 @@ AdditionalState const& get_additional_state(cairo_t* cr) {
   if (!data) {
     return detail::DEFAULT_ADDITIONAL_STATE;
   }
-  auto stack = *static_cast<std::stack<AdditionalState>*>(data);
+  auto& stack = *static_cast<std::stack<AdditionalState>*>(data);
   if (stack.empty()) {
     return detail::DEFAULT_ADDITIONAL_STATE;
   }
@@ -239,7 +253,7 @@ void load_path_exact(
     // NOTE: We do not implement full snapping control, as e.g. snapping of
     // Bezier control points (which is forced by SNAP_TRUE) does not make sense
     // anyways.
-    auto snap = get_additional_state(cr).snap;
+    auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
     auto lw = cairo_get_line_width(cr);
     auto snapper =
       (lw < 1) || (std::lround(lw) % 2 == 1)
