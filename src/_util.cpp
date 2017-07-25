@@ -100,7 +100,9 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 //
 // TODO: Path clipping and snapping in the general case (with codes present).
 // NOTE: Matplotlib also *rounds* the linewidth in some cases (see
-// RendererAgg::_draw_path), which helps with snappiness.
+// RendererAgg::_draw_path), which helps with snappiness.  We do not provide
+// this behavior; instead, one should set the default linewidths appropriately
+// if desired.
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
   // NOTE: cairo requires coordinates to fit within a 24-bit signed
@@ -238,6 +240,11 @@ void load_path_exact(
     // Bezier control points (which is forced by SNAP_TRUE) does not make sense
     // anyways.
     auto snap = get_additional_state(cr).snap;
+    auto lw = cairo_get_line_width(cr);
+    auto snapper =
+      (lw < 1) || (std::lround(lw) % 2 == 1)
+      ? [](double x) { return std::floor(x) + .5; }
+      : [](double x) { return std::round(x); };
     // The previous point, if any, before clipping and snapping.
     auto prev = std::optional<std::tuple<double, double>>{};
     for (size_t i = 0; i < n; ++i) {
@@ -312,9 +319,8 @@ void load_path_exact(
               // the direction orthogonal to the displacement, this would cause
               // e.g. axes spines to not line up properly, as they are drawn as
               // independent segments.
-              path_data.back().point =
-                {std::floor(x_prev) + .5, std::floor(y_prev) + .5};
-              point.point = {std::floor(x) + .5, std::floor(y) + .5};
+              path_data.back().point = {snapper(x_prev), snapper(y_prev)};
+              point.point = {snapper(x), snapper(y)};
             } else {
               point.point = {x, y};
             }
