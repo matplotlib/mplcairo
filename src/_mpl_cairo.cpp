@@ -108,7 +108,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   height_{height},
   dpi_{dpi},
   mathtext_parser_{
-      py::module::import("matplotlib.mathtext").attr("MathTextParser")("cairo")},
+      py::module::import("matplotlib.mathtext").attr("MathTextParser")(
+          "cairo")},
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
   set_ctx_defaults(cr);
@@ -913,7 +914,28 @@ void GraphicsContextRenderer::draw_text(
       *static_cast<double*>(
           cairo_surface_get_user_data(
             record, &detail::MATHTEXT_TO_BASELINE_KEY));
-    cairo_set_source_surface(cr_, record, 0, -depth);
+    // NOTE: On Xlib and SVG surfaces, replaying the recording surface seems to
+    // have no effect.  Work around this by drawing it on an image first.
+    switch (cairo_surface_get_type(cairo_get_target(cr_))) {
+      case CAIRO_SURFACE_TYPE_XLIB:
+      case CAIRO_SURFACE_TYPE_SVG: {
+        double x0, y0, width, height;
+        cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
+        auto image =
+          cairo_image_surface_create(
+            CAIRO_FORMAT_ARGB32,
+            int(std::ceil(x0 + width)), int(std::ceil(y0 + height)));
+        auto cr = cairo_create(image);
+        cairo_set_source_surface(cr, record, 0, 0);
+        cairo_paint(cr);
+        cairo_destroy(cr);
+        cairo_set_source_surface(cr_, image, 0, -depth);
+        cairo_surface_destroy(image);
+        break;
+      }
+      default:
+        cairo_set_source_surface(cr_, record, 0, -depth);
+    }
     cairo_paint(cr_);
   } else {
     // Need to set the current point (otherwise later texts will just follow,

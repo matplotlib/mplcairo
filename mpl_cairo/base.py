@@ -166,8 +166,6 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.get_renderer().restore_region(region)
         super().draw()
 
-    # FIXME: Native mathtext support (otherwise math looks awful).
-
     def _print_method(
             self, renderer_factory,
             filename_or_obj, *, dpi=72,
