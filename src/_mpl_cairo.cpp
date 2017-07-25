@@ -55,8 +55,25 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   // unforce it (by setting alpha to None).
   auto [r, g, b, a] = gcr_->get_rgba();
   cairo_set_source_rgba(cr, r, g, b, a);
-  // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.
+  // Apply delayed additional state.
   auto& state = gcr_->get_additional_state();
+  // Set antialiasing: if "true", then pick either CAIRO_ANTIALIAS_FAST or
+  // CAIRO_ANTIALIAS_BEST, depending on the linewidth.  The threshold of 1/3
+  // was determined empirically.
+  std::visit([&](auto aa) {
+    if constexpr (std::is_same_v<decltype(aa), cairo_antialias_t>) {
+      cairo_set_antialias(cr, aa);
+    } else if constexpr (std::is_same_v<decltype(aa), bool>) {
+      if (aa) {
+        auto lw = cairo_get_line_width(cr);
+        cairo_set_antialias(
+            cr, lw < 1. / 3 ? CAIRO_ANTIALIAS_BEST : CAIRO_ANTIALIAS_FAST);
+      } else {
+        cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+      }
+    }
+  }, state.antialias);
+  // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.
   if (auto rectangle = state.clip_rectangle; rectangle) {
     auto [x, y, w, h] = *rectangle;
     cairo_save(cr);
@@ -115,6 +132,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   set_ctx_defaults(cr);
   auto stack = new std::stack<AdditionalState>{{AdditionalState{}}};
   stack->top().alpha = {};
+  stack->top().antialias = true;
   stack->top().clip_rectangle = {};
   stack->top().clip_path = {nullptr, &cairo_path_destroy};
   stack->top().hatch = {};
@@ -260,12 +278,11 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
 }
 
 void GraphicsContextRenderer::set_antialiased(cairo_antialias_t aa) {
-  cairo_set_antialias(cr_, aa);
+  get_additional_state().antialias = aa;
 }
 
 void GraphicsContextRenderer::set_antialiased(py::object aa) {
-  cairo_set_antialias(
-      cr_, py::bool_(aa) ? CAIRO_ANTIALIAS_FAST : CAIRO_ANTIALIAS_NONE);
+  get_additional_state().antialias = py::bool_(aa);
 }
 
 void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
@@ -1188,11 +1205,11 @@ PYBIND11_PLUGIN(_mpl_cairo) {
   py::class_<Region>(m, "_Region")
     // NOTE: Only for patching Agg.
     .def("_get_buffer", [](Region& r) {
-        return py::array_t<uint8_t>{
-          {r.bbox.height, r.bbox.width, 4},
-          {r.bbox.width * 4, 4, 1},
-          r.buf.get()};
-      });
+      return py::array_t<uint8_t>{
+        {r.bbox.height, r.bbox.width, 4},
+        {r.bbox.width * 4, 4, 1},
+        r.buf.get()};
+    });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
     // The RendererAgg signature, which is also expected by MixedModeRenderer
@@ -1226,20 +1243,20 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def("set_snap", &GraphicsContextRenderer::set_snap)
 
     .def("get_clip_rectangle", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().clip_rectangle;
-      })
+      return gcr.get_additional_state().clip_rectangle;
+    })
     .def("get_clip_path", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().clip_path;
-      })
+      return gcr.get_additional_state().clip_path;
+    })
     .def("get_hatch", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch;
-      })
+      return gcr.get_additional_state().hatch;
+    })
     .def("get_hatch_color", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch_color;
-      })
+      return gcr.get_additional_state().hatch_color;
+    })
     .def("get_hatch_linewidth", [](GraphicsContextRenderer& gcr) {
-        return gcr.get_additional_state().hatch_linewidth;
-      })
+      return gcr.get_additional_state().hatch_linewidth;
+    })
     // Not strictly needed now.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
@@ -1268,8 +1285,8 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def("get_canvas_width_height", [](GraphicsContextRenderer& gcr) {
-        return std::tuple{gcr.width_, gcr.height_};
-      })
+      return std::tuple{gcr.width_, gcr.height_};
+    })
     // NOTE: Needed for patheffects, which should use get_canvas_width_height().
     .def_readonly("width", &GraphicsContextRenderer::width_)
     .def_readonly("height", &GraphicsContextRenderer::height_)
@@ -1317,8 +1334,8 @@ Backend rendering mathtext to a cairo recording surface, returned as a capsule.
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)
     .def("get_hinting_type", [](MathtextBackend& mb) {
-        return get_hinting_flag();
-      });
+      return get_hinting_flag();
+    });
 
   return m.ptr();
 }

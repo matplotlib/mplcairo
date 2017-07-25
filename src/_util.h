@@ -8,6 +8,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#include <variant>
+
 extern FT_Library _ft2Library;
 
 namespace mpl_cairo {
@@ -31,6 +33,7 @@ enum class PathCode {
 
 struct AdditionalState {
   std::optional<double> alpha;
+  std::variant<cairo_antialias_t, bool> antialias;
   std::optional<rectangle_t> clip_rectangle;
   std::shared_ptr<cairo_path_t> clip_path;
   std::optional<std::string> hatch;

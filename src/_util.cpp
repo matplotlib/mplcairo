@@ -9,7 +9,7 @@ namespace detail {
 cairo_user_data_key_t const
   FILE_KEY{0}, FT_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0}, STATE_KEY{0};
 AdditionalState const DEFAULT_ADDITIONAL_STATE{
-  {}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
+  {}, {true}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
 }
 
 py::object UNIT_CIRCLE{};

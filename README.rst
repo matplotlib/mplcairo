@@ -112,17 +112,17 @@ must not be compressed with another short argument.
 Notes
 -----
 
-- Antialiasing uses ``CAIRO_ANTIALIAS_FAST`` by default.  The ``antialiased``
-  artist property can also take the ``mpl_cairo.antialias_t.GOOD`` (or
-  ``BEST``, etc.) value for additional control.  ``GOOD``/``BEST`` antialiasing
-  of lines is ~3x slower than using Agg.
+- The artist antialiasing property can be set to any of the
+  ``cairo_antialias_t`` enum values, or ``True`` (the default) or ``False``
+  (which is synonym to ``NONE``).
 
-  **NOTE**: When drawing very thin lines (<0.5px, e.g.
-  ``test_cycles.test_property_collision_plot``), ``CAIRO_ANTIALIAS_FAST`` may
-  lead to artefacts, such that the line disappearing in certain areas.  In that
-  case, switching to ``GOOD``/``BEST`` antialiasing solves the issue.  (It may
-  be possible to do this automatically from within the backend, just as the
-  miter limit is set whenever the line width is set.)
+  Setting antialiasing to ``True`` uses ``FAST`` antialiasing for lines thicker
+  than 1/3px and ``BEST`` for lines thinner than that: the former is around
+  10% faster than Agg, whereas the latter is around 3x slower; however, for
+  very thin lines, the former leads to artefacts such as lines disappearing in
+  certain sections (see e.g. ``test_cycles.test_property_collision_plot`` after
+  forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
+  empirically.
 
 - ``path.simplify_threshold`` is also used to control the accuracy of marker
   stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
