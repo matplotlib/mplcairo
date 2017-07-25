@@ -3,8 +3,7 @@ A (new) cairo backend for Matplotlib
 
 This is a new, near-complete implementation of a cairo backend for Matplotlib.
 Currently, it can be used with either the Qt backend proposed in Matplotlib's
-PR #8771, or the Gtk3 backend proposed in #8772 (which is also included in
-#8771).
+PR #8771, or the Gtk3 backend merged with PR #8772.
 
 This implementation "passes" Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with the
@@ -40,7 +39,7 @@ following commands will build and install mpl_cairo.
     git checkout pr/8771
     python setup.py bdist_wheel)
 
-   # - pkgconfig and cairo from the anaconda channel will *not* work; thus, we
+   # - pkg-config and cairo from the anaconda channel will *not* work; thus, we
    #   may as well install everything from conda-forge.  Note that the Python
    #   version here needs to match the Python version used to build the
    #   Matplotlib wheel; thus, you may need to build the wheel in its own
@@ -48,9 +47,9 @@ following commands will build and install mpl_cairo.
    # - numpy could be built from source too but conda saves us some time.
    # - PyQt is necessary to have an interactive backend (PyGObject, i.e. Gtk3,
    #   can also be used, but it is not conda-installable).
-   conda create -n mpl_cairo -c conda-forge \
-       python=3.6 pkgconfig cairo pybind11\>=2.1 numpy pyqt
-   conda install -n mpl_cairo -c rdonnelly gxx_linux-64\>=7.1
+   conda create -y -n mpl_cairo -c conda-forge \
+       python=3.6 pkg-config cairo pybind11\>=2.1 numpy pyqt
+   conda install -y -n mpl_cairo -c rdonnelly gxx_linux-64\>=7.1
 
    # Activation needs to happen *after* installing gcc_linux-64\>=7.1
    source activate mpl_cairo
@@ -63,11 +62,11 @@ following commands will build and install mpl_cairo.
 
 .. warning::
 
-   Do *not* build matplotlib with the "local freetype" option set (i.e., do not
+   Do *not* build matplotlib with the "local FreeType" option set (i.e., do not
    set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
    ``local_freetype`` entry in ``setup.cfg``).  This option will statically
-   link to a fixed version of freetype, which may be different from the version
-   of freetype cairo is built against, causing binary incompatibilites.
+   link to a fixed version of FreeType, which may be different from the version
+   of FreeType cairo is built against, causing binary incompatibilites.
 
 Then, the backend can be selected by setting the ``MPLBACKEND`` environment
 variable one of
@@ -154,10 +153,16 @@ Other known issues
 - Blitting-based animations to image-base backends (e.g., ``mpl_cairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
   affect Xlib-based backends (e.g., ``mpl_cairo.gtk3``).
+
 - SVG and GTK3 (i.e, Xlib) currently need to rasterize mathtext before
   rendering it (this is mostly an issue for SVG, altough it affects vertical
   hinting for Xlib), as otherwise replaying a recording surface appears to have
   no effect.  This needs to be investigated.
+
+  Meanwhile, a workaround is to generate files in PS format and convert them to
+  SVG e.g. using::
+
+     inkscape --without-gui input.ps --export-plain-svg output.svg
 
 Possible optimizations
 ----------------------

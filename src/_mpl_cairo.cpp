@@ -805,7 +805,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
     py::array_t<double> offsets,
     py::object offset_transform,
     py::array_t<double> fcs,
-    py::object aas,
+    py::object /* aas */,
     py::array_t<double> ecs) {
   if (&gc != this) {
     throw std::invalid_argument("Non-matching GraphicsContext");
@@ -1126,7 +1126,7 @@ py::capsule MathtextBackend::get_results(
   cr_ = nullptr;
   // NOTE: pybind11 2.2 will allow setting the capsule name, for additional
   // safety.
-  return py::capsule(surface, [](void* surface){
+  return py::capsule(surface, [](void* surface) {
     cairo_surface_destroy(reinterpret_cast<cairo_surface_t*>(surface));
   });
 }
