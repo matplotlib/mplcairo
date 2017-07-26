@@ -122,7 +122,7 @@ Notes
   very thin lines, the former leads to artefacts such as lines disappearing in
   certain sections (see e.g. ``test_cycles.test_property_collision_plot`` after
   forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
-  empirically.
+  empirically.  See ``examples/thin_line_antialiasing.py``.
 
 - ``path.simplify_threshold`` is also used to control the accuracy of marker
   stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
