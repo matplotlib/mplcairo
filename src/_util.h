@@ -19,13 +19,12 @@ namespace py = pybind11;
 namespace detail {
 extern cairo_user_data_key_t const
   FILE_KEY, FT_KEY, MATHTEXT_TO_BASELINE_KEY, STATE_KEY;
+extern py::object UNIT_CIRCLE;
 }
 
 using rectangle_t = std::tuple<double, double, double, double>;
 using rgb_t = std::tuple<double, double, double>;
 using rgba_t = std::tuple<double, double, double, double>;
-
-extern py::object UNIT_CIRCLE;
 
 enum class PathCode {
   STOP = 0, MOVETO = 1, LINETO = 2, CURVE3 = 3, CURVE4 = 4, CLOSEPOLY = 79

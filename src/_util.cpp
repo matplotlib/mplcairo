@@ -1,18 +1,36 @@
 #include "_util.h"
 
 #include <stack>
+#include <unordered_map>
 #include <vector>
 
 namespace mpl_cairo {
 
-namespace detail {
-cairo_user_data_key_t const
-  FILE_KEY{0}, FT_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0}, STATE_KEY{0};
+namespace {
 AdditionalState const DEFAULT_ADDITIONAL_STATE{
   {}, {true}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
 }
 
+namespace {
+// Load FreeType error codes.  This approach (modified to use
+// std::unordered_map) is documented in fterror.h.
+// NOTE that if we require FreeType>=2.6.3 then the macro can be replaced by
+// FTERRORS_H_.
+#undef __FTERRORS_H__
+#define FT_ERRORDEF( e, v, s )  { e, s },
+#define FT_ERROR_START_LIST     {
+#define FT_ERROR_END_LIST       };
+
+std::unordered_map<FT_Error, std::string> ft_errors =
+
+#include FT_ERRORS_H
+}
+
+namespace detail {
+cairo_user_data_key_t const
+  FILE_KEY{0}, FT_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0}, STATE_KEY{0};
 py::object UNIT_CIRCLE{};
+}
 
 py::object rc_param(std::string key) {
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
@@ -83,11 +101,11 @@ void set_ctx_defaults(cairo_t* cr) {
 AdditionalState const& get_additional_state(cairo_t* cr) {
   auto data = cairo_get_user_data(cr, &detail::STATE_KEY);
   if (!data) {
-    return detail::DEFAULT_ADDITIONAL_STATE;
+    return DEFAULT_ADDITIONAL_STATE;
   }
   auto& stack = *static_cast<std::stack<AdditionalState>*>(data);
   if (stack.empty()) {
-    return detail::DEFAULT_ADDITIONAL_STATE;
+    return DEFAULT_ADDITIONAL_STATE;
   }
   return stack.top();
 }
@@ -372,7 +390,7 @@ void fill_and_stroke_exact(
   if (fill) {
     auto [r, g, b, a] = *fill;
     cairo_set_source_rgba(cr, r, g, b, a);
-    if (path == UNIT_CIRCLE) {
+    if (path == detail::UNIT_CIRCLE) {
       // Abuse the degenerate-segment handling by cairo to draw circles
       // efficiently.
       cairo_save(cr);
@@ -415,17 +433,22 @@ long get_hinting_flag() {
 std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
     std::string path) {
   FT_Face ft_face;
-  if (FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
-    throw std::runtime_error("FT_New_Face failed");
+  if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face);
+      error) {
+    throw std::runtime_error(
+        "FT_New_Face(_ft2Library, \"" + path + "\", 0, &ft_face) failed with "
+        "error: " + ft_errors.at(error));
   }
   auto font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
-  if (cairo_font_face_set_user_data(
-        font_face, &detail::FT_KEY,
-        ft_face, cairo_destroy_func_t(FT_Done_Face))) {
+  auto status = cairo_font_face_set_user_data(
+      font_face, &detail::FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face));
+  if (status) {
     cairo_font_face_destroy(font_face);
     FT_Done_Face(ft_face);
-    throw std::runtime_error("cairo_font_face_set_user_data failed");
+    throw std::runtime_error(
+        "cairo_font_face_set_user_data failed with error: "
+        + std::string{cairo_status_to_string(status)});
   }
   return {ft_face, font_face};
 }

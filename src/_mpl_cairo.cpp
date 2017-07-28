@@ -1156,7 +1156,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
     throw std::runtime_error("Local FreeType builds are not supported");
   }
 
-  UNIT_CIRCLE =
+  detail::UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
   py::enum_<cairo_antialias_t>(m, "antialias_t")
