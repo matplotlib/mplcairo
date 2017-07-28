@@ -28,6 +28,11 @@ class get_pybind_include(object):
         return pybind11.get_include(self.user)
 
 
+def _get_pkg_config(info, lib):
+    return shlex.split(subprocess.check_output(["pkg-config", info, lib],
+                                               universal_newlines=True))
+
+
 ext_modules = [
     Extension(
         "mpl_cairo._mpl_cairo",
@@ -38,23 +43,17 @@ ext_modules = [
             get_pybind_include(), get_pybind_include(user=True)
         ],
         extra_compile_args=
-            shlex.split(
-                " ".join(subprocess.check_output(["pkg-config", "--cflags", lib],
-                                                 universal_newlines=True)
-                         for lib in ["cairo", "freetype2"]))
-            + {"linux": ["-std=c++17", "-fvisibility=hidden"],
-               "win32": ["/EHsc"],
-               "darwin": ["-std=c++17", "-fvisibility=hidden",
-                          "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
-                   sys.platform],
+            {"linux": ["-std=c++17", "-fvisibility=hidden"],
+             "win32": ["/EHsc"],
+             "darwin": ["-std=c++17", "-fvisibility=hidden",
+                        "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
+                sys.platform]
+            + _get_pkg_config("--cflags", "cairo"),
         extra_link_args=
-            ["-Wl,-rpath,{}".format(Path(matplotlib.ft2font.__file__).parent),
-             "-L{}".format(Path(matplotlib.ft2font.__file__).parent),
-             "-l:{}".format(Path(matplotlib.ft2font.__file__).name)]
-            + shlex.split(
-                " ".join(subprocess.check_output(["pkg-config", "--libs", lib],
-                                                 universal_newlines=True)
-                         for lib in ["cairo"])),
+            _get_pkg_config("--libs", "cairo")
+            + ["-Wl,-rpath,{}".format(Path(matplotlib.ft2font.__file__).parent),
+               "-L{}".format(Path(matplotlib.ft2font.__file__).parent),
+               "-l:{}".format(Path(matplotlib.ft2font.__file__).name)]
     ),
 ]
 
@@ -95,7 +94,7 @@ setup(
     version=__version__,
     cmdclass={"install_lib": install_lib_with_pth},
     author="Antony Lee",
-      url="https://github.com/anntzer/mpl_cairo",
+    url="https://github.com/anntzer/mpl_cairo",
     license="BSD",
     classifiers=[
         "Development Status :: 4 - Beta",
