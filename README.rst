@@ -124,12 +124,26 @@ Notes
   forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
   empirically.  See ``examples/thin_line_antialiasing.py``.
 
-- ``path.simplify_threshold`` is also used to control the accuracy of marker
-  stamping, down to a arbitrarily chosen threshold of 1/16px.  Values lower
-  than that will use the exact (slower) marker drawing path.  Marker stamping
-  is also implemented for scatter plots (which can have multiple colors).
-  Likewise, markers of different sizes get mapped into markers of discretized
-  sizes, with an error bounded by the threshold.
+  Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
+  rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass
+  rcparam validation, using e.g.::
+
+     dict.__setitem__(plt.rcParams, "lines.antialiased", antialias_t.FAST)
+
+  but note that as of Matplotlib 2.0.2, this will cause issues when other parts
+  of Matplotlib try to validate the rcparam (e.g., exiting a ``rc_context``
+  will use the validating setter to restore the original values); the issue is
+  fixed in Matplotlib master (and #8771).
+
+  (Support for ``text.antialiased`` is not implemented yet, mostly because we
+  need to decide on whether to map ``True`` to ``GRAY`` or ``SUBPIXEL``.)
+
+- The ``path.simplify_threshold`` rcparam is used to control the accuracy of
+  marker stamping, down to an arbitrarily chosen threshold of 1/16px.  Values
+  lower than that will use the exact (slower) marker drawing path.  Marker
+  stamping is also implemented for scatter plots (which can have multiple
+  colors).  Likewise, markers of different sizes get mapped into markers of
+  discretized sizes, with an error bounded by the threshold.
 
   **NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
   where the facets join each other.  This is because these functions internally
@@ -154,7 +168,7 @@ Other known issues
   leaves small artefacts at the edges of the blitted region.  This does not
   affect Xlib-based backends (e.g., ``mpl_cairo.gtk3``).
 
-- SVG and GTK3 (i.e, Xlib) currently need to rasterize mathtext before
+- SVG and Xlib (i.e, GTK3) currently need to rasterize mathtext before
   rendering it (this is mostly an issue for SVG, altough it affects vertical
   hinting for Xlib), as otherwise replaying a recording surface appears to have
   no effect.  This needs to be investigated.
@@ -163,6 +177,11 @@ Other known issues
   SVG e.g. using::
 
      inkscape --without-gui input.ps --export-plain-svg output.svg
+
+  Rendering of hinted mathtext is *extremely* slow on Xlib (GTK3).  This may be
+  partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or by
+  implementing a rastered cache (but it would be preferable to fix the general
+  issue with recording surfaces first).
 
 Possible optimizations
 ----------------------
