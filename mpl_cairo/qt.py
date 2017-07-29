@@ -10,6 +10,9 @@ rcsetup.interactive_bk += ["module://mpl_cairo.qt"]  # NOTE: Should be fixed in 
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
     def paintEvent(self, event):
+        # We always repaint the full canvas (doing otherwise would require an
+        # additional copy of the buffer into a contiguous block, so it's not
+        # clear it would be faster).
         renderer = self.get_renderer(_draw_if_new=True)
         buf = renderer._get_buffer()
         address, _ = buf.__array_interface__["data"]
@@ -20,6 +23,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         qimage = QtGui.QImage(address, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         painter = QtGui.QPainter(self)
+        painter.eraseRect(self.rect())
         painter.drawImage(0, 0, qimage)
         self._draw_rect_callback(painter)
         painter.end()
