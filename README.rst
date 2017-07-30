@@ -9,9 +9,8 @@ This implementation “passes” Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with the
 exceptions noted below.
 
-Depending on the specific task, the backend can be anywhere from ~10× faster
-(e.g., stamping circular markers of variable colors) to ~10% faster (e.g.,
-drawing lines) than Agg.
+Depending on the specific task, the backend can be up to ~10× faster (e.g.,
+when stamping circular markers of variable colors) than Agg.
 
 Installation (Linux only)
 -------------------------
@@ -121,12 +120,17 @@ Notes
   (which is synonym to ``NONE``).
 
   Setting antialiasing to ``True`` uses ``FAST`` antialiasing for lines thicker
-  than 1/3px and ``BEST`` for lines thinner than that: the former is around
-  10% faster than Agg, whereas the latter is around 3x slower; however, for
-  very thin lines, the former leads to artefacts such as lines disappearing in
+  than 1/3px and ``BEST`` for lines thinner than that: for lines thinner
+  than 1/3px, the former leads to artefacts such as lines disappearing in
   certain sections (see e.g. ``test_cycles.test_property_collision_plot`` after
   forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
-  empirically.  See ``examples/thin_line_antialiasing.py``.
+  empirically, see ``examples/thin_line_antialiasing.py``.
+
+- For fast drawing of path with many segments, the ``agg.path.chunksize``
+  rcparam should be set to 1000 (see ``examples/line_time_per_edge.py`` for
+  the determination of this value); this causes longer paths to be split into
+  individually rendered sections of 1000 segments each (directly rendering
+  longer paths appears to have superlinear complexity).
 
   Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
   rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass

@@ -57,11 +57,12 @@ def test_axes(benchmark, canvas_cls, axes):
 @pytest.mark.parametrize("joinstyle", ["miter", "round", "bevel"])
 def test_line(
         benchmark, canvas_cls, antialiased, joinstyle, axes, sample_vectors):
-    axes.plot(
-        *sample_vectors, antialiased=antialiased, solid_joinstyle=joinstyle)
-    despine(axes)
-    axes.figure.canvas = canvas_cls(axes.figure)
-    benchmark(axes.figure.canvas.draw)
+    with mpl.rc_context({"agg.path.chunksize": 0}):
+        axes.plot(*sample_vectors,
+                  antialiased=antialiased, solid_joinstyle=joinstyle)
+        despine(axes)
+        axes.figure.canvas = canvas_cls(axes.figure)
+        benchmark(axes.figure.canvas.draw)
 
 
 # For the marker tests, try both square and round markers, as we have a special

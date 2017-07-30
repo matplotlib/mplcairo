@@ -138,7 +138,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   stack->top().hatch = {};
   stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
-  stack->top().sketch = py::none();
+  stack->top().sketch = {};
   stack->top().snap = true;  // Defaults to None, i.e. True for us.
   cairo_set_user_data(cr, &detail::STATE_KEY, stack, operator delete);
 }
@@ -633,26 +633,32 @@ void GraphicsContextRenderer::draw_path(
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto ac = additional_context();
-  if (auto sketch = get_additional_state().sketch; !sketch.is_none()) {
+  auto path_loaded = false;
+  auto matrix = matrix_from_transform(transform, height_);
+  auto load_path = [&]() {
+    if (!path_loaded) {
+      load_path_exact(cr_, path, &matrix);
+      path_loaded = true;
+    }
+  };
+  if (auto sketch = get_additional_state().sketch; sketch) {
     path = path.attr("cleaned")(
-        "transform"_a=transform,
-        "curves"_a=true,
-        "sketch"_a=get_additional_state().sketch);
-    auto matrix = cairo_matrix_t{1, 0, 0, -1, 0, double(height_)};
-    load_path_exact(cr_, path, &matrix);
-  } else {
-    auto matrix = matrix_from_transform(transform, height_);
-    load_path_exact(cr_, path, &matrix);
+        "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
+    matrix = cairo_matrix_t{1, 0, 0, -1, 0, double(height_)};
   }
   if (fc) {
+    load_path();
     cairo_save(cr_);
     auto [r, g, b, a] = to_rgba(*fc, get_additional_state().alpha);
     cairo_set_source_rgba(cr_, r, g, b, a);
     cairo_fill_preserve(cr_);
     cairo_restore(cr_);
   }
-  py::object hatch_path = py::cast(this).attr("get_hatch_path")();
-  if (!hatch_path.is_none()) {
+  if (auto hatch_path =
+        py::cast(this).attr("get_hatch_path")()
+        .cast<std::optional<py::object>>();
+      hatch_path) {
+    load_path();
     cairo_save(cr_);
     auto dpi = int(dpi_);  // Truncating is good enough.
     auto hatch_surface = cairo_image_surface_create(
@@ -668,7 +674,7 @@ void GraphicsContextRenderer::draw_path(
     auto matrix = cairo_matrix_t{
         double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     fill_and_stroke_exact(
-        hatch_cr, hatch_path, &matrix, hatch_color, hatch_color);
+        hatch_cr, *hatch_path, &matrix, hatch_color, hatch_color);
     auto hatch_pattern = cairo_pattern_create_for_surface(hatch_surface);
     cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
     cairo_set_source(cr_, hatch_pattern);
@@ -678,7 +684,19 @@ void GraphicsContextRenderer::draw_path(
     cairo_destroy(hatch_cr);
     cairo_restore(cr_);
   }
-  cairo_stroke(cr_);
+  auto chunksize = rc_param("agg.path.chunksize").cast<int>();
+  if (path_loaded || !chunksize || !path.attr("codes").is_none()) {
+    load_path();
+    cairo_stroke(cr_);
+  } else {
+    auto vertices = path.attr("vertices").cast<py::array_t<double>>();
+    auto n = ssize_t(vertices.shape(0));  // FIXME Remove the cast with pybind 2.2.
+    for (auto i = (decltype(n))(0); i < n; i += chunksize) {
+      load_path_exact(
+          cr_, vertices, i, std::min(i + chunksize + 1, n), &matrix);
+      cairo_stroke(cr_);
+    }
+  }
 }
 
 void GraphicsContextRenderer::draw_path_collection(
@@ -1269,7 +1287,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
         [](GraphicsContextRenderer& gcr) {
           return gcr.get_additional_state().sketch;
         },
-        [](GraphicsContextRenderer& gcr, py::object sketch) {
+        [](GraphicsContextRenderer& gcr, std::optional<py::object> sketch) {
           gcr.get_additional_state().sketch = sketch;
         })
 

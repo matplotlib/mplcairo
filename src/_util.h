@@ -38,7 +38,7 @@ struct AdditionalState {
   std::optional<std::string> hatch;
   rgba_t hatch_color;
   double hatch_linewidth;
-  py::object sketch;
+  std::optional<py::object> sketch;
   bool snap;
 };
 
@@ -57,6 +57,9 @@ AdditionalState const& get_additional_state(cairo_t* cr);
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix);
+void load_path_exact(
+    cairo_t* cr, py::array_t<double> vertices, size_t start, size_t stop,
+    cairo_matrix_t* matrix);
 void fill_and_stroke_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix,
     std::optional<rgba_t> fill, std::optional<rgba_t> stroke);

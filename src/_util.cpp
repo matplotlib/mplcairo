@@ -135,249 +135,276 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
 // RendererAgg::_draw_path), which helps with snappiness.  We do not provide
 // this behavior; instead, one should set the default linewidths appropriately
 // if desired.
+// NOTE: cairo requires coordinates to fit within a 24-bit signed
+// integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091 and
+// test_simplification.test_overflow).  We simply clamp the values in the
+// general case (with codes) -- proper handling would involve clipping
+// of polygons and of Beziers -- and use a simple clippling algorithm
+// (Cohen-Sutherland) in the simple (codeless) case as we expect most segments
+// to be within the clip rectangle -- cairo will run its own clipping later
+// anyways.
+
+// A helper to store the CTM without the need to cairo_save() the full state.
+// (We can't simply call cairo_transform(cr, matrix) because matrix may be
+// degenerate (e.g., for zero-sized markers).  Fortunately, the cost of doing
+// the transformation ourselves seems negligible, if any.)
+class LoadPathContext {
+  cairo_t* cr;
+  cairo_matrix_t ctm;
+
+  public:
+  LoadPathContext(cairo_t* cr) : cr{cr} {
+    cairo_get_matrix(cr, &ctm);
+    cairo_identity_matrix(cr);
+    cairo_new_path(cr);
+  }
+  ~LoadPathContext() {
+    cairo_set_matrix(cr, &ctm);
+  }
+};
+
+// This overload implements the general case.
 void load_path_exact(
     cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
-  // NOTE: cairo requires coordinates to fit within a 24-bit signed
-  // integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091 and
-  // test_simplification.test_overflow).  We simply clamp the values in the
-  // general case (with codes) -- proper handling would involve clipping
-  // of polygons and of Beziers -- and use a simple clippling algorithm
-  // (Cohen-Sutherland) in the simple (codeless) case as we expect most
-  // segments to be within the clip rectangle -- cairo will run its own
-  // clipping later anyways.
   auto const min = double(-(1 << 22)), max = double(1 << 22);
-  // We don't need to cairo_save()/cairo_restore() the whole state, we can just
-  // store the CTM.
-  cairo_matrix_t ctm;
-  cairo_get_matrix(cr, &ctm);
-  cairo_identity_matrix(cr);
-  // We can't simply call cairo_transform(cr, matrix) because matrix may be
-  // degenerate (e.g., for zero-sized markers).  Fortunately, the cost of doing
-  // the transformation ourselves seems negligible (if any).
-  auto vertices =
-    path.attr("vertices").cast<py::array_t<double>>().unchecked<2>();
-  auto maybe_codes = path.attr("codes");
-  auto n = vertices.shape(0);
-  if (vertices.shape(1) != 2) {
+  auto lpc = LoadPathContext{cr};
+
+  auto vertices_keepref = path.attr("vertices").cast<py::array_t<double>>();
+  auto codes_keepref =
+    path.attr("codes").cast<std::optional<py::array_t<int>>>();
+  auto n = vertices_keepref.shape(0);
+  if (vertices_keepref.shape(1) != 2) {
     throw std::invalid_argument("vertices must have shape (n, 2)");
   }
-  cairo_new_path(cr);
-  if (!maybe_codes.is_none()) {
-    // codes may not be an integer array, in which case the following makes a
-    // copy, so we need to keep it around.
-    auto codes_keepref = maybe_codes.cast<py::array_t<int>>();
-    auto codes = codes_keepref.unchecked<1>();
-    if (codes.shape(0) != n) {
-      throw std::invalid_argument(
-          "Lengths of vertices and codes do not match");
-    }
-    for (size_t i = 0; i < n; ++i) {
-      auto x0 = vertices(i, 0), y0 = vertices(i, 1);
-      cairo_matrix_transform_point(matrix, &x0, &y0);
-      auto is_finite = std::isfinite(x0) && std::isfinite(y0);
-      // Better(?) than nothing.
-      x0 = std::clamp(x0, min, max);
-      y0 = std::clamp(y0, min, max);
-      switch (static_cast<PathCode>(codes(i))) {
-        case PathCode::STOP:
-          break;
-        case PathCode::MOVETO:
-          if (is_finite) {
-            cairo_move_to(cr, x0, y0);
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
-        case PathCode::LINETO:
-          if (is_finite) {
-            cairo_line_to(cr, x0, y0);
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
-        // NOTE: The semantics of nonfinite control points are tested in
-        // test_simplification.test_simplify_curve: if the last point is
-        // finite, it sets the current point for the next curve; otherwise,
-        // a new sub-path is created.
-        case PathCode::CURVE3: {
-          auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
-          cairo_matrix_transform_point(matrix, &x1, &y1);
-          i += 1;
-          auto last_finite = std::isfinite(x1) && std::isfinite(y1);
-          if (last_finite) {
-            x1 = std::clamp(x1, min, max);
-            y1 = std::clamp(y1, min, max);
-            if (is_finite && cairo_has_current_point(cr)) {
-              double x_prev, y_prev;
-              cairo_get_current_point(cr, &x_prev, &y_prev);
-              cairo_curve_to(cr,
-                  (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
-                  (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
-                  x1, y1);
-            } else {
-              cairo_move_to(cr, x1, y1);
-            }
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
+  if (!codes_keepref) {
+    load_path_exact(cr, vertices_keepref, 0, n, matrix);
+    return;
+  }
+  auto vertices = vertices_keepref.unchecked<2>();
+  auto codes = codes_keepref->unchecked<1>();
+  if (codes.shape(0) != n) {
+    throw std::invalid_argument("Lengths of vertices and codes do not match");
+  }
+  for (size_t i = 0; i < n; ++i) {
+    auto x0 = vertices(i, 0), y0 = vertices(i, 1);
+    cairo_matrix_transform_point(matrix, &x0, &y0);
+    auto is_finite = std::isfinite(x0) && std::isfinite(y0);
+    // Better(?) than nothing.
+    x0 = std::clamp(x0, min, max);
+    y0 = std::clamp(y0, min, max);
+    switch (static_cast<PathCode>(codes(i))) {
+      case PathCode::STOP:
+        break;
+      case PathCode::MOVETO:
+        if (is_finite) {
+          cairo_move_to(cr, x0, y0);
+        } else {
+          cairo_new_sub_path(cr);
         }
-        case PathCode::CURVE4: {
-          auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1),
-               x2 = vertices(i + 2, 0), y2 = vertices(i + 2, 1);
-          cairo_matrix_transform_point(matrix, &x1, &y1);
-          cairo_matrix_transform_point(matrix, &x2, &y2);
-          i += 2;
-          auto last_finite = std::isfinite(x2) && std::isfinite(y2);
-          if (last_finite) {
-            x1 = std::clamp(x1, min, max);
-            y1 = std::clamp(y1, min, max);
-            x2 = std::clamp(x2, min, max);
-            y2 = std::clamp(y2, min, max);
-            if (is_finite && std::isfinite(x1) && std::isfinite(y1)
-                && cairo_has_current_point(cr)) {
-              cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
-            } else {
-              cairo_move_to(cr, x2, y2);
-            }
-          } else {
-            cairo_new_sub_path(cr);
-          }
-          break;
+        break;
+      case PathCode::LINETO:
+        if (is_finite) {
+          cairo_line_to(cr, x0, y0);
+        } else {
+          cairo_new_sub_path(cr);
         }
-        case PathCode::CLOSEPOLY:
-          cairo_close_path(cr);
-          break;
-      }
-    }
-  } else {
-    auto path_data = std::vector<cairo_path_data_t>{};
-    path_data.reserve(2 * n);
-    auto const LEFT = 1 << 0, RIGHT = 1 << 1, BOTTOM = 1 << 2, TOP = 1 << 3;
-    auto outcode = [&](double x, double y) {
-      auto code = 0;
-      if (x < min) {
-        code |= LEFT;
-      } else if (x > max) {
-        code |= RIGHT;
-      }
-      if (y < min) {
-        code |= BOTTOM;
-      } else if (y > max) {
-        code |= TOP;
-      }
-      return code;
-    };
-    // NOTE: We do not implement full snapping control, as e.g. snapping of
-    // Bezier control points (which is forced by SNAP_TRUE) does not make sense
-    // anyways.
-    auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
-    auto lw = cairo_get_line_width(cr);
-    auto snapper =
-      (lw < 1) || (std::lround(lw) % 2 == 1)
-      ? [](double x) { return std::floor(x) + .5; }
-      : [](double x) { return std::round(x); };
-    // The previous point, if any, before clipping and snapping.
-    auto prev = std::optional<std::tuple<double, double>>{};
-    for (size_t i = 0; i < n; ++i) {
-      auto x = vertices(i, 0), y = vertices(i, 1);
-      cairo_matrix_transform_point(matrix, &x, &y);
-      if (std::isfinite(x) && std::isfinite(y)) {
-        cairo_path_data_t header, point;
-        if (prev) {
-          header.header = {CAIRO_PATH_LINE_TO, 2};
-          auto [x_prev, y_prev] = *prev;
-          prev = {x, y};
-          // Cohen-Sutherland clipping: we expect most segments to be within
-          // the 1 << 22 by 1 << 22 box.
-          auto code0 = outcode(x_prev, y_prev);
-          auto code1 = outcode(x, y);
-          auto accept = false, update_prev = false;
-          while (true) {
-            if (!(code0 | code1)) {
-              accept = true;
-              break;
-            } else if (code0 & code1) {
-              break;
-            } else {
-              auto xc = 0., yc = 0.;
-              auto code = code0 ? code0 : code1;
-              if (code & TOP) {
-                xc = x_prev + (x - x_prev) * (max - y_prev) / (y - y_prev);
-                yc = max;
-              } else if (code & BOTTOM) {
-                xc = x_prev + (x - x_prev) * (min - y_prev) / (y - y_prev);
-                yc = min;
-              } else if (code & RIGHT) {
-                yc = y_prev + (y - y_prev) * (max - x_prev) / (x - x_prev);
-                xc = max;
-              } else if (code & LEFT) {
-                yc = y_prev + (y - y_prev) * (min - x_prev) / (x - x_prev);
-                xc = min;
-              }
-              if (code == code0) {
-                update_prev = true;
-                x_prev = xc;
-                y_prev = yc;
-                code0 = outcode(x_prev, y_prev);
-              } else {
-                x = xc;
-                y = yc;
-                code1 = outcode(x, y);
-              }
-            }
-          }
-          if (accept) {
-            // If we accept the segment, but the previous point moved, record
-            // a MOVE_TO the new previous point (which will be followed by a
-            // LINE_TO the current point).
-            if (update_prev) {
-              cairo_path_data_t header_prev, point_prev;
-              header_prev.header = {CAIRO_PATH_MOVE_TO, 2};
-              point_prev.point = {x_prev, y_prev};
-              path_data.push_back(header_prev);
-              path_data.push_back(point_prev);
-            }
+        break;
+      // NOTE: The semantics of nonfinite control points are tested in
+      // test_simplification.test_simplify_curve: if the last point is finite,
+      // it sets the current point for the next curve; otherwise, a new
+      // sub-path is created.
+      case PathCode::CURVE3: {
+        auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
+        cairo_matrix_transform_point(matrix, &x1, &y1);
+        i += 1;
+        auto last_finite = std::isfinite(x1) && std::isfinite(y1);
+        if (last_finite) {
+          x1 = std::clamp(x1, min, max);
+          y1 = std::clamp(y1, min, max);
+          if (is_finite && cairo_has_current_point(cr)) {
+            double x_prev, y_prev;
+            cairo_get_current_point(cr, &x_prev, &y_prev);
+            cairo_curve_to(cr,
+                (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
+                (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
+                x1, y1);
           } else {
-            // If we don't accept the segment, still record a MOVE_TO the raw
-            // destination, as the next point may involve snapping.
-            header.header = {CAIRO_PATH_MOVE_TO, 2};
+            cairo_move_to(cr, x1, y1);
           }
-          // Snapping.
-          if (snap) {
-            if ((x == x_prev) || (y == y_prev)) {
-              // If we have a horizontal or a vertical line, snap both
-              // coordinates.  NOTE: While it may make sense to only snap in
-              // the direction orthogonal to the displacement, this would cause
-              // e.g. axes spines to not line up properly, as they are drawn as
-              // independent segments.
-              path_data.back().point = {snapper(x_prev), snapper(y_prev)};
-              point.point = {snapper(x), snapper(y)};
-            } else {
-              point.point = {x, y};
+        } else {
+          cairo_new_sub_path(cr);
+        }
+        break;
+      }
+      case PathCode::CURVE4: {
+        auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1),
+             x2 = vertices(i + 2, 0), y2 = vertices(i + 2, 1);
+        cairo_matrix_transform_point(matrix, &x1, &y1);
+        cairo_matrix_transform_point(matrix, &x2, &y2);
+        i += 2;
+        auto last_finite = std::isfinite(x2) && std::isfinite(y2);
+        if (last_finite) {
+          x1 = std::clamp(x1, min, max);
+          y1 = std::clamp(y1, min, max);
+          x2 = std::clamp(x2, min, max);
+          y2 = std::clamp(y2, min, max);
+          if (is_finite && std::isfinite(x1) && std::isfinite(y1)
+              && cairo_has_current_point(cr)) {
+            cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
+          } else {
+            cairo_move_to(cr, x2, y2);
+          }
+        } else {
+          cairo_new_sub_path(cr);
+        }
+        break;
+      }
+      case PathCode::CLOSEPOLY:
+        cairo_close_path(cr);
+        break;
+    }
+  }
+}
+
+// This overload implements the case of a codeless path.  Exposing start and
+// stop in the signature helps implementing support for agg.path.chunksize.
+void load_path_exact(
+    cairo_t* cr, py::array_t<double> vertices_keepref,
+    size_t start, size_t stop, cairo_matrix_t* matrix) {
+  auto const min = double(-(1 << 22)), max = double(1 << 22);
+  auto lpc = LoadPathContext{cr};
+
+  auto vertices = vertices_keepref.unchecked<2>();
+  auto n = vertices.shape(0);
+  if (!((0 <= start) && (start <= stop) && (stop <= n))) {
+    throw std::invalid_argument("Invalid bounds for sub-path");
+  }
+
+  auto path_data = std::vector<cairo_path_data_t>{};
+  path_data.reserve(2 * (stop - start));
+  auto const LEFT = 1 << 0, RIGHT = 1 << 1, BOTTOM = 1 << 2, TOP = 1 << 3;
+  auto outcode = [&](double x, double y) {
+    auto code = 0;
+    if (x < min) {
+      code |= LEFT;
+    } else if (x > max) {
+      code |= RIGHT;
+    }
+    if (y < min) {
+      code |= BOTTOM;
+    } else if (y > max) {
+      code |= TOP;
+    }
+    return code;
+  };
+  // NOTE: We do not implement full snapping control, as e.g. snapping of
+  // Bezier control points (which is forced by SNAP_TRUE) does not make sense
+  // anyways.
+  auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
+  auto lw = cairo_get_line_width(cr);
+  auto snapper =
+    (lw < 1) || (std::lround(lw) % 2 == 1)
+    ? [](double x) { return std::floor(x) + .5; }
+    : [](double x) { return std::round(x); };
+  // The previous point, if any, before clipping and snapping.
+  auto prev = std::optional<std::tuple<double, double>>{};
+  for (size_t i = start; i < stop; ++i) {
+    auto x = vertices(i, 0), y = vertices(i, 1);
+    cairo_matrix_transform_point(matrix, &x, &y);
+    if (std::isfinite(x) && std::isfinite(y)) {
+      cairo_path_data_t header, point;
+      if (prev) {
+        header.header = {CAIRO_PATH_LINE_TO, 2};
+        auto [x_prev, y_prev] = *prev;
+        prev = {x, y};
+        // Cohen-Sutherland clipping: we expect most segments to be within
+        // the 1 << 22 by 1 << 22 box.
+        auto code0 = outcode(x_prev, y_prev);
+        auto code1 = outcode(x, y);
+        auto accept = false, update_prev = false;
+        while (true) {
+          if (!(code0 | code1)) {
+            accept = true;
+            break;
+          } else if (code0 & code1) {
+            break;
+          } else {
+            auto xc = 0., yc = 0.;
+            auto code = code0 ? code0 : code1;
+            if (code & TOP) {
+              xc = x_prev + (x - x_prev) * (max - y_prev) / (y - y_prev);
+              yc = max;
+            } else if (code & BOTTOM) {
+              xc = x_prev + (x - x_prev) * (min - y_prev) / (y - y_prev);
+              yc = min;
+            } else if (code & RIGHT) {
+              yc = y_prev + (y - y_prev) * (max - x_prev) / (x - x_prev);
+              xc = max;
+            } else if (code & LEFT) {
+              yc = y_prev + (y - y_prev) * (min - x_prev) / (x - x_prev);
+              xc = min;
             }
+            if (code == code0) {
+              update_prev = true;
+              x_prev = xc;
+              y_prev = yc;
+              code0 = outcode(x_prev, y_prev);
+            } else {
+              x = xc;
+              y = yc;
+              code1 = outcode(x, y);
+            }
+          }
+        }
+        if (accept) {
+          // If we accept the segment, but the previous point moved, record
+          // a MOVE_TO the new previous point (which will be followed by a
+          // LINE_TO the current point).
+          if (update_prev) {
+            cairo_path_data_t header_prev, point_prev;
+            header_prev.header = {CAIRO_PATH_MOVE_TO, 2};
+            point_prev.point = {x_prev, y_prev};
+            path_data.push_back(header_prev);
+            path_data.push_back(point_prev);
+          }
+        } else {
+          // If we don't accept the segment, still record a MOVE_TO the raw
+          // destination, as the next point may involve snapping.
+          header.header = {CAIRO_PATH_MOVE_TO, 2};
+        }
+        // Snapping.
+        if (snap) {
+          if ((x == x_prev) || (y == y_prev)) {
+            // If we have a horizontal or a vertical line, snap both
+            // coordinates.  NOTE: While it may make sense to only snap in
+            // the direction orthogonal to the displacement, this would cause
+            // e.g. axes spines to not line up properly, as they are drawn as
+            // independent segments.
+            path_data.back().point = {snapper(x_prev), snapper(y_prev)};
+            point.point = {snapper(x), snapper(y)};
           } else {
             point.point = {x, y};
           }
-          // Record the point.
-          path_data.push_back(header);
-          path_data.push_back(point);
         } else {
-          prev = {x, y};
-          header.header = {CAIRO_PATH_MOVE_TO, 2};
           point.point = {x, y};
-          path_data.push_back(header);
-          path_data.push_back(point);
         }
+        // Record the point.
+        path_data.push_back(header);
+        path_data.push_back(point);
       } else {
-        prev = {};
+        prev = {x, y};
+        header.header = {CAIRO_PATH_MOVE_TO, 2};
+        point.point = {x, y};
+        path_data.push_back(header);
+        path_data.push_back(point);
       }
+    } else {
+      prev = {};
     }
-    auto path =
-      cairo_path_t{CAIRO_STATUS_SUCCESS, path_data.data(), path_data.size()};
-    cairo_append_path(cr, &path);
   }
-  cairo_set_matrix(cr, &ctm);
+  auto path =
+    cairo_path_t{CAIRO_STATUS_SUCCESS, path_data.data(), path_data.size()};
+  cairo_append_path(cr, &path);
 }
 
 // Fill and/or stroke `path` onto `cr` after transformation by `matrix`,
