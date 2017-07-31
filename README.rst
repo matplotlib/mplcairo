@@ -5,11 +5,11 @@ This is a new, near-complete implementation of a cairo backend for Matplotlib.
 Currently, it can be used with either the Qt backend proposed in Matplotlib's
 PR #8771, or the Gtk3 backend merged with PR #8772.
 
-This implementation "passes" Matplotlib's entire image comparison test suite
+This implementation “passes” Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with the
 exceptions noted below.
 
-Depending on the specific task, the backend can be anywhere from ~10x faster
+Depending on the specific task, the backend can be anywhere from ~10× faster
 (e.g., stamping circular markers of variable colors) to ~10% faster (e.g.,
 drawing lines) than Agg.
 
@@ -22,8 +22,9 @@ Dependencies:
 - cairo≥1.12 (needed for mesh gradient support),
 - a C++ compiler with C++17 support, e.g. GCC≥7.1.
 
-Such dependencies are available on conda and conda-forge.  Using conda, the
-following commands will build and install mpl_cairo.
+Such dependencies are available on conda and conda-forge, although the
+conda-forge build of cairo is (on my setup) ~2× slower than a “native” build.
+Using conda, the following commands will build and install mpl_cairo.
 
 .. code-block:: sh
 
@@ -62,7 +63,7 @@ following commands will build and install mpl_cairo.
 
 .. warning::
 
-   Do *not* build matplotlib with the "local FreeType" option set (i.e., do not
+   Do *not* build matplotlib with the “local FreeType” option set (i.e., do not
    set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
    ``local_freetype`` entry in ``setup.cfg``).  This option will statically
    link to a fixed version of FreeType, which may be different from the version
@@ -100,6 +101,9 @@ call (e.g.):
 .. code-block:: sh
 
    pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
+
+Keep in mind that conda-forge's cairo is (on my setup) ~2× slower than a
+“native” build of cairo.
 
 Test suite
 ----------
