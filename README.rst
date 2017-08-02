@@ -127,10 +127,10 @@ Notes
   empirically, see ``examples/thin_line_antialiasing.py``.
 
 - For fast drawing of path with many segments, the ``agg.path.chunksize``
-  rcparam should be set to 1000 (see ``examples/line_time_per_edge.py`` for
-  the determination of this value); this causes longer paths to be split into
-  individually rendered sections of 1000 segments each (directly rendering
-  longer paths appears to have superlinear complexity).
+  rcparam should be set to 1000 (see ``examples/time_drawing_per_element.py``
+  for the determination of this value); this causes longer paths to be split
+  into individually rendered sections of 1000 segments each (directly rendering
+  longer paths appears to have slightly superlinear complexity).
 
   Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
   rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass

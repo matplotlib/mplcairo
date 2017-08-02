@@ -1,4 +1,4 @@
-"""Profile line drawing across various conditions.
+"""Profile drawing methods as a function of input size and rcparams.
 """
 
 from argparse import (
@@ -8,19 +8,20 @@ import sys
 import time
 
 from matplotlib import backends, pyplot as plt
+from matplotlib.axes import Axes
 import numpy as np
 
 
-def get_times(ax, n_edges):
+def get_times(ax, method, n_elems):
     all_times = []
 
-    for n in n_edges:
-        print("{} edges".format(n))
+    for n in n_elems:
+        print("{} elements".format(n))
         ax.set(xticks=[], yticks=[])
         for spine in ax.spines.values():
             plt.setp(spine, visible=False)
         data = np.random.RandomState(0).random_sample((2, n + 1))
-        ax.plot(*data, solid_joinstyle="miter")
+        getattr(ax, method)(*data)
 
         def profile(func=ax.figure.canvas.draw,
                     max_time=1,
@@ -49,7 +50,7 @@ def main():
         epilog="""\
 Example usage:
 
-$ python %(prog)s \\
+$ python %(prog)s plot \\
     '{{"backend": "agg"}}' \\
     '{{"backend": "agg", "agg.path.chunksize": 1000}}' \\
     '{{"backend": "module://mpl_cairo.base", \\
@@ -59,18 +60,21 @@ $ python %(prog)s \\
 """.format(sys.argv[0]))
 
     parser.add_argument(
-        "-n", "--n-edges", type=lambda s: [int(n) for n in s.split(",")],
+        "-n", "--n-elements", type=lambda s: [int(n) for n in s.split(",")],
         default=[10, 30, 100, 300, 1000, 3000, 10000],
-        help="comma-separated list of number of edges")
+        help="comma-separated list of number of elements")
+    parser.add_argument(
+        "method", choices=["plot", "fill", "scatter"],
+        help="Axes method")
     parser.add_argument(
         "rcs", type=eval, nargs="+", metavar="rc",
         help="rc parameters to test (will be eval'd)")
     args = parser.parse_args()
-
-    n_edges = args.n_edges
+    n_elems = args.n_elements
+    method = args.method
     rcs = args.rcs
-    results = []
 
+    results = []
     for rc in rcs:
         # Emulate rc_context, but without the validation (to support
         # mpl_cairo's antialiasing enum).
@@ -80,36 +84,35 @@ $ python %(prog)s \\
             fig, ax = plt.subplots()
             backend_mod, *_ = backends.pylab_setup(plt.rcParams["backend"])
             ax.figure.canvas = backend_mod.FigureCanvas(ax.figure)
-            results.append(get_times(ax, n_edges))
+            results.append(get_times(ax, method, n_elems))
             plt.close(fig)
         finally:
             dict.update(plt.rcParams, orig_rc)
 
     _, main_ax = plt.subplots()
-    main_ax.set(xlabel="number of edges", ylabel="time per edge (s)",
+    main_ax.set(xlabel="number of elements", ylabel="time per edge (s)",
                 xscale="log", yscale="log")
 
     for i, (rc, all_times) in enumerate(zip(rcs, results)):
+        normalized = [
+            np.array(times) / n for n, times in zip(n_elems, all_times)]
+        for norm in normalized:
+            norm.sort()
 
-        # Use the minimum time as aggregate.
-        main_ax.plot(
-            n_edges,
-            [np.min(times) / n for n, times in zip(n_edges, all_times)],
-            "o", label=pprint.pformat(rc))
+        # Use the minimum time as aggregate: the cdfs show that the
+        # distributions are very long tailed.
+        main_ax.plot(n_elems, [norm[0] for norm in normalized],
+                     "o", label=pprint.pformat(rc))
 
-        fig, detail_axs = plt.subplots(
-            len(n_edges), squeeze=False, sharex=True)
-        detail_axs = detail_axs.ravel()
+        fig, detail_ax = plt.subplots()
         fig.suptitle(pprint.pformat(rc))
-        min_time = np.min(np.concatenate(all_times))
-        max_time = np.max(np.concatenate(all_times))
-        bins = np.geomspace(.99 * min_time,  1.01 * max_time)
-        for ax, n, times in zip(detail_axs, n_edges, all_times):
-            ax.hist(times, bins, normed=True, color="C{}".format(i))
-            ax.set(xlabel="$t$ (s)", xscale="log")
-            ax.text(.95, .95, "{} edges (N={})".format(n, len(times)),
-                    ha="right", va="top", transform=ax.transAxes)
-            ax.label_outer()
+        for n, norm in zip(n_elems, normalized):
+            detail_ax.plot(norm, np.linspace(0, 1, len(norm))[::-1],
+                           drawstyle="steps-pre",
+                           label="{} elements (N={})".format(n, len(norm)))
+        detail_ax.set(xlabel="time per element (s)", xscale="log",
+                      ylabel="CCDF")
+        detail_ax.legend(loc="upper right")
 
     main_ax.legend(loc="upper center")
 
