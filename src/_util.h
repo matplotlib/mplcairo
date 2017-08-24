@@ -10,6 +10,8 @@
 
 #include <variant>
 
+// Matplotlib's own FT_Library, which we load at runtime by dlopen()ing the
+// ft2font extension module with RTLD_GLOBAL.
 extern FT_Library _ft2Library;
 
 namespace mpl_cairo {

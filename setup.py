@@ -7,8 +7,6 @@ from tempfile import NamedTemporaryFile
 from setuptools import Extension, find_packages, setup
 from setuptools.command.install_lib import install_lib
 
-import matplotlib.ft2font
-
 
 __version__ = "0.0"
 
@@ -51,9 +49,6 @@ ext_modules = [
             + _get_pkg_config("--cflags", "cairo"),
         extra_link_args=
             _get_pkg_config("--libs", "cairo")
-            + ["-Wl,-rpath,{}".format(Path(matplotlib.ft2font.__file__).parent),
-               "-L{}".format(Path(matplotlib.ft2font.__file__).parent),
-               "-l:{}".format(Path(matplotlib.ft2font.__file__).name)]
     ),
 ]
 
