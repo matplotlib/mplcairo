@@ -185,6 +185,19 @@ void load_path_exact(
   if (codes.shape(0) != n) {
     throw std::invalid_argument("Lengths of vertices and codes do not match");
   }
+  // Snap control.
+  auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
+  auto lw = cairo_get_line_width(cr);
+  auto snapper =
+    snap
+    ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
+        ? [](double x) { return std::floor(x) + .5; }
+        : [](double x) { return std::round(x); })
+    // Snap between pixels if lw is exactly zero 0 (in which case the edge is
+    // defined by the fill) or if lw rounds to an even value other than 0
+    // (minimizing the alpha due to antialiasing).
+    : [](double x) { return x; };
+  // Main loop.
   for (size_t i = 0; i < n; ++i) {
     auto x0 = vertices(i, 0), y0 = vertices(i, 1);
     cairo_matrix_transform_point(matrix, &x0, &y0);
@@ -197,14 +210,14 @@ void load_path_exact(
         break;
       case PathCode::MOVETO:
         if (is_finite) {
-          cairo_move_to(cr, x0, y0);
+          cairo_move_to(cr, snapper(x0), snapper(y0));
         } else {
           cairo_new_sub_path(cr);
         }
         break;
       case PathCode::LINETO:
         if (is_finite) {
-          cairo_line_to(cr, x0, y0);
+          cairo_line_to(cr, snapper(x0), snapper(y0));
         } else {
           cairo_new_sub_path(cr);
         }
@@ -227,9 +240,9 @@ void load_path_exact(
             cairo_curve_to(cr,
                 (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
                 (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
-                x1, y1);
+                snapper(x1), snapper(y1));
           } else {
-            cairo_move_to(cr, x1, y1);
+            cairo_move_to(cr, snapper(x1), snapper(y1));
           }
         } else {
           cairo_new_sub_path(cr);
@@ -250,9 +263,9 @@ void load_path_exact(
           y2 = std::clamp(y2, min, max);
           if (is_finite && std::isfinite(x1) && std::isfinite(y1)
               && cairo_has_current_point(cr)) {
-            cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
+            cairo_curve_to(cr, x0, y0, x1, y1, snapper(x2), snapper(y2));
           } else {
-            cairo_move_to(cr, x2, y2);
+            cairo_move_to(cr, snapper(x2), snapper(y2));
           }
         } else {
           cairo_new_sub_path(cr);
@@ -297,9 +310,7 @@ void load_path_exact(
     }
     return code;
   };
-  // NOTE: We do not implement full snapping control, as e.g. snapping of
-  // Bezier control points (which is forced by SNAP_TRUE) does not make sense
-  // anyways.
+  // Snap control.
   auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
   auto lw = cairo_get_line_width(cr);
   auto snapper =
@@ -308,6 +319,7 @@ void load_path_exact(
     : [](double x) { return std::round(x); };
   // The previous point, if any, before clipping and snapping.
   auto prev = std::optional<std::tuple<double, double>>{};
+  // Main loop.
   for (size_t i = start; i < stop; ++i) {
     auto x = vertices(i, 0), y = vertices(i, 1);
     cairo_matrix_transform_point(matrix, &x, &y);

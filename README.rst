@@ -164,11 +164,6 @@ Notes
   which is the documented behavior, even though all builtin renderers only draw
   markers at straight or Bézier segment ends.
 
-Missing features
-----------------
-
-- Path snapping is currently only implemented for codeless Path objects.
-
 Other known issues
 ------------------
 
