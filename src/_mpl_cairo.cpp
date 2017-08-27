@@ -514,6 +514,8 @@ void GraphicsContextRenderer::draw_markers(
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto ac = additional_context();
+  auto old_snap = get_additional_state().snap;
+  get_additional_state().snap = false;
 
   // As paths store their vertices in an array, the .cast<>() will not make a
   // copy and we don't need to explicitly keep the intermediate result alive.
@@ -622,6 +624,8 @@ void GraphicsContextRenderer::draw_markers(
       cairo_restore(cr_);
     }
   }
+
+  get_additional_state().snap = old_snap;
 }
 
 void GraphicsContextRenderer::draw_path(
@@ -715,10 +719,7 @@ void GraphicsContextRenderer::draw_path_collection(
     py::object urls,
     std::string offset_position) {
   // TODO: Persistent cache; cache eviction policy.
-  if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
-  }
-  auto ac = additional_context();
+
   // Fall back onto the slow implementation in the following, non-supported
   // cases:
   //   - Hatching is used: the stamp cache cannot be used anymore, as the hatch
@@ -738,6 +739,14 @@ void GraphicsContextRenderer::draw_path_collection(
           fcs, ecs, lws, dashes, aas, urls, offset_position);
     return;
   }
+
+  if (&gc != this) {
+    throw std::invalid_argument("Non-matching GraphicsContext");
+  }
+  auto ac = additional_context();
+  auto old_snap = get_additional_state().snap;
+  get_additional_state().snap = false;
+
   auto n_paths = paths.size(),
        n_transforms = transforms.size(),
        n_offsets = offsets.shape(0),
@@ -823,6 +832,8 @@ void GraphicsContextRenderer::draw_path_collection(
     // We drop urls as they should be handled in a post-processing step anyways
     // (cairo doesn't seem to support them?).
   }
+
+  get_additional_state().snap = old_snap;
 }
 
 // While draw_quad_mesh is technically optional, the fallback is to use
