@@ -28,13 +28,14 @@ MathTextParser._backend_mapping["cairo"] = _mpl_cairo.MathtextBackendCairo
 # FreeType2 is thread-unsafe (as we rely on Matplotlib's unique FT_Library).
 # Moreover, because mathtext methods globally set the dpi (see _mpl_cairo.cpp
 # for rationale), the _mpl_cairo is also thread-unsafe.  Additionally, features
-# such as start/stop_filter() are essentially also single-threaded.  Thus do
+# such as start/stop_filter() are essentially also single-threaded.  Thus, do
 # not attempt to use fine-grained locks.
 _LOCK = RLock()
 
 
 def _to_rgba(buf):
-    # Native ARGB32 to (R, G, B, A).
+    """Convert a buffer from premultiplied ARGB32 to unmultiplied RGBA8888.
+    """
     # Using .take() instead of indexing ensures C-contiguity of the result.
     rgba = buf.take(
         [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0], axis=2)
@@ -50,6 +51,8 @@ def _to_rgba(buf):
 
 
 def _get_drawn_subarray_and_bounds(img):
+    """Return the drawn region of a buffer and its ``(l, b, w, h)`` bounds.
+    """
     drawn = img[..., 3] != 0
     l, r = drawn.any(axis=0).nonzero()[0][[0, -1]]
     b, t = drawn.any(axis=1).nonzero()[0][[0, -1]]
@@ -57,6 +60,7 @@ def _get_drawn_subarray_and_bounds(img):
 
 
 _mpl_cairo._Region.to_string_argb = (
+    # For spoofing BackendAgg.BufferRegion.
     lambda self:
     _to_rgba(self._get_buffer())[
         ..., [2, 1, 0, 3] if sys.byteorder == "little" else [3, 0, 1, 2]]

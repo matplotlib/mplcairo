@@ -205,6 +205,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
     return
       write(py::memoryview{buf_info}).cast<unsigned int>()
       == length
+      // NOTE: This does not appear to affect the context status.
       ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
   };
   auto write = file.attr("write").cast<py::handle>().inc_ref().ptr();

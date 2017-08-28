@@ -164,8 +164,8 @@ Notes
   which is the documented behavior, even though all builtin renderers only draw
   markers at straight or Bézier segment ends.
 
-Other known issues
-------------------
+Known issues
+------------
 
 - Blitting-based animations to image-base backends (e.g., ``mpl_cairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
