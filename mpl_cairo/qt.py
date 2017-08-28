@@ -10,6 +10,8 @@ rcsetup.interactive_bk += ["module://mpl_cairo.qt"]  # NOTE: Should be fixed in 
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
     def paintEvent(self, event):
+        if self._update_dpi():
+            return
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
