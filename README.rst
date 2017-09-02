@@ -18,7 +18,8 @@ Installation (Linux only)
 Dependencies:
 
 - Python 3,
-- cairo≥1.12 (needed for mesh gradient support),
+- cairo≥1.12 (this version is needed for mesh gradient support),
+- pybind11≥2.2,
 - a C++ compiler with C++17 support, e.g. GCC≥7.1.
 
 Such dependencies are available on conda and conda-forge, although the
@@ -48,7 +49,7 @@ Using conda, the following commands will build and install mpl_cairo.
    # - PyQt is necessary to have an interactive backend (PyGObject, i.e. Gtk3,
    #   can also be used, but it is not conda-installable).
    conda create -y -n mpl_cairo -c conda-forge \
-       python=3.6 pkg-config cairo pybind11\>=2.1 numpy pyqt
+       python=3.6 pkg-config cairo pybind11\>=2.2 numpy pyqt
    conda install -y -n mpl_cairo -c rdonnelly gxx_linux-64\>=7.1
 
    # Activation needs to happen *after* installing gcc_linux-64\>=7.1

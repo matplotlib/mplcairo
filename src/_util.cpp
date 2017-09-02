@@ -198,7 +198,7 @@ void load_path_exact(
     // (minimizing the alpha due to antialiasing).
     : [](double x) { return x; };
   // Main loop.
-  for (size_t i = 0; i < n; ++i) {
+  for (auto i = 0; i < n; ++i) {
     auto x0 = vertices(i, 0), y0 = vertices(i, 1);
     cairo_matrix_transform_point(matrix, &x0, &y0);
     auto is_finite = std::isfinite(x0) && std::isfinite(y0);
@@ -283,7 +283,7 @@ void load_path_exact(
 // stop in the signature helps implementing support for agg.path.chunksize.
 void load_path_exact(
     cairo_t* cr, py::array_t<double> vertices_keepref,
-    size_t start, size_t stop, cairo_matrix_t* matrix) {
+    ssize_t start, ssize_t stop, cairo_matrix_t* matrix) {
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto lpc = LoadPathContext{cr};
 
@@ -320,7 +320,7 @@ void load_path_exact(
   // The previous point, if any, before clipping and snapping.
   auto prev = std::optional<std::tuple<double, double>>{};
   // Main loop.
-  for (size_t i = start; i < stop; ++i) {
+  for (auto i = start; i < stop; ++i) {
     auto x = vertices(i, 0), y = vertices(i, 1);
     cairo_matrix_transform_point(matrix, &x, &y);
     if (std::isfinite(x) && std::isfinite(y)) {
@@ -415,7 +415,8 @@ void load_path_exact(
     }
   }
   auto path =
-    cairo_path_t{CAIRO_STATUS_SUCCESS, path_data.data(), path_data.size()};
+    cairo_path_t{
+      CAIRO_STATUS_SUCCESS, path_data.data(), int(path_data.size())};
   cairo_append_path(cr, &path);
 }
 
@@ -429,7 +430,7 @@ void fill_and_stroke_exact(
   if (fill) {
     auto [r, g, b, a] = *fill;
     cairo_set_source_rgba(cr, r, g, b, a);
-    if (path == detail::UNIT_CIRCLE) {
+    if (path.is(detail::UNIT_CIRCLE)) {
       // Abuse the degenerate-segment handling by cairo to draw circles
       // efficiently.
       cairo_save(cr);

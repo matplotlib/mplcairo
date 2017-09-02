@@ -70,8 +70,7 @@ class GraphicsContextRenderer {
   void _finish();
 
   void set_alpha(std::optional<double> alpha);
-  void set_antialiased(cairo_antialias_t aa);
-  void set_antialiased(py::object aa); // bool, but also np.bool_.
+  void set_antialiased(std::variant<cairo_antialias_t, bool> aa);
   void set_capstyle(std::string capstyle);
   void set_clip_rectangle(std::optional<py::object> rectangle);
   void set_clip_path(std::optional<py::object> transformed_path);
@@ -133,7 +132,7 @@ class GraphicsContextRenderer {
   void draw_quad_mesh(
       GraphicsContextRenderer& gc,
       py::object master_transform,
-      size_t mesh_width, size_t mesh_height,
+      ssize_t mesh_width, ssize_t mesh_height,
       py::array_t<double> coordinates,
       py::array_t<double> offsets,
       py::object offset_transform,

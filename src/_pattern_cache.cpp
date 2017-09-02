@@ -69,7 +69,7 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const {
 
 bool PatternCache::EqualTo::operator()(
     CacheKey const& lhs, CacheKey const& rhs) const {
-  return (lhs.path == rhs.path)
+  return (lhs.path.is(rhs.path))
     && (lhs.matrix.xx == rhs.matrix.xx) && (lhs.matrix.xy == rhs.matrix.xy)
     && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
     && (lhs.matrix.x0 == rhs.matrix.x0) && (lhs.matrix.y0 == rhs.matrix.y0)
@@ -88,6 +88,7 @@ PatternCache::PatternCache(double threshold) : threshold_{threshold} {
 
 PatternCache::~PatternCache() {
   for (auto& [key, entry]: patterns_) {
+    (void)key;
     for (size_t i = 0; i < n_subpix_ * n_subpix_; ++i) {
       cairo_pattern_destroy(entry.patterns[i]);
     }

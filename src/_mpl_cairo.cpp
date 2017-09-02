@@ -278,12 +278,9 @@ void GraphicsContextRenderer::set_alpha(std::optional<double> alpha) {
   get_additional_state().alpha = alpha;
 }
 
-void GraphicsContextRenderer::set_antialiased(cairo_antialias_t aa) {
+void GraphicsContextRenderer::set_antialiased(
+    std::variant<cairo_antialias_t, bool> aa) {
   get_additional_state().antialias = aa;
-}
-
-void GraphicsContextRenderer::set_antialiased(py::object aa) {
-  get_additional_state().antialias = py::bool_(aa);
 }
 
 void GraphicsContextRenderer::set_capstyle(std::string capstyle) {
@@ -333,7 +330,7 @@ void GraphicsContextRenderer::set_dashes(
     auto dashes_raw = dash_list->unchecked<1>();
     auto n = dashes_raw.size();
     auto buf = std::unique_ptr<double[]>(new double[n]);
-    for (size_t i = 0; i < n; ++i) {
+    for (auto i = 0; i < n; ++i) {
       buf[i] = points_to_pixels(dashes_raw[i]);
     }
     cairo_set_dash(cr_, buf.get(), n, points_to_pixels(*dash_offset));
@@ -397,6 +394,7 @@ double GraphicsContextRenderer::get_linewidth() {
 
 rgb_t GraphicsContextRenderer::get_rgb() {
   auto [r, g, b, a] = get_rgba();
+  (void)a;
   return {r, g, b};
 }
 
@@ -450,9 +448,9 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     throw std::invalid_argument("Non-matching shapes");
   }
   auto pattern = cairo_pattern_create_mesh();
-  for (size_t i = 0; i < n; ++i) {
+  for (auto i = 0; i < n; ++i) {
     cairo_mesh_pattern_begin_patch(pattern);
-    for (size_t j = 0; j < 3; ++j) {
+    for (auto j = 0; j < 3; ++j) {
       cairo_mesh_pattern_line_to(pattern, tri_raw(i, j, 0), tri_raw(i, j, 1));
       cairo_mesh_pattern_set_corner_color_rgba(
           pattern, j,
@@ -483,9 +481,9 @@ void GraphicsContextRenderer::draw_image(
   auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[height * stride]);
   // The gcr's alpha has already been applied by ImageBase._make_image, we just
   // need to convert to premultiplied ARGB format.
-  for (size_t i = 0; i < height; ++i) {
+  for (auto i = 0; i < height; ++i) {
     auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
-    for (size_t j = 0; j < width; ++j) {
+    for (auto j = 0; j < width; ++j) {
       auto r = im_raw(i, j, 0), g = im_raw(i, j, 1),
            b = im_raw(i, j, 2), a = im_raw(i, j, 3);
       *(ptr++) =
@@ -540,11 +538,11 @@ void GraphicsContextRenderer::draw_markers(
     fill_and_stroke_exact(cr, marker_path, &m, fc_raw, ec_raw);
   };
 
-  double simplify_threshold =
+  auto simplify_threshold =
     has_vector_surface(cr_)
     ? 0 : rc_param("path.simplify_threshold").cast<double>();
   std::unique_ptr<cairo_pattern_t*[]> patterns;
-  size_t n_subpix = 0;
+  auto n_subpix = 0;
   if (simplify_threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
     n_subpix = std::ceil(1 / simplify_threshold);
     if (n_subpix * n_subpix < n_vertices) {
@@ -577,8 +575,8 @@ void GraphicsContextRenderer::draw_markers(
     auto raster_cr = cairo_create(raster_surface);
     cairo_surface_destroy(raster_surface);
     copy_for_marker_stamping(cr_, raster_cr);
-    for (size_t i = 0; i < n_subpix; ++i) {
-      for (size_t j = 0; j < n_subpix; ++j) {
+    for (auto i = 0; i < n_subpix; ++i) {
+      for (auto j = 0; j < n_subpix; ++j) {
         cairo_push_group(raster_cr);
         draw_one_marker(
             raster_cr, -x0 + double(i) / n_subpix, -y0 + double(j) / n_subpix);
@@ -588,7 +586,7 @@ void GraphicsContextRenderer::draw_markers(
     }
     cairo_destroy(raster_cr);
 
-    for (size_t i = 0; i < n_vertices; ++i) {
+    for (auto i = 0; i < n_vertices; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
       auto target_x = x + x0,
@@ -609,12 +607,12 @@ void GraphicsContextRenderer::draw_markers(
     }
 
     // Cleanup.
-    for (size_t i = 0; i < n_subpix * n_subpix; ++i) {
+    for (auto i = 0; i < n_subpix * n_subpix; ++i) {
       cairo_pattern_destroy(patterns[i]);
     }
 
   } else {
-    for (size_t i = 0; i < n_vertices; ++i) {
+    for (auto i = 0; i < n_vertices; ++i) {
       cairo_save(cr_);
       auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
@@ -695,8 +693,8 @@ void GraphicsContextRenderer::draw_path(
     cairo_stroke(cr_);
   } else {
     auto vertices = path.attr("vertices").cast<py::array_t<double>>();
-    auto n = ssize_t(vertices.shape(0));  // FIXME Remove the cast with pybind 2.2.
-    for (auto i = (decltype(n))(0); i < n; i += chunksize) {
+    auto n = vertices.shape(0);
+    for (auto i = decltype(n)(0); i < n; i += chunksize) {
       load_path_exact(
           cr_, vertices, i, std::min(i + chunksize + 1, n), &matrix);
       cairo_stroke(cr_);
@@ -748,8 +746,8 @@ void GraphicsContextRenderer::draw_path_collection(
   auto old_snap = get_additional_state().snap;
   get_additional_state().snap = false;
 
-  auto n_paths = paths.size(),
-       n_transforms = transforms.size(),
+  auto n_paths = ssize_t(paths.size()),
+       n_transforms = ssize_t(transforms.size()),
        n_offsets = offsets.shape(0),
        n = std::max({n_paths, n_transforms, n_offsets});
   if (!n_paths || !n_offsets) {
@@ -759,7 +757,7 @@ void GraphicsContextRenderer::draw_path_collection(
   auto matrices = std::unique_ptr<cairo_matrix_t[]>(
       new cairo_matrix_t[n_transforms ? n_transforms : 1]);
   if (n_transforms) {
-    for (size_t i = 0; i < n_transforms; ++i) {
+    for (auto i = 0; i < n_transforms; ++i) {
       matrices[i] = matrix_from_transform(transforms[i], &master_matrix);
     }
   } else {
@@ -789,7 +787,7 @@ void GraphicsContextRenderer::draw_path_collection(
   auto dashes_raw = std::unique_ptr<dash_t[]>(
       new dash_t[n_dashes ? n_dashes : 1]);
   if (n_dashes) {
-    for (size_t i = 0; i < n_dashes; ++i) {
+    for (auto i = 0u; i < n_dashes; ++i) {
       auto [dash_offset, dash_list] = dashes[i];
       set_dashes(dash_offset, dash_list);  // Invoke the dash converter.
       dashes_raw[i] = convert_dash(cr_);
@@ -802,7 +800,7 @@ void GraphicsContextRenderer::draw_path_collection(
     has_vector_surface(cr_)
     ? 0 : rc_param("path.simplify_threshold").cast<double>();
   auto cache = PatternCache{simplify_threshold};
-  for (size_t i = 0; i < n; ++i) {
+  for (auto i = 0; i < n; ++i) {
     auto path = paths[i % n_paths];
     auto matrix = matrices[i % n_transforms];
     auto x = offsets_raw(i % n_offsets, 0),
@@ -847,7 +845,7 @@ void GraphicsContextRenderer::draw_path_collection(
 void GraphicsContextRenderer::draw_quad_mesh(
     GraphicsContextRenderer& gc,
     py::object master_transform,
-    size_t mesh_width, size_t mesh_height,
+    ssize_t mesh_width, ssize_t mesh_height,
     py::array_t<double> coordinates,
     py::array_t<double> offsets,
     py::object offset_transform,
@@ -876,8 +874,8 @@ void GraphicsContextRenderer::draw_quad_mesh(
   auto coords_raw_keepref =  // We may as well let numpy manage the buffer.
     coordinates.attr("copy")().cast<py::array_t<double>>();
   auto coords_raw = coords_raw_keepref.mutable_unchecked<3>();
-  for (size_t i = 0; i < mesh_height + 1; ++i) {
-    for (size_t j = 0; j < mesh_width + 1; ++j) {
+  for (auto i = 0; i < mesh_height + 1; ++i) {
+    for (auto j = 0; j < mesh_width + 1; ++j) {
       cairo_matrix_transform_point(
           &matrix,
           coords_raw.mutable_data(i, j, 0),
@@ -890,8 +888,8 @@ void GraphicsContextRenderer::draw_quad_mesh(
   // it may make sense to rewrite hexbin in terms of quadmeshes in order to fix
   // their long-standing issues with such artifacts.)
   if (ecs_raw.shape(0)) {
-    for (size_t i = 0; i < mesh_height; ++i) {
-      for (size_t j = 0; j < mesh_width; ++j) {
+    for (auto i = 0; i < mesh_height; ++i) {
+      for (auto j = 0; j < mesh_width; ++j) {
         cairo_move_to(
             cr_, coords_raw(i, j, 0), coords_raw(i, j, 1));
         cairo_line_to(
@@ -915,8 +913,8 @@ void GraphicsContextRenderer::draw_quad_mesh(
     }
   } else {
     auto pattern = cairo_pattern_create_mesh();
-    for (size_t i = 0; i < mesh_height; ++i) {
-      for (size_t j = 0; j < mesh_width; ++j) {
+    for (auto i = 0; i < mesh_height; ++i) {
+      for (auto j = 0; j < mesh_width; ++j) {
         cairo_mesh_pattern_begin_patch(pattern);
         cairo_mesh_pattern_move_to(
             pattern, coords_raw(i, j, 0), coords_raw(i, j, 1));
@@ -929,7 +927,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
         auto n = i * mesh_width + j;
         auto r = fcs_raw(n, 0), g = fcs_raw(n, 1),
              b = fcs_raw(n, 2), a = fcs_raw(n, 3);
-        for (size_t k = 0; k < 4; ++k) {
+        for (auto k = 0; k < 4; ++k) {
           cairo_mesh_pattern_set_corner_color_rgba(pattern, k, r, g, b, a);
         }
         cairo_mesh_pattern_end_patch(pattern);
@@ -991,6 +989,7 @@ void GraphicsContextRenderer::draw_text(
     cairo_rotate(cr_, -angle * M_PI / 180);
     cairo_move_to(cr_, 0, 0);
     auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
+    (void)ft_face;
     cairo_set_font_face(cr_, font_face);
     cairo_set_font_size(
         cr_,
@@ -1031,6 +1030,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
   } else {
     cairo_save(cr_);
     auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
+    (void)ft_face;
     cairo_set_font_face(cr_, font_face);
     cairo_set_font_size(
         cr_,
@@ -1178,8 +1178,8 @@ py::capsule MathtextBackend::get_results(
   });
 }
 
-PYBIND11_PLUGIN(_mpl_cairo) {
-  py::module m("_mpl_cairo", "A cairo backend for matplotlib.");
+PYBIND11_MODULE(_mpl_cairo, m) {
+  m.doc() = "A cairo backend for matplotlib.";
 
   if (py::module::import("matplotlib.ft2font").attr("__freetype_build_type__")
       .cast<std::string>() == "local") {
@@ -1254,12 +1254,7 @@ PYBIND11_PLUGIN(_mpl_cairo) {
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)
-    .def("set_antialiased",
-        py::overload_cast<cairo_antialias_t>(
-          &GraphicsContextRenderer::set_antialiased))
-    .def("set_antialiased",
-        py::overload_cast<py::object>(
-          &GraphicsContextRenderer::set_antialiased))
+    .def("set_antialiased", &GraphicsContextRenderer::set_antialiased)
     .def("set_capstyle", &GraphicsContextRenderer::set_capstyle)
     .def("set_clip_rectangle", &GraphicsContextRenderer::set_clip_rectangle)
     .def("set_clip_path", &GraphicsContextRenderer::set_clip_path)
@@ -1366,8 +1361,6 @@ Backend rendering mathtext to a cairo recording surface, returned as a capsule.
     .def("get_hinting_type", [](MathtextBackend& mb) {
       return get_hinting_flag();
     });
-
-  return m.ptr();
 }
 
 }
