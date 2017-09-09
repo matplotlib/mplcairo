@@ -74,7 +74,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     }
   }, state.antialias);
   // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.
-  if (auto rectangle = state.clip_rectangle; rectangle) {
+  if (auto rectangle = state.clip_rectangle) {
     auto [x, y, w, h] = *rectangle;
     cairo_save(cr);
     cairo_identity_matrix(cr);
@@ -83,7 +83,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     cairo_restore(cr);
     cairo_clip(cr);
   }
-  if (auto clip_path = state.clip_path; clip_path) {
+  if (auto clip_path = state.clip_path) {
     cairo_new_path(cr);
     cairo_append_path(cr, clip_path.get());
     cairo_clip(cr);
@@ -106,7 +106,7 @@ rgba_t GraphicsContextRenderer::get_rgba() {
         "Could not retrieve color from pattern: "
         + std::string{cairo_status_to_string(status)});
   }
-  if (auto alpha = get_additional_state().alpha; alpha) {
+  if (auto alpha = get_additional_state().alpha) {
     a = *alpha;
   }
   return {r, g, b, a};
@@ -342,7 +342,7 @@ void GraphicsContextRenderer::set_dashes(
 void GraphicsContextRenderer::set_foreground(
     py::object fg, bool /* is_rgba */) {
   auto [r, g, b, a] = to_rgba(fg);
-  if (auto alpha = get_additional_state().alpha; alpha) {
+  if (auto alpha = get_additional_state().alpha) {
     a = *alpha;
   }
   cairo_set_source_rgba(cr_, r, g, b, a);
@@ -644,7 +644,7 @@ void GraphicsContextRenderer::draw_path(
       path_loaded = true;
     }
   };
-  if (auto sketch = get_additional_state().sketch; sketch) {
+  if (auto sketch = get_additional_state().sketch) {
     path = path.attr("cleaned")(
         "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
     matrix = cairo_matrix_t{1, 0, 0, -1, 0, double(height_)};
@@ -659,8 +659,7 @@ void GraphicsContextRenderer::draw_path(
   }
   if (auto hatch_path =
         py::cast(this).attr("get_hatch_path")()
-        .cast<std::optional<py::object>>();
-      hatch_path) {
+        .cast<std::optional<py::object>>()) {
     load_path();
     cairo_save(cr_);
     auto dpi = int(dpi_);  // Truncating is good enough.
@@ -1171,8 +1170,8 @@ py::capsule MathtextBackend::get_results(
   cairo_surface_reference(surface);
   cairo_destroy(cr_);
   cr_ = nullptr;
-  // NOTE: pybind11 2.2 will allow setting the capsule name, for additional
-  // safety.
+  // We could set the name for additional safety if people start passing in
+  // arbitrary capsules, but that wouldn't really help either...
   return py::capsule(surface, [](void* surface) {
     cairo_surface_destroy(reinterpret_cast<cairo_surface_t*>(surface));
   });
@@ -1197,14 +1196,6 @@ PYBIND11_MODULE(_mpl_cairo, m) {
     .value("FAST", CAIRO_ANTIALIAS_FAST)
     .value("GOOD", CAIRO_ANTIALIAS_GOOD)
     .value("BEST", CAIRO_ANTIALIAS_BEST);
-  py::enum_<cairo_format_t>(m, "format_t")
-    .value("INVALID", CAIRO_FORMAT_INVALID)
-    .value("ARGB32", CAIRO_FORMAT_ARGB32)
-    .value("RGB24", CAIRO_FORMAT_RGB24)
-    .value("A8", CAIRO_FORMAT_A8)
-    .value("A1", CAIRO_FORMAT_A1)
-    .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
-    .value("RGB30", CAIRO_FORMAT_RGB30);
   py::enum_<cairo_surface_type_t>(m, "surface_type_t")
     .value("IMAGE", CAIRO_SURFACE_TYPE_IMAGE)
     .value("PDF", CAIRO_SURFACE_TYPE_PDF)

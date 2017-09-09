@@ -183,7 +183,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             filename_or_obj, "wb", return_opened=True)
         with ExitStack() as stack:
             if needs_close:
-                stack.enter_context(file)
+                stack.push(file)
             renderer = renderer_factory(file, *self.get_width_height(), dpi)
             self.figure.draw(renderer)
             # NOTE: _finish() corresponds finalize() in Matplotlib's PDF and
@@ -221,7 +221,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             filename_or_obj, "wb", return_opened=True)
         with ExitStack() as stack:
             if needs_close:
-                stack.enter_context(file)
+                stack.push(file)
             _png.write_png(img, file, metadata=full_metadata)
 
     if Image:

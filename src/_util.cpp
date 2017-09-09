@@ -473,8 +473,7 @@ long get_hinting_flag() {
 std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
     std::string path) {
   FT_Face ft_face;
-  if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face);
-      error) {
+  if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error(
         "FT_New_Face(_ft2Library, \"" + path + "\", 0, &ft_face) failed with "
         "error: " + ft_errors.at(error));
