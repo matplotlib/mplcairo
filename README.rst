@@ -3,14 +3,18 @@ A (new) cairo backend for Matplotlib
 
 This is a new, near-complete implementation of a cairo backend for Matplotlib.
 Currently, it can be used with either the Qt backend proposed in Matplotlib's
-PR #8771, or the Gtk3 backend merged with PR #8772.
+PR #8771, or the Gtk3 backend merged with PR #8772; the latter is included in
+Matplotlib≥2.1.0rc1.
 
-This implementation “passes” Matplotlib's entire image comparison test suite
+This implementation "passes" Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with the
 exceptions noted below.
 
 Depending on the specific task, the backend can be up to ~10× faster (e.g.,
 when stamping circular markers of variable colors) than Agg.
+
+Currently, only Linux is supported, although I would welcome PRs for supporting
+other OSes.
 
 Installation (Linux only)
 -------------------------
@@ -18,59 +22,81 @@ Installation (Linux only)
 Dependencies:
 
 - Python 3,
-- cairo≥1.12 (this version is needed for mesh gradient support),
-- pybind11≥2.2,
-- a C++ compiler with C++17 support, e.g. GCC≥7.1.
+- Matplotlib, including PR#8771 (or ≥2.1.0rc1 for Gtk3 and non-interactive
+  backends),
+- pycairo≥1.12 [#]_,
+- pybind11≥2.2, automatically installed [#]_,
 
-Such dependencies are available on conda and conda-forge, although the
-conda-forge build of cairo is (on my setup) ~2× slower than a “native” build.
-Using conda, the following commands will build and install mpl_cairo.
+All code examples below assume that the appropriate conda environment is active
+(pycairo is not available as a wheel, so conda is the simplest option).
 
 .. code-block:: sh
 
    export PIP_CONFIG_FILE=/dev/null  # Just to be sure.
 
-   # Unfortunately, the g++ install from rdonnelly/gxx_linux-64 sets some
-   # include paths incorrectly, making it impossible to build Matplotlib with
-   # it.  So, we build a Matplotlib wheel using the system compiler, and later
-   # install it into the conda environment.
+   # Installing numpy from conda saves us the need to build it ourselves.
+   # Strictly speaking, PyQt is only needed if you want to use an interactive
+   # backend.
+   conda install -y -c conda-forge pycairo numpy pyqt
+
    git clone https://github.com/matplotlib/matplotlib.git
    (cd matplotlib
     git pull origin pull/8771/head:pr/8771
     git checkout pr/8771
-    python setup.py bdist_wheel)
+    pip install -e .)
 
-   # - pkg-config and cairo from the anaconda channel will *not* work; thus, we
-   #   may as well install everything from conda-forge.  Note that the Python
-   #   version here needs to match the Python version used to build the
-   #   Matplotlib wheel; thus, you may need to build the wheel in its own
-   #   environment as well.
-   # - numpy could be built from source too but conda saves us some time.
-   # - PyQt is necessary to have an interactive backend (PyGObject, i.e. Gtk3,
-   #   can also be used, but it is not conda-installable).
-   conda create -y -n mpl_cairo -c conda-forge \
-       python=3.6 pkg-config cairo pybind11\>=2.2 numpy pyqt
-   conda install -y -n mpl_cairo -c rdonnelly gxx_linux-64\>=7.1
+   # Download the wheel from Github releases.
+   pip install /path/to/mpl_cairo-*.whl
 
-   # Activation needs to happen *after* installing gcc_linux-64\>=7.1
-   source activate mpl_cairo
+.. [#] We do not actually rely on pycairo's Python bindings.  Rather,
+   specifying a dependency on pycairo is a convenient way to specify a
+   dependency on cairo itself, and allows us to load cairo at runtime
+   instead of linking to it (which is problematic for a manylinux wheel).
 
-   pip install matplotlib/dist/*.whl
+   cairo 1.12 brings in mesh gradient support, which is used by
+   ``draw_quad_mesh``.
 
-   git clone https://github.com/anntzer/mpl_cairo.git
-   (cd mpl_cairo
-    pip install -ve .)
+.. [#] pybind11 is technically only a build-time requirement, but I'd rather
+   not use ``setup_requires``.
 
-.. warning::
+..
 
-   Do *not* build matplotlib with the “local FreeType” option set (i.e., do not
-   set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
+   Do *not* build Matplotlib with the "local FreeType" option set (i.e., do
+   not set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
    ``local_freetype`` entry in ``setup.cfg``).  This option will statically
    link to a fixed version of FreeType, which may be different from the version
    of FreeType cairo is built against, causing binary incompatibilites.
 
-Then, the backend can be selected by setting the ``MPLBACKEND`` environment
-variable one of
+Building (Linux only)
+---------------------
+
+In order to build mpl_cairo yourself, the following additional dependencies are
+required:
+
+- a C++ compiler with C++17 support, e.g. GCC≥7.1.
+- cairo, fontconfig, and freetype headers.
+
+They are available on conda-forge.  Here, I assume that other dependencies have
+already been installed as documented above.
+
+.. code-block:: sh
+
+   # cairo and pkg-config from the anaconda channel will *not* work.
+   conda install -y -c conda-forge cairo pkg-config
+   conda install -y -c rdonnelly gxx_linux-64\>=7.1
+
+   # The environment needs to be reactivated for the compiler paths to be set.
+   source activate "$CONDA_DEFAULT_ENV"
+
+   git clone https://github.com/anntzer/mpl_cairo.git
+   (cd mpl_cairo
+    pip install -e .)
+
+Use
+---
+
+The backend can be selected by setting the ``MPLBACKEND`` environment variable
+to one of
 
 - ``module://mpl_cairo.qt`` (Qt5 GUI),
 - ``module://mpl_cairo.gtk3`` (GTK3 GUI),
@@ -103,7 +129,7 @@ call (e.g.):
    pytest --benchmark-group-by=fullfunc --benchmark-timer=time.process_time
 
 Keep in mind that conda-forge's cairo is (on my setup) ~2× slower than a
-“native” build of cairo.
+"native" build of cairo.
 
 Test suite
 ----------

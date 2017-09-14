@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import shlex
 import subprocess
@@ -35,20 +36,27 @@ ext_modules = [
     Extension(
         "mpl_cairo._mpl_cairo",
         ["src/_mpl_cairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
-        depends=["src/_mpl_cairo.h", "src/_util.h", "src/_pattern_cache.h"],
-        language="c++",
-        include_dirs=[
-            get_pybind_include(), get_pybind_include(user=True)
-        ],
+        depends=
+            ["setup.py",
+             "src/_mpl_cairo.h", "src/_util.h", "src/_pattern_cache.h"],
+        language=
+            "c++",
+        include_dirs=
+            [get_pybind_include(), get_pybind_include(user=True)],
         extra_compile_args=
             {"linux": ["-std=c++17", "-fvisibility=hidden"],
              "win32": ["/EHsc"],
              "darwin": ["-std=c++17", "-fvisibility=hidden",
                         "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
                 sys.platform]
-            + _get_pkg_config("--cflags", "cairo"),
+            + (["-static-libgcc", "-static-libstdc++",
+                "-I/usr/include/freetype2"]
+               if os.environ.get("MANYLINUX") else
+               _get_pkg_config("--cflags", "cairo")),
         extra_link_args=
-            _get_pkg_config("--libs", "cairo")
+            (["-static-libgcc", "-static-libstdc++"]
+             if os.environ.get("MANYLINUX") else
+             []),
     ),
 ]
 
@@ -101,5 +109,5 @@ setup(
     packages=find_packages(include=["mpl_cairo", "mpl_cairo.*"]),
     ext_modules=ext_modules,
     python_requires=">=3.4",
-    install_requires=["pybind11>=2.2"],
+    install_requires=["pybind11>=2.2", "pycairo>=1.12.0"],
 )
