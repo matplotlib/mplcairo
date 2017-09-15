@@ -1,8 +1,6 @@
 #include "_util.h"
 
 #include <stack>
-#include <unordered_map>
-#include <vector>
 
 namespace mpl_cairo {
 

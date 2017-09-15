@@ -1,17 +1,12 @@
 #pragma once
 
-#include <cmath>
-#include <tuple>
-#include <vector>
+#include "_util.h"
 
 #include <cairo/cairo.h>
 
 #include <pybind11/pybind11.h>
-#include <pybind11/eval.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-
-#include "_util.h"
 
 namespace mpl_cairo {
 

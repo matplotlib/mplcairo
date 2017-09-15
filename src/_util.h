@@ -4,11 +4,8 @@
 #include <cairo/cairo-ft.h>
 
 #include <pybind11/pybind11.h>
-#include <pybind11/eval.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
-
-#include <variant>
 
 // Matplotlib's own FT_Library, which we load at runtime by dlopen()ing the
 // ft2font extension module with RTLD_GLOBAL.
