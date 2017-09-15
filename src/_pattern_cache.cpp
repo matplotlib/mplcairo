@@ -8,9 +8,10 @@ dash_t convert_dash(cairo_t* cr) {
   double offset;
   cairo_get_dash(cr, dashes.get(), &offset);
   return {
-    offset,
-    std::string{
-      reinterpret_cast<char*>(dashes.get()), dash_count * sizeof(dashes[0])}};
+      offset,
+      std::string{
+          reinterpret_cast<char*>(dashes.get()),
+          dash_count * sizeof(dashes[0])}};
 }
 
 void set_dashes(cairo_t* cr, dash_t dash) {
@@ -25,7 +26,9 @@ void set_dashes(cairo_t* cr, dash_t dash) {
 void PatternCache::CacheKey::draw(
     cairo_t* cr, double x, double y, rgba_t color) {
   auto m = cairo_matrix_t{
-    matrix.xx, matrix.yx, matrix.xy, matrix.yy, matrix.x0 + x, matrix.y0 + y};
+      matrix.xx, matrix.yx,
+      matrix.xy, matrix.yy,
+      matrix.x0 + x, matrix.y0 + y};
   switch (draw_func) {
     case draw_func_t::Fill:
       fill_and_stroke_exact(cr, path, &m, color, {});

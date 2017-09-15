@@ -153,7 +153,8 @@ cairo_t* GraphicsContextRenderer::cr_from_image_args(
 GraphicsContextRenderer::GraphicsContextRenderer(
     double width, double height, double dpi) :
   GraphicsContextRenderer{
-    cr_from_image_args(int(width), int(height)), int(width), int(height), dpi}
+      cr_from_image_args(int(width), int(height)),
+      int(width), int(height), dpi}
   {}
 
 cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx) {
@@ -179,10 +180,11 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx) {
 
 GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
   GraphicsContextRenderer{
-    cr_from_pycairo_ctx(ctx),
-    ctx.attr("get_target")().attr("get_width")().cast<int>(),
-    ctx.attr("get_target")().attr("get_height")().cast<int>(),
-    dpi} {}
+      cr_from_pycairo_ctx(ctx),
+      ctx.attr("get_target")().attr("get_width")().cast<int>(),
+      ctx.attr("get_target")().attr("get_height")().cast<int>(),
+      dpi}
+  {}
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
     cairo_surface_type_t type, py::object file,
@@ -193,7 +195,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       py::reinterpret_borrow<py::object>(reinterpret_cast<PyObject*>(closure));
     // NOTE: Work around lack of const buffers in pybind11.
     auto buf_info = py::buffer_info{
-      const_cast<unsigned char*>(data),
+        const_cast<unsigned char*>(data),
         sizeof(char), py::format_descriptor<char>::format(),
         1, {length}, {sizeof(char)}};
     return
@@ -951,7 +953,7 @@ void GraphicsContextRenderer::draw_text(
     double depth =
       *static_cast<double*>(
           cairo_surface_get_user_data(
-            record, &detail::MATHTEXT_TO_BASELINE_KEY));
+              record, &detail::MATHTEXT_TO_BASELINE_KEY));
     // NOTE: On Xlib and SVG surfaces, replaying the recording surface seems to
     // have no effect.  Work around this by drawing it on an image first.
     switch (cairo_surface_get_type(cairo_get_target(cr_))) {
@@ -961,8 +963,8 @@ void GraphicsContextRenderer::draw_text(
         cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
         auto image =
           cairo_image_surface_create(
-            CAIRO_FORMAT_ARGB32,
-            int(std::ceil(x0 + width)), int(std::ceil(y0 + height)));
+              CAIRO_FORMAT_ARGB32,
+              int(std::ceil(x0 + width)), int(std::ceil(y0 + height)));
         auto cr = cairo_create(image);
         cairo_set_source_surface(cr, record, 0, 0);
         cairo_paint(cr);
@@ -1016,7 +1018,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
     double to_baseline =
       *static_cast<double*>(
           cairo_surface_get_user_data(
-            record, &detail::MATHTEXT_TO_BASELINE_KEY));
+              record, &detail::MATHTEXT_TO_BASELINE_KEY));
     double x0, y0, width, height;
     cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
     return {width, height, y0 + height - to_baseline};

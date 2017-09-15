@@ -6,7 +6,7 @@ namespace mpl_cairo {
 
 namespace {
 AdditionalState const DEFAULT_ADDITIONAL_STATE{
-  {}, {true}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
+    {}, {true}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
 }
 
 namespace {
@@ -50,9 +50,9 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
         "Transformation matrix must have shape (3, 3)");
   }
   return cairo_matrix_t{
-    py_matrix(0, 0), -py_matrix(1, 0),
-    py_matrix(0, 1), -py_matrix(1, 1),
-    py_matrix(0, 2), y0 - py_matrix(1, 2)};
+      py_matrix(0, 0), -py_matrix(1, 0),
+      py_matrix(0, 1), -py_matrix(1, 1),
+      py_matrix(0, 2), y0 - py_matrix(1, 2)};
 }
 
 cairo_matrix_t matrix_from_transform(
@@ -67,9 +67,9 @@ cairo_matrix_t matrix_from_transform(
   }
   // The y flip is already handled by the master matrix.
   auto matrix = cairo_matrix_t{
-    py_matrix(0, 0), py_matrix(1, 0),
-    py_matrix(0, 1), py_matrix(1, 1),
-    py_matrix(0, 2), py_matrix(1, 2)};
+      py_matrix(0, 0), py_matrix(1, 0),
+      py_matrix(0, 1), py_matrix(1, 1),
+      py_matrix(0, 2), py_matrix(1, 2)};
   cairo_matrix_multiply(&matrix, &matrix, master_matrix);
   return matrix;
 }
@@ -414,7 +414,7 @@ void load_path_exact(
   }
   auto path =
     cairo_path_t{
-      CAIRO_STATUS_SUCCESS, path_data.data(), int(path_data.size())};
+        CAIRO_STATUS_SUCCESS, path_data.data(), int(path_data.size())};
   cairo_append_path(cr, &path);
 }
 

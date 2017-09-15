@@ -58,8 +58,9 @@ class PatternCache {
   PatternCache(double threshold);
   ~PatternCache();
   void mask(
-    cairo_t* cr, py::object path, cairo_matrix_t matrix, draw_func_t draw_func,
-    double linewidth, dash_t dash, double x, double y);
+      cairo_t* cr, py::object path, cairo_matrix_t matrix,
+      draw_func_t draw_func, double linewidth, dash_t dash,
+      double x, double y);
 };
 
 }
