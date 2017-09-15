@@ -12,6 +12,10 @@ namespace mpl_cairo {
 
 namespace py = pybind11;
 
+enum class StreamSurfaceType {
+  PDF, PS, EPS, SVG
+};
+
 struct Region {
   cairo_rectangle_int_t bbox;
   std::shared_ptr<uint8_t[]> buf;
@@ -54,13 +58,12 @@ class GraphicsContextRenderer {
   static cairo_t* cr_from_pycairo_ctx(py::object ctx);
   GraphicsContextRenderer(py::object ctx, double dpi);
   static cairo_t* cr_from_fileformat_args(
-      cairo_surface_type_t type, py::object file,
+      StreamSurfaceType type, py::object file,
       double width, double height, double dpi);
   GraphicsContextRenderer(
-      cairo_surface_type_t type, py::object file,
+      StreamSurfaceType type, py::object file,
       double width, double height, double dpi);
 
-  void _set_eps(bool eps);
   py::array_t<uint8_t> _get_buffer();
   void _finish();
 

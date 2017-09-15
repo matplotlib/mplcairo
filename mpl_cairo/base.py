@@ -19,7 +19,7 @@ from matplotlib.backend_bases import (
 from matplotlib.mathtext import MathTextParser
 
 from . import _mpl_cairo
-from ._mpl_cairo import surface_type_t
+from ._mpl_cairo import _StreamSurfaceType
 
 
 MathTextParser._backend_mapping["cairo"] = _mpl_cairo.MathtextBackendCairo
@@ -90,15 +90,10 @@ class GraphicsContextRendererCairo(
         _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
         return obj
 
-    _for_ps_output = partialmethod(_for_fmt_output, surface_type_t.PS)
-    _for_pdf_output = partialmethod(_for_fmt_output, surface_type_t.PDF)
-    _for_svg_output = partialmethod(_for_fmt_output, surface_type_t.SVG)
-
-    @classmethod
-    def _for_eps_output(cls, file, width, height, dpi):
-        obj = cls._for_ps_output(file, width, height, dpi)
-        obj._set_eps(True)
-        return obj
+    _for_pdf_output = partialmethod(_for_fmt_output, _StreamSurfaceType.PDF)
+    _for_ps_output = partialmethod(_for_fmt_output, _StreamSurfaceType.PS)
+    _for_eps_output = partialmethod(_for_fmt_output, _StreamSurfaceType.EPS)
+    _for_svg_output = partialmethod(_for_fmt_output, _StreamSurfaceType.SVG)
 
     @classmethod
     def _for_svgz_output(cls, file, width, height, dpi):

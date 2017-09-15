@@ -3,25 +3,7 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
-#if CAIRO_HAS_PDF_SURFACE
-#include <cairo/cairo-pdf.h>
-#define MPLCAIRO_HAS_PDF
-#else
-#undef MPLCAIRO_HAS_PDF
-#endif
-#if CAIRO_HAS_PS_SURFACE
-#include <cairo/cairo-ps.h>
-#define MPLCAIRO_HAS_PS
-#else
-#undef MPLCAIRO_HAS_PS
-#endif
-#if CAIRO_HAS_SVG_SURFACE
-#include <cairo/cairo-svg.h>
-#define MPLCAIRO_HAS_SVG
-#else
-#undef MPLCAIRO_HAS_SVG
-#endif
-
+#include <dlfcn.h>
 #include <stack>
 
 namespace mpl_cairo {
@@ -187,9 +169,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
   {}
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
-    cairo_surface_type_t type, py::object file,
+    StreamSurfaceType type, py::object file,
     double width, double height, double dpi) {
-  cairo_surface_t* surface;
   auto cb = [](void* closure, const unsigned char* data, unsigned int length) {
     auto write =
       py::reinterpret_borrow<py::object>(reinterpret_cast<PyObject*>(closure));
@@ -208,35 +189,48 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   auto dec_ref = [](void* write) {
     py::handle{reinterpret_cast<PyObject*>(write)}.dec_ref();
   };
+
+  auto handle = dlopen(nullptr, RTLD_LAZY);
+  dlclose(handle);
+  dlerror();
+  char const* symbol{""};
   switch (type) {
-#ifdef MPLCAIRO_HAS_PDF
-    case CAIRO_SURFACE_TYPE_PDF:
-      surface = cairo_pdf_surface_create_for_stream(cb, write, width, height);
+    case StreamSurfaceType::PDF:
+      symbol = "cairo_pdf_surface_create_for_stream";
       break;
-#endif
-#ifdef MPLCAIRO_HAS_PS
-    case CAIRO_SURFACE_TYPE_PS:
-      surface = cairo_ps_surface_create_for_stream(cb, write, width, height);
+    case StreamSurfaceType::PS:
+    case StreamSurfaceType::EPS:
+      symbol = "cairo_ps_surface_create_for_stream";
       break;
-#endif
-#ifdef MPLCAIRO_HAS_SVG
-    case CAIRO_SURFACE_TYPE_SVG:
-      surface = cairo_svg_surface_create_for_stream(cb, write, width, height);
+    case StreamSurfaceType::SVG:
+      symbol = "cairo_svg_surface_create_for_stream";
       break;
-#endif
-    default:
-      dec_ref(write);
-      throw std::runtime_error("Unsupported surface type");
+    default: ;
   }
+  auto surface_create_for_stream =
+    (cairo_surface_t* (*)(cairo_write_func_t, void*, double, double))(
+        dlsym(handle, symbol));
+  if (auto error = dlerror()) {
+    dec_ref(write);
+    throw std::runtime_error(error);
+  }
+
+  auto surface = surface_create_for_stream(cb, write, width, height);
   cairo_surface_set_fallback_resolution(surface, dpi, dpi);
   auto cr = cairo_create(surface);
   cairo_surface_destroy(surface);
   cairo_set_user_data(cr, &detail::FILE_KEY, write, dec_ref);
+  if (type == StreamSurfaceType::EPS) {
+    auto cairo_ps_surface_set_eps =
+      (void (*)(cairo_surface_t*, bool))(
+          dlsym(handle, "cairo_ps_surface_set_eps"));
+    cairo_ps_surface_set_eps(surface, true);
+  }
   return cr;
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(
-    cairo_surface_type_t type, py::object file,
+    StreamSurfaceType type, py::object file,
     double width, double height, double dpi) :
   GraphicsContextRenderer{
       cr_from_fileformat_args(type, file, width, height, dpi),
@@ -244,14 +238,6 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 
 void GraphicsContextRenderer::_finish() {
   cairo_surface_finish(cairo_get_target(cr_));
-}
-
-void GraphicsContextRenderer::_set_eps(bool eps) {
-  auto surface = cairo_get_target(cr_);
-  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_PS) {
-    throw std::runtime_error("Only PS surfaces are supported");
-  }
-  cairo_ps_surface_set_eps(surface, eps);
 }
 
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
@@ -1192,32 +1178,11 @@ PYBIND11_MODULE(_mpl_cairo, m) {
     .value("FAST", CAIRO_ANTIALIAS_FAST)
     .value("GOOD", CAIRO_ANTIALIAS_GOOD)
     .value("BEST", CAIRO_ANTIALIAS_BEST);
-  py::enum_<cairo_surface_type_t>(m, "surface_type_t")
-    .value("IMAGE", CAIRO_SURFACE_TYPE_IMAGE)
-    .value("PDF", CAIRO_SURFACE_TYPE_PDF)
-    .value("PS", CAIRO_SURFACE_TYPE_PS)
-    .value("XLIB", CAIRO_SURFACE_TYPE_XLIB)
-    .value("XCB", CAIRO_SURFACE_TYPE_XCB)
-    .value("GLITZ", CAIRO_SURFACE_TYPE_GLITZ)
-    .value("QUARTZ", CAIRO_SURFACE_TYPE_QUARTZ)
-    .value("WIN32", CAIRO_SURFACE_TYPE_WIN32)
-    .value("BEOS", CAIRO_SURFACE_TYPE_BEOS)
-    .value("DIRECTFB", CAIRO_SURFACE_TYPE_DIRECTFB)
-    .value("SVG", CAIRO_SURFACE_TYPE_SVG)
-    .value("OS2", CAIRO_SURFACE_TYPE_OS2)
-    .value("WIN32_PRINTING", CAIRO_SURFACE_TYPE_WIN32_PRINTING)
-    .value("QUARTZ_IMAGE", CAIRO_SURFACE_TYPE_QUARTZ_IMAGE)
-    .value("SCRIPT", CAIRO_SURFACE_TYPE_SCRIPT)
-    .value("QT", CAIRO_SURFACE_TYPE_QT)
-    .value("RECORDING", CAIRO_SURFACE_TYPE_RECORDING)
-    .value("VG", CAIRO_SURFACE_TYPE_VG)
-    .value("GL", CAIRO_SURFACE_TYPE_GL)
-    .value("DRM", CAIRO_SURFACE_TYPE_DRM)
-    .value("TEE", CAIRO_SURFACE_TYPE_TEE)
-    .value("XML", CAIRO_SURFACE_TYPE_XML)
-    .value("SKIA", CAIRO_SURFACE_TYPE_SKIA)
-    .value("SUBSURFACE", CAIRO_SURFACE_TYPE_SUBSURFACE)
-    .value("COGL", CAIRO_SURFACE_TYPE_COGL);
+  py::enum_<StreamSurfaceType>(m, "_StreamSurfaceType")
+    .value("PDF", StreamSurfaceType::PDF)
+    .value("PS", StreamSurfaceType::PS)
+    .value("EPS", StreamSurfaceType::EPS)
+    .value("SVG", StreamSurfaceType::SVG);
 
   py::class_<Region>(m, "_Region")
     // NOTE: Only for patching Agg.
@@ -1233,9 +1198,8 @@ PYBIND11_MODULE(_mpl_cairo, m) {
     // (with doubles!).
     .def(py::init<double, double, double>())
     .def(py::init<py::object, double>())
-    .def(py::init<cairo_surface_type_t, py::object, double, double, double>())
+    .def(py::init<StreamSurfaceType, py::object, double, double, double>())
 
-    .def("_set_eps", &GraphicsContextRenderer::_set_eps)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
     .def("_finish", &GraphicsContextRenderer::_finish)
 
