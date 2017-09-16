@@ -94,6 +94,9 @@ already been installed as documented above.
    (cd mpl_cairo
     pip install -e .)
 
+On a related note, the manylinux wheel is built using
+``build-scripts/build-manylinux.sh``.
+
 Use
 ---
 
