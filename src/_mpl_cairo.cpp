@@ -3,7 +3,6 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
-#include <dlfcn.h>
 #include <stack>
 
 namespace mpl_cairo {
@@ -190,29 +189,23 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
     py::handle{reinterpret_cast<PyObject*>(write)}.dec_ref();
   };
 
-  auto handle = dlopen(nullptr, RTLD_LAZY);
-  dlclose(handle);
-  dlerror();
-  char const* symbol{""};
+  detail::surface_create_for_stream_t surface_create_for_stream{};
   switch (type) {
     case StreamSurfaceType::PDF:
-      symbol = "cairo_pdf_surface_create_for_stream";
+      surface_create_for_stream = detail::cairo_pdf_surface_create_for_stream;
       break;
     case StreamSurfaceType::PS:
     case StreamSurfaceType::EPS:
-      symbol = "cairo_ps_surface_create_for_stream";
+      surface_create_for_stream = detail::cairo_ps_surface_create_for_stream;
       break;
     case StreamSurfaceType::SVG:
-      symbol = "cairo_svg_surface_create_for_stream";
+      surface_create_for_stream = detail::cairo_svg_surface_create_for_stream;
       break;
     default: ;
   }
-  auto surface_create_for_stream =
-    (cairo_surface_t* (*)(cairo_write_func_t, void*, double, double))(
-        dlsym(handle, symbol));
-  if (auto error = dlerror()) {
-    dec_ref(write);
-    throw std::runtime_error(error);
+  if (!surface_create_for_stream) {
+    throw std::runtime_error(
+        "cairo was built without support for the requested file format");
   }
 
   auto surface = surface_create_for_stream(cb, write, width, height);
@@ -221,10 +214,8 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   cairo_surface_destroy(surface);
   cairo_set_user_data(cr, &detail::FILE_KEY, write, dec_ref);
   if (type == StreamSurfaceType::EPS) {
-    auto cairo_ps_surface_set_eps =
-      (void (*)(cairo_surface_t*, bool))(
-          dlsym(handle, "cairo_ps_surface_set_eps"));
-    cairo_ps_surface_set_eps(surface, true);
+    // If cairo was built without PS support, we'd already have errored above.
+    detail::cairo_ps_surface_set_eps(surface, true);
   }
   return cr;
 }
@@ -1167,8 +1158,43 @@ PYBIND11_MODULE(_mpl_cairo, m) {
     throw std::runtime_error("Local FreeType builds are not supported");
   }
 
+  // Setup global values.
+
+  // This is basically a cross-platform dlopen.
+  // scope can't be an empty dict (pybind11#1091).
+  auto scope = py::module::import("mpl_cairo").attr("__dict__");
+  py::exec(
+      R"__py__(
+        def _load_addresses():
+            from ctypes import CDLL, c_void_p, cast
+            from cairo import _cairo
+            dll = CDLL(_cairo.__file__)
+            return {name: cast(getattr(dll, name, 0), c_void_p).value or 0
+                    for name in ["cairo_pdf_surface_create_for_stream",
+                                 "cairo_ps_surface_create_for_stream",
+                                 "cairo_svg_surface_create_for_stream",
+                                 "cairo_ps_surface_set_eps"]}
+        _addresses = _load_addresses()
+      )__py__",
+      scope);
+  auto addresses = scope["_addresses"];
+  detail::cairo_pdf_surface_create_for_stream =
+    reinterpret_cast<detail::surface_create_for_stream_t>(
+        addresses["cairo_pdf_surface_create_for_stream"].cast<uintptr_t>());
+  detail::cairo_ps_surface_create_for_stream =
+    reinterpret_cast<detail::surface_create_for_stream_t>(
+        addresses["cairo_ps_surface_create_for_stream"].cast<uintptr_t>());
+  detail::cairo_svg_surface_create_for_stream =
+    reinterpret_cast<detail::surface_create_for_stream_t>(
+        addresses["cairo_svg_surface_create_for_stream"].cast<uintptr_t>());
+  detail::cairo_ps_surface_set_eps =
+    reinterpret_cast<decltype(detail::cairo_ps_surface_set_eps)>(
+        addresses["cairo_ps_surface_set_eps"].cast<uintptr_t>());
+
   detail::UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+
+  // Export symbols.
 
   py::enum_<cairo_antialias_t>(m, "antialias_t")
     .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
