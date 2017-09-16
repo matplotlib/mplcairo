@@ -93,7 +93,7 @@ class install_lib_with_pth(install_lib):
 setup(
     name="mpl_cairo",
     description="A (new) cairo backend for Matplotlib.",
-    long_description=open("README.rst").read(),
+    long_description=open("README.rst", encoding="utf-8").read(),
     version=__version__,
     cmdclass={"install_lib": install_lib_with_pth},
     author="Antony Lee",

@@ -1,6 +1,8 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
+.. contents:: :local:
+
 This is a new, near-complete implementation of a cairo backend for Matplotlib.
 Currently, it can be used with either the Qt backend proposed in Matplotlib's
 PR #8771, or the Gtk3 backend merged with PR #8772; the latter is included in
@@ -161,14 +163,11 @@ Notes
 
   Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
   rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass
-  rcparam validation, using e.g.::
+  rcparam validation, using, e.g.
 
-     dict.__setitem__(plt.rcParams, "lines.antialiased", antialias_t.FAST)
+  .. code-block:: python
 
-  but note that as of Matplotlib 2.0.2, this will cause issues when other parts
-  of Matplotlib try to validate the rcparam (e.g., exiting a ``rc_context``
-  will use the validating setter to restore the original values); the issue is
-  fixed in Matplotlib master (and #8771).
+      dict.__setitem__(plt.rcParams, "lines.antialiased", antialias_t.FAST)
 
   (Support for ``text.antialiased`` is not implemented yet, mostly because we
   need to decide on whether to map ``True`` to ``GRAY`` or ``SUBPIXEL``.)
@@ -204,9 +203,11 @@ Known issues
   no effect.  This needs to be investigated.
 
   Meanwhile, a workaround is to generate files in PS format and convert them to
-  SVG e.g. using::
+  SVG e.g. using
 
-     inkscape --without-gui input.ps --export-plain-svg output.svg
+  .. code-block:: sh
+
+      inkscape --without-gui input.ps --export-plain-svg output.svg
 
   Rendering of hinted mathtext is *extremely* slow on Xlib (GTK3).  This may be
   partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or by
