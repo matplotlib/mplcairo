@@ -1196,6 +1196,12 @@ PYBIND11_MODULE(_mpl_cairo, m) {
 
   // Export symbols.
 
+  m.attr("__pybind11_version__") =
+    py::make_tuple(
+        PYBIND11_VERSION_MAJOR,
+        PYBIND11_VERSION_MINOR,
+        PYBIND11_VERSION_PATCH);
+
   py::enum_<cairo_antialias_t>(m, "antialias_t")
     .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
     .value("NONE", CAIRO_ANTIALIAS_NONE)
