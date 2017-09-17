@@ -3,6 +3,8 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
+#include <py3cairo.h>
+
 #include <stack>
 
 namespace mpl_cairo {
@@ -139,22 +141,16 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   {}
 
 cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx) {
-  if ((ctx.get_type().attr("__module__").cast<std::string>() != "cairo")
-      || (ctx.get_type().attr("__name__").cast<std::string>() != "Context")) {
+  if (!py::isinstance(
+        ctx, py::handle(reinterpret_cast<PyObject*>(&PycairoContext_Type)))) {
     throw std::invalid_argument("Argument is not a cairo.Context");
   }
-  typedef struct {  // Copy-pasted from pycairo.h.
-    PyObject_HEAD
-    cairo_t *ctx;
-    PyObject *base; /* base object used to create context, or NULL */
-  } PycairoContext;
-  auto ptr = reinterpret_cast<PycairoContext*>(ctx.ptr());
-  if (auto status = cairo_status(ptr->ctx); status != CAIRO_STATUS_SUCCESS) {
+  auto cr = PycairoContext_GET(ctx.ptr());
+  if (auto status = cairo_status(cr); status != CAIRO_STATUS_SUCCESS) {
     throw std::invalid_argument(
         "Context is in an error state:"
         + std::string{cairo_status_to_string(status)});
   }
-  auto cr = ptr->ctx;
   cairo_reference(cr);
   return cr;
 }
@@ -1159,6 +1155,8 @@ PYBIND11_MODULE(_mpl_cairo, m) {
   }
 
   // Setup global values.
+
+  import_cairo();
 
   // This is basically a cross-platform dlopen.
   // scope can't be an empty dict (pybind11#1091).

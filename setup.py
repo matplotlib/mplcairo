@@ -49,9 +49,11 @@ ext_modules = [
                         "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
                 sys.platform]
             + (["-static-libgcc", "-static-libstdc++",
-                "-I/usr/include/freetype2"]
+                "-I/usr/include/cairo",
+                "-I/usr/include/freetype2",
+                "-I/usr/include/pycairo"]
                if os.environ.get("MANYLINUX") else
-               _get_pkg_config("--cflags", "cairo")),
+               _get_pkg_config("--cflags", "py3cairo")),
         extra_link_args=
             (["-static-libgcc", "-static-libstdc++"]
              if os.environ.get("MANYLINUX") else

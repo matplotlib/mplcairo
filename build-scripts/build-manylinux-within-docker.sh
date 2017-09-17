@@ -22,7 +22,7 @@ echo 'Setting up xz.'
 yum install -y xz
 
 echo 'Setting up headers for dependencies.'
-for dep in cairo fontconfig freetype2; do
+for dep in cairo fontconfig freetype2 python-cairo; do
 (
     cd workdir
     mkdir "$dep"
