@@ -1,0 +1,2 @@
+include versioneer.py
+include mpl_cairo/_version.py

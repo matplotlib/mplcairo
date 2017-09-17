@@ -1,3 +1,4 @@
+from collections import ChainMap
 import os
 from pathlib import Path
 import shlex
@@ -7,9 +8,7 @@ from tempfile import NamedTemporaryFile
 
 from setuptools import Extension, find_packages, setup
 from setuptools.command.install_lib import install_lib
-
-
-__version__ = "0.0"
+import versioneer
 
 
 class get_pybind_include(object):
@@ -94,8 +93,9 @@ setup(
     name="mpl_cairo",
     description="A (new) cairo backend for Matplotlib.",
     long_description=open("README.rst", encoding="utf-8").read(),
-    version=__version__,
-    cmdclass={"install_lib": install_lib_with_pth},
+    version=versioneer.get_version(),
+    cmdclass=ChainMap(versioneer.get_cmdclass(),
+                      {"install_lib": install_lib_with_pth}),
     author="Antony Lee",
     url="https://github.com/anntzer/mpl_cairo",
     license="BSD",
