@@ -1,11 +1,11 @@
 """Plot a series of lines of various thicknesses to test antialiasing.
 
-On the mpl_cairo backend, the bottom halves of the lines are drawn with FAST
+On the mplcairo backend, the bottom halves of the lines are drawn with FAST
 antialiasing and the top with BEST antialiasing.  On other backends, the bottom
 halves are drawn with no antialiasing and the top ones with antialiasing.
 
 The goal is to determine a suitable threshold for switching from FAST to BEST
-in the mpl_cairo backend.
+in the mplcairo backend.
 
 Note that antialiasing quality also depends on the angle of the lines, so one
 should also resize the window to change the aspect ratio of the axes.
@@ -15,8 +15,8 @@ should also resize the window to change the aspect ratio of the axes.
 from matplotlib import pyplot as plt
 import numpy as np
 
-if plt.rcParams["backend"].startswith("module://mpl_cairo"):
-    from mpl_cairo import antialias_t as aa
+if plt.rcParams["backend"].startswith("module://mplcairo"):
+    from mplcairo import antialias_t as aa
     FAST = aa.FAST
     BEST = aa.BEST
 else:

@@ -4,7 +4,7 @@ del get_versions
 
 def _load_symbols():
     # dlopen() the ft2font extension module with RTLD_GLOBAL to make
-    # _ft2Library available to _mpl_cairo.
+    # _ft2Library available to _mplcairo.
     # dlopen() pycairo's extension module with RTLD_GLOBAL to dynamically load
     # cairo.
     from ctypes import CDLL, RTLD_GLOBAL
@@ -15,4 +15,4 @@ def _load_symbols():
 
 _load_symbols()
 
-from ._mpl_cairo import antialias_t
+from ._mplcairo import antialias_t

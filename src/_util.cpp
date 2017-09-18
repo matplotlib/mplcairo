@@ -2,7 +2,7 @@
 
 #include <stack>
 
-namespace mpl_cairo {
+namespace mplcairo {
 
 namespace {
 AdditionalState const DEFAULT_ADDITIONAL_STATE{

@@ -53,10 +53,10 @@ Example usage:
 $ python %(prog)s plot \\
     '{{"backend": "agg"}}' \\
     '{{"backend": "agg", "agg.path.chunksize": 1000}}' \\
-    '{{"backend": "module://mpl_cairo.base", \\
-      "lines.antialiased": __import__("mpl_cairo").antialias_t.FAST}}' \\
-    '{{"backend": "module://mpl_cairo.base", \\
-      "lines.antialiased": __import__("mpl_cairo").antialias_t.BEST}}'
+    '{{"backend": "module://mplcairo.base", \\
+      "lines.antialiased": __import__("mplcairo").antialias_t.FAST}}' \\
+    '{{"backend": "module://mplcairo.base", \\
+      "lines.antialiased": __import__("mplcairo").antialias_t.BEST}}'
 """.format(sys.argv[0]))
 
     parser.add_argument(
@@ -76,8 +76,8 @@ $ python %(prog)s plot \\
 
     results = []
     for rc in rcs:
-        # Emulate rc_context, but without the validation (to support
-        # mpl_cairo's antialiasing enum).
+        # Emulate rc_context, but without the validation (to support mplcairo's
+        # antialiasing enum).
         try:
             orig_rc = dict.copy(plt.rcParams)
             dict.update(plt.rcParams, rc)

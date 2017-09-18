@@ -8,7 +8,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-namespace mpl_cairo {
+namespace mplcairo {
 
 namespace py = pybind11;
 

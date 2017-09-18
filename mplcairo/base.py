@@ -18,17 +18,17 @@ from matplotlib.backend_bases import (
     RendererBase)
 from matplotlib.mathtext import MathTextParser
 
-from . import _mpl_cairo
-from ._mpl_cairo import _StreamSurfaceType
+from . import _mplcairo
+from ._mplcairo import _StreamSurfaceType
 
 
-MathTextParser._backend_mapping["cairo"] = _mpl_cairo.MathtextBackendCairo
+MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
 
 
 # FreeType2 is thread-unsafe (as we rely on Matplotlib's unique FT_Library).
-# Moreover, because mathtext methods globally set the dpi (see _mpl_cairo.cpp
-# for rationale), the _mpl_cairo is also thread-unsafe.  Additionally, features
-# such as start/stop_filter() are essentially also single-threaded.  Thus, do
+# Moreover, because mathtext methods globally set the dpi (see _mplcairo.cpp
+# for rationale), _mplcairo is also thread-unsafe.  Additionally, features such
+# as start/stop_filter() are fundamentally also single-threaded.  Thus, we do
 # not attempt to use fine-grained locks.
 _LOCK = RLock()
 
@@ -59,7 +59,7 @@ def _get_drawn_subarray_and_bounds(img):
     return img[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
 
 
-_mpl_cairo._Region.to_string_argb = (
+_mplcairo._Region.to_string_argb = (
     # For spoofing BackendAgg.BufferRegion.
     lambda self:
     _to_rgba(self._get_buffer())[
@@ -68,7 +68,7 @@ _mpl_cairo._Region.to_string_argb = (
 
 
 class GraphicsContextRendererCairo(
-        _mpl_cairo.GraphicsContextRendererCairo,
+        _mplcairo.GraphicsContextRendererCairo,
         # Fill in the missing methods.
         GraphicsContextBase,
         RendererBase):
@@ -79,15 +79,15 @@ class GraphicsContextRendererCairo(
 
     @classmethod
     def from_pycairo_ctx(cls, ctx, dpi):
-        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, ctx, dpi)
-        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, ctx, dpi)
+        obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, ctx, dpi)
+        _mplcairo.GraphicsContextRendererCairo.__init__(obj, ctx, dpi)
         return obj
 
     @classmethod
     def _for_fmt_output(cls, fmt, file, width, height, dpi):
         args = fmt, file, width, height, dpi
-        obj = _mpl_cairo.GraphicsContextRendererCairo.__new__(cls, *args)
-        _mpl_cairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
+        _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
         return obj
 
     _for_pdf_output = partialmethod(_for_fmt_output, _StreamSurfaceType.PDF)

@@ -35,8 +35,8 @@ done
 
 echo 'Building the wheel.'
 (
-    cd /io/mpl_cairo
+    cd /io/mplcairo
     "$PY_PREFIX/pip" install pybind11
     "$PY_PREFIX/python" setup.py bdist_wheel
-    auditwheel repair -wdist dist/mpl_cairo-"$("$PY_PREFIX/python" setup.py --version)"-*
+    auditwheel repair -wdist dist/mplcairo-"$("$PY_PREFIX/python" setup.py --version)"-*
 )

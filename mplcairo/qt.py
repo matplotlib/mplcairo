@@ -5,7 +5,7 @@ import numpy as np
 from .base import FigureCanvasCairo
 
 
-rcsetup.interactive_bk += ["module://mpl_cairo.qt"]  # NOTE: Should be fixed in Mpl.
+rcsetup.interactive_bk += ["module://mplcairo.qt"]  # NOTE: Should be fixed in Mpl.
 
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):

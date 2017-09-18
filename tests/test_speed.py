@@ -7,8 +7,8 @@ from matplotlib.backends.backend_qt5 import QtGui
 import numpy as np
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-from mpl_cairo import antialias_t
-from mpl_cairo.qt import FigureCanvasQTCairo
+from mplcairo import antialias_t
+from mplcairo.qt import FigureCanvasQTCairo
 
 
 _canvas_classes = [FigureCanvasQTAgg, FigureCanvasQTCairo]

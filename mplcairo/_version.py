@@ -42,8 +42,8 @@ def get_config():
     cfg.VCS = "git"
     cfg.style = "pep440"
     cfg.tag_prefix = "v"
-    cfg.parentdir_prefix = "mpl_cairo-"
-    cfg.versionfile_source = "mpl_cairo/_version.py"
+    cfg.parentdir_prefix = "mplcairo-"
+    cfg.versionfile_source = "mplcairo/_version.py"
     cfg.verbose = False
     return cfg
 

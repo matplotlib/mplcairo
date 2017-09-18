@@ -33,11 +33,11 @@ def _get_pkg_config(info, lib):
 
 ext_modules = [
     Extension(
-        "mpl_cairo._mpl_cairo",
-        ["src/_mpl_cairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
+        "mplcairo._mplcairo",
+        ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
         depends=
             ["setup.py",
-             "src/_mpl_cairo.h", "src/_util.h", "src/_pattern_cache.h"],
+             "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"],
         language=
             "c++",
         include_dirs=
@@ -71,9 +71,9 @@ if os.environ.get("MPLCAIRO"):
             if fullname == "matplotlib.backends.backend_agg":
                 def exec_module(module):
                     type(spec.loader).exec_module(spec.loader, module)
-                    import mpl_cairo.base
-                    module.FigureCanvasAgg = mpl_cairo.base.FigureCanvasCairo
-                    module.RendererAgg = mpl_cairo.base.GraphicsContextRendererCairo
+                    import mplcairo.base
+                    module.FigureCanvasAgg = mplcairo.base.FigureCanvasCairo
+                    module.RendererAgg = mplcairo.base.GraphicsContextRendererCairo
                 spec.loader.exec_module = exec_module
                 sys.meta_path.remove(self)
             return spec
@@ -88,18 +88,18 @@ class install_lib_with_pth(install_lib):
             file.write("import os; exec({!r})".format(pth_src))
             file.flush()
             self.copy_file(
-                file.name, str(Path(self.install_dir, "mpl_cairo.pth")))
+                file.name, str(Path(self.install_dir, "mplcairo.pth")))
 
 
 setup(
-    name="mpl_cairo",
+    name="mplcairo",
     description="A (new) cairo backend for Matplotlib.",
     long_description=open("README.rst", encoding="utf-8").read(),
     version=versioneer.get_version(),
     cmdclass=ChainMap(versioneer.get_cmdclass(),
                       {"install_lib": install_lib_with_pth}),
     author="Antony Lee",
-    url="https://github.com/anntzer/mpl_cairo",
+    url="https://github.com/anntzer/mplcairo",
     license="BSD",
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -108,7 +108,7 @@ setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6"
     ],
-    packages=find_packages(include=["mpl_cairo", "mpl_cairo.*"]),
+    packages=find_packages(include=["mplcairo", "mplcairo.*"]),
     ext_modules=ext_modules,
     python_requires=">=3.4",
     install_requires=["pybind11>=2.2", "pycairo>=1.12.0"],

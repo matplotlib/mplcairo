@@ -11,7 +11,7 @@
 // ft2font extension module with RTLD_GLOBAL.
 extern FT_Library _ft2Library;
 
-namespace mpl_cairo {
+namespace mplcairo {
 
 namespace py = pybind11;
 

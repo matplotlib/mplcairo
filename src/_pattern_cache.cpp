@@ -1,6 +1,6 @@
 #include "_pattern_cache.h"
 
-namespace mpl_cairo {
+namespace mplcairo {
 
 dash_t convert_dash(cairo_t* cr) {
   auto dash_count = cairo_get_dash_count(cr);

@@ -1,4 +1,4 @@
-#include "_mpl_cairo.h"
+#include "_mplcairo.h"
 
 #include "_util.h"
 #include "_pattern_cache.h"
@@ -7,7 +7,7 @@
 
 #include <stack>
 
-namespace mpl_cairo {
+namespace mplcairo {
 
 using namespace pybind11::literals;
 
@@ -1146,7 +1146,7 @@ py::capsule MathtextBackend::get_results(
   });
 }
 
-PYBIND11_MODULE(_mpl_cairo, m) {
+PYBIND11_MODULE(_mplcairo, m) {
   m.doc() = "A cairo backend for matplotlib.";
 
   if (py::module::import("matplotlib.ft2font").attr("__freetype_build_type__")
@@ -1160,7 +1160,7 @@ PYBIND11_MODULE(_mpl_cairo, m) {
 
   // This is basically a cross-platform dlopen.
   // scope can't be an empty dict (pybind11#1091).
-  auto scope = py::module::import("mpl_cairo").attr("__dict__");
+  auto scope = py::module::import("mplcairo").attr("__dict__");
   py::exec(
       R"__py__(
         def _load_addresses():

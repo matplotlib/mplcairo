@@ -48,7 +48,7 @@ All code examples below assume that the appropriate conda environment is active
     pip install -e .)
 
    # Download the wheel from Github releases.
-   pip install /path/to/mpl_cairo-*.whl
+   pip install /path/to/mplcairo-*.whl
 
 .. [#] We do not actually rely on pycairo's Python bindings.  Rather,
    specifying a dependency on pycairo is a convenient way to specify a
@@ -72,7 +72,7 @@ All code examples below assume that the appropriate conda environment is active
 Building (Linux only)
 ---------------------
 
-In order to build mpl_cairo yourself, the following additional dependencies are
+In order to build mplcairo yourself, the following additional dependencies are
 required:
 
 - a C++ compiler with C++17 support, e.g. GCC≥7.1.
@@ -90,8 +90,8 @@ already been installed as documented above.
    # The environment needs to be reactivated for the compiler paths to be set.
    source activate "$CONDA_DEFAULT_ENV"
 
-   git clone https://github.com/anntzer/mpl_cairo.git
-   (cd mpl_cairo
+   git clone https://github.com/anntzer/mplcairo.git
+   (cd mplcairo
     pip install -e .)
 
 On a related note, the manylinux wheel is built using
@@ -103,9 +103,9 @@ Use
 The backend can be selected by setting the ``MPLBACKEND`` environment variable
 to one of
 
-- ``module://mpl_cairo.qt`` (Qt5 GUI),
-- ``module://mpl_cairo.gtk3`` (GTK3 GUI),
-- ``module://mpl_cairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
+- ``module://mplcairo.qt`` (Qt5 GUI),
+- ``module://mplcairo.gtk3`` (GTK3 GUI),
+- ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's).
 
 Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
@@ -196,9 +196,9 @@ Notes
 Known issues
 ------------
 
-- Blitting-based animations to image-base backends (e.g., ``mpl_cairo.qt``)
+- Blitting-based animations to image-base backends (e.g., ``mplcairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
-  affect Xlib-based backends (e.g., ``mpl_cairo.gtk3``).
+  affect Xlib-based backends (e.g., ``mplcairo.gtk3``).
 
 - SVG and Xlib (i.e, GTK3) currently need to rasterize mathtext before
   rendering it (this is mostly an issue for SVG, altough it affects vertical
