@@ -1,3 +1,4 @@
+====================================
 A (new) cairo backend for Matplotlib
 ====================================
 
@@ -18,7 +19,7 @@ Currently, only Linux is supported, although I would welcome PRs for supporting
 other OSes.
 
 Installation (Linux only)
--------------------------
+=========================
 
 Dependencies:
 
@@ -72,7 +73,7 @@ All code examples below assume that the appropriate conda environment is active
    of FreeType cairo is built against, causing binary incompatibilites.
 
 Building (Linux only)
----------------------
+=====================
 
 In order to build mplcairo yourself, the following additional dependencies are
 required:
@@ -127,7 +128,7 @@ is arguably more accurate than the one of the default renderer, Agg:
 - ``text_kerning.py``: improved text kerning.
 
 Benchmarks
-----------
+==========
 
 Install (in the virtualenv) ``pytest>=3.1.0`` and ``pytest-benchmark``, then
 call (e.g.):
@@ -140,7 +141,7 @@ Keep in mind that conda-forge's cairo is (on my setup) ~2× slower than a
 "native" build of cairo.
 
 Test suite
-----------
+==========
 
 Run ``run-mpl-test-suite.py`` *from the Matplotlib source folder* to run the
 subset of matplotlib tests that rely on png image comparison, while using this
@@ -148,7 +149,7 @@ backend.  Pass command-line options as you would to pytest, although ``-k``
 must not be compressed with another short argument.
 
 Notes
------
+=====
 
 - The artist antialiasing property can be set to any of the
   ``cairo_antialias_t`` enum values, or ``True`` (the default) or ``False``
@@ -197,7 +198,7 @@ Notes
   markers at straight or Bézier segment ends.
 
 Known issues
-------------
+============
 
 - Blitting-based animations to image-base backends (e.g., ``mplcairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
@@ -221,7 +222,7 @@ Known issues
   issue with recording surfaces first).
 
 Possible optimizations
-----------------------
+======================
 
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
 - Path simplification (although cairo appears to use vertex reduction and
@@ -236,12 +237,12 @@ Possible optimizations
   side.
 
 Other ideas
------------
+===========
 
 - Complex text layout (e.g. using libraqm).
 
 What about the already existing cairo (gtk3cairo) backend?
-----------------------------------------------------------
+==========================================================
 
 It is slow (try running ``examples/mplot3d/wire3d_animation.py``), buggy (try
 calling ``imshow``, especially with an alpha channel), and renders math poorly

@@ -43,21 +43,34 @@ ext_modules = [
         include_dirs=
             [get_pybind_include(), get_pybind_include(user=True)],
         extra_compile_args=
-            {"linux": ["-std=c++17", "-fvisibility=hidden"],
-             "win32": ["/EHsc"],
-             "darwin": ["-std=c++17", "-fvisibility=hidden",
-                        "-stdlib=libc++", "-mmacosx-version-min=10.7"]}[
-                sys.platform]
-            + (["-static-libgcc", "-static-libstdc++",
-                "-I/usr/include/cairo",
-                "-I/usr/include/freetype2",
-                "-I/usr/include/pycairo"]
-               if os.environ.get("MANYLINUX") else
-               _get_pkg_config("--cflags", "py3cairo")),
+            {"linux":
+             ["-std=c++17", "-fvisibility=hidden"]
+             + (_get_pkg_config("--cflags", "py3cairo")
+                if not os.environ.get("MANYLINUX") else
+                ["-static-libgcc", "-static-libstdc++",
+                 "-I/usr/include/cairo",
+                 "-I/usr/include/freetype2",
+                 "-I/usr/include/pycairo"]),
+             "darwin":
+             ["-std=c++17", "-fvisibility=hidden",
+              "-stdlib=libc++", "-mmacosx-version-min=10.7"],
+             "win32":
+             ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
+              # Windows conda paths.
+              "-I{}".format(Path(sys.prefix, "Library/include")),
+              "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
+              "-I{}".format(Path(sys.prefix, "include/pycairo"))]}
+             [sys.platform],
         extra_link_args=
-            (["-static-libgcc", "-static-libstdc++"]
-             if os.environ.get("MANYLINUX") else
-             []),
+            {"linux":
+             ([]
+              if not os.environ.get("MANYLINUX") else
+              ["-static-libgcc", "-static-libstdc++"]),
+             "darwin":
+             [],
+             "win32":
+             []}
+             [sys.platform]
     ),
 ]
 
