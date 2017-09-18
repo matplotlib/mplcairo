@@ -1,10 +1,6 @@
-from matplotlib import rcsetup
 from matplotlib.backends.backend_gtk3 import _BackendGTK3, FigureCanvasGTK3
 
 from .base import FigureCanvasCairo, GraphicsContextRendererCairo
-
-
-rcsetup.interactive_bk += ["module://mplcairo.gtk3"]  # NOTE: Should be fixed in Mpl.
 
 
 class FigureCanvasGTK3Cairo(FigureCanvasCairo, FigureCanvasGTK3):

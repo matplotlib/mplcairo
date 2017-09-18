@@ -1,11 +1,7 @@
-from matplotlib import rcsetup
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
 import numpy as np
 
 from .base import FigureCanvasCairo
-
-
-rcsetup.interactive_bk += ["module://mplcairo.qt"]  # NOTE: Should be fixed in Mpl.
 
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):

@@ -143,7 +143,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                     self.figure.draw(renderer)
             return renderer
 
-    # NOTE: Not documented, but needed for tight_layout().
+    # NOTE: Not documented, but needed for tight_layout()... and we use it too.
     def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
