@@ -106,9 +106,12 @@ Use
 The backend can be selected by setting the ``MPLBACKEND`` environment variable
 to one of
 
-- ``module://mplcairo.qt`` (Qt5 GUI),
-- ``module://mplcairo.gtk3`` (GTK3 GUI),
-- ``module://mplcairo.wx`` (wx GUI),
+- ``module://mplcairo.qt`` (Qt5 widget, copying data from a cairo image
+  surface),
+- ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
+  surface),
+- ``module://mplcairo.gtk3_native`` (GTK3 widget, directly drawn onto as a
+  native surface),
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's).
 
