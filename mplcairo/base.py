@@ -33,12 +33,18 @@ MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
 _LOCK = RLock()
 
 
-def _to_rgba(buf):
-    """Convert a buffer from premultiplied ARGB32 to unmultiplied RGBA8888.
+def _to_premultiplied_rgba8888(buf):
+    """Convert a buffer from premultipled ARGB32 to premultiplied RGBA8888.
     """
     # Using .take() instead of indexing ensures C-contiguity of the result.
-    rgba = buf.take(
+    return buf.take(
         [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0], axis=2)
+
+
+def _to_unmultiplied_rgba8888(buf):
+    """Convert a buffer from premultiplied ARGB32 to unmultiplied RGBA8888.
+    """
+    rgba = _to_premultiplied_rgba8888(buf)
     # Un-premultiply alpha.  The formula is the same as in cairo-png.c.
     rgb = rgba[..., :-1]
     alpha = rgba[..., -1]
@@ -62,7 +68,7 @@ def _get_drawn_subarray_and_bounds(img):
 _mplcairo._Region.to_string_argb = (
     # For spoofing BackendAgg.BufferRegion.
     lambda self:
-    _to_rgba(self._get_buffer())[
+    _to_unmultiplied_rgba8888(self._get_buffer())[
         ..., [2, 1, 0, 3] if sys.byteorder == "little" else [3, 0, 1, 2]]
     .tobytes())
 
@@ -111,7 +117,7 @@ class GraphicsContextRendererCairo(
         return True  # Similarly to Agg.
 
     def stop_filter(self, filter_func):
-        img = _to_rgba(self._stop_filter())
+        img = _to_unmultiplied_rgba8888(self._stop_filter())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         img, dx, dy = filter_func(img[::-1] / 255, self.dpi)
         if img.dtype.kind == "f":
@@ -121,7 +127,7 @@ class GraphicsContextRendererCairo(
 
     def tostring_rgba_minimized(self):  # NOTE: Needed by MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(
-            _to_rgba(self._get_buffer()))
+            _to_unmultiplied_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
 
 
@@ -206,7 +212,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.draw()
             if dryrun:
                 return
-            img = _to_rgba(self.get_renderer()._get_buffer())
+            img = _to_unmultiplied_rgba8888(self.get_renderer()._get_buffer())
         full_metadata = OrderedDict(
             [("Software",
               "matplotlib version {}, https://matplotlib.org"
@@ -232,7 +238,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                 self.draw()
                 if dryrun:
                     return
-                img = _to_rgba(self.get_renderer()._get_buffer())
+                img = _to_unmultiplied_rgba8888(
+                    self.get_renderer()._get_buffer())
             size = self.get_renderer().get_canvas_width_height()
             img = Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
             # Composite against the background (actually we could just skip the
@@ -256,7 +263,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                 self.draw()
                 if dryrun:
                     return
-                img = _to_rgba(self.get_renderer()._get_buffer())
+                img = _to_unmultiplied_rgba8888(
+                    self.get_renderer()._get_buffer())
             size = self.get_renderer().get_canvas_width_height()
             (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
             .save(filename_or_obj, format="tiff",
