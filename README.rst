@@ -4,9 +4,8 @@ A (new) cairo backend for Matplotlib
 .. contents:: :local:
 
 This is a new, near-complete implementation of a cairo backend for Matplotlib.
-Currently, it can be used with either the Qt backend proposed in Matplotlib's
-PR #8771, or the Gtk3 backend merged with PR #8772; the latter is included in
-Matplotlib≥2.1.0rc1.
+It can be used in combination with a Qt5, GTK3 or wx UI, or non-interactively
+(i.e., to save figure to various file formats).
 
 This implementation "passes" Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with the
@@ -24,10 +23,13 @@ Installation (Linux only)
 Dependencies:
 
 - Python 3,
-- Matplotlib, including PR#8771 (or ≥2.1.0rc1 for Gtk3 and non-interactive
-  backends),
+- Matplotlib:
+
+  * ≥2.1.0rc1 for GTK3 or non-interactive backends,
+  * with Matplotlib PR#9202 for Qt5 or wx,
+
 - pycairo≥1.12 [#]_,
-- pybind11≥2.2, automatically installed [#]_,
+- pybind11≥2.2, automatically installed [#]_.
 
 All code examples below assume that the appropriate conda environment is active
 (pycairo is not available as a wheel, so conda is the simplest option).
@@ -43,8 +45,8 @@ All code examples below assume that the appropriate conda environment is active
 
    git clone https://github.com/matplotlib/matplotlib.git
    (cd matplotlib
-    git pull origin pull/8771/head:pr/8771
-    git checkout pr/8771
+    git pull origin pull/9202/head:pr/9202
+    git checkout pr/9202
     pip install -e .)
 
    # Download the wheel from Github releases.
@@ -105,6 +107,7 @@ to one of
 
 - ``module://mplcairo.qt`` (Qt5 GUI),
 - ``module://mplcairo.gtk3`` (GTK3 GUI),
+- ``module://mplcairo.wx`` (wx GUI),
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's).
 
