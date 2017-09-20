@@ -121,7 +121,8 @@ setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6"
     ],
-    packages=find_packages(include=["mplcairo", "mplcairo.*"]),
+    packages=find_packages("lib"),
+    package_dir={"": "lib"},
     ext_modules=ext_modules,
     python_requires=">=3.4",
     install_requires=["pybind11>=2.2", "pycairo>=1.12.0"],
