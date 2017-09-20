@@ -19,9 +19,9 @@ enum class StreamSurfaceType {
 
 struct Region {
   cairo_rectangle_int_t bbox;
-  std::shared_ptr<uint8_t[]> buf;
+  std::unique_ptr<uint8_t[]> buf;
 
-  Region(cairo_rectangle_int_t bbox, std::shared_ptr<uint8_t[]> buf);
+  Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf);
 };
 
 class GraphicsContextRenderer {

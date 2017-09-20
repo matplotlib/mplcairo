@@ -20,8 +20,8 @@ namespace {
 double CURRENT_DPI{72};
 }
 
-Region::Region(cairo_rectangle_int_t bbox, std::shared_ptr<uint8_t[]> buf) :
-  bbox{bbox}, buf{buf} {}
+Region::Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf) :
+  bbox{bbox}, buf{std::move(buf)} {}
 
 GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     GraphicsContextRenderer* gcr) :
@@ -298,7 +298,7 @@ void GraphicsContextRenderer::set_dashes(
     }
     auto dashes_raw = dash_list->unchecked<1>();
     auto n = dashes_raw.size();
-    auto buf = std::unique_ptr<double[]>(new double[n]);
+    auto buf = std::unique_ptr<double[]>{new double[n]};
     for (auto i = 0; i < n; ++i) {
       buf[i] = points_to_pixels(dashes_raw[i]);
     }
@@ -447,7 +447,7 @@ void GraphicsContextRenderer::draw_image(
     throw std::invalid_argument("RGBA array must have shape (m, n, 4)");
   }
   auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
-  auto buf = std::unique_ptr<uint8_t[]>(new uint8_t[height * stride]);
+  auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[height * stride]};
   // The gcr's alpha has already been applied by ImageBase._make_image, we just
   // need to convert to premultiplied ARGB format.
   for (auto i = 0; i < height; ++i) {
@@ -722,8 +722,8 @@ void GraphicsContextRenderer::draw_path_collection(
     return;
   }
   auto master_matrix = matrix_from_transform(master_transform, height_);
-  auto matrices = std::unique_ptr<cairo_matrix_t[]>(
-      new cairo_matrix_t[n_transforms ? n_transforms : 1]);
+  auto matrices = std::unique_ptr<cairo_matrix_t[]>{
+      new cairo_matrix_t[n_transforms ? n_transforms : 1]};
   if (n_transforms) {
     for (auto i = 0; i < n_transforms; ++i) {
       matrices[i] = matrix_from_transform(transforms[i], &master_matrix);
@@ -752,8 +752,8 @@ void GraphicsContextRenderer::draw_path_collection(
        ecs_raw = ecs_raw_keepref.unchecked<2>();
   auto lws_raw = lws.unchecked<1>();
   auto n_dashes = dashes.size();
-  auto dashes_raw = std::unique_ptr<dash_t[]>(
-      new dash_t[n_dashes ? n_dashes : 1]);
+  auto dashes_raw = std::unique_ptr<dash_t[]>{
+      new dash_t[n_dashes ? n_dashes : 1]};
   if (n_dashes) {
     for (auto i = 0u; i < n_dashes; ++i) {
       auto [dash_offset, dash_list] = dashes[i];
@@ -1050,7 +1050,7 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
   }
   auto width = x1 - x0, height = y1 - y0;
   // 4 bytes per pixel throughout!
-  auto buf = std::shared_ptr<uint8_t[]>(new uint8_t[4 * width * height]);
+  auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[4 * width * height]};
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
     throw std::runtime_error("Only image surfaces are supported");
@@ -1062,11 +1062,11 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {
         buf.get() + (y - y0) * 4 * width, raw + y * stride + 4 * x0,
         4 * width);
   }
-  return {{x0, y0, width, height}, buf};
+  return {{x0, y0, width, height}, std::move(buf)};
 }
 
 void GraphicsContextRenderer::restore_region(Region& region) {
-  auto [bbox, buf] = region;
+  auto& [bbox, buf] = region;
   auto [x0, y0, width, height] = bbox;
   int /* x1 = x0 + width, */ y1 = y0 + height;
   auto surface = cairo_get_target(cr_);
