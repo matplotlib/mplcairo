@@ -1,13 +1,14 @@
 from collections import ChainMap
+import inspect
 import os
 from pathlib import Path
 import shlex
 import subprocess
 import sys
-from tempfile import NamedTemporaryFile
 
 from setuptools import Extension, find_packages, setup
 from setuptools.command.build_ext import build_ext
+from setuptools.command.develop import develop
 from setuptools.command.install_lib import install_lib
 import versioneer
 
@@ -87,33 +88,41 @@ class build_ext(build_ext):
         super().build_extensions()
 
 
-pth_src = """\
-if os.environ.get("MPLCAIRO"):
-    from importlib.machinery import PathFinder
-    class PyplotMetaPathFinder(PathFinder):
-        def find_spec(self, fullname, path=None, target=None):
-            spec = super().find_spec(fullname, path, target)
-            if fullname == "matplotlib.backends.backend_agg":
-                def exec_module(module):
-                    type(spec.loader).exec_module(spec.loader, module)
-                    import mplcairo.base
-                    module.FigureCanvasAgg = mplcairo.base.FigureCanvasCairo
-                    module.RendererAgg = mplcairo.base.GraphicsContextRendererCairo
-                spec.loader.exec_module = exec_module
-                sys.meta_path.remove(self)
-            return spec
-    sys.meta_path.insert(0, PyplotMetaPathFinder())
-"""
+def _pth_hook():
+    if os.environ.get("MPLCAIRO"):
+        from importlib.machinery import PathFinder
+        class PyplotMetaPathFinder(PathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                spec = super().find_spec(fullname, path, target)
+                if fullname == "matplotlib.backends.backend_agg":
+                    def exec_module(module):
+                        type(spec.loader).exec_module(spec.loader, module)
+                        # The pth file does not get properly uninstalled from
+                        # a develop install.  See pypa/pip#4176.
+                        try:
+                            import mplcairo.base
+                        except ImportError:
+                            return
+                        module.FigureCanvasAgg = \
+                            mplcairo.base.FigureCanvasCairo
+                        module.RendererAgg = \
+                            mplcairo.base.GraphicsContextRendererCairo
+                    spec.loader.exec_module = exec_module
+                    sys.meta_path.remove(self)
+                return spec
+        sys.meta_path.insert(0, PyplotMetaPathFinder())
 
 
-class install_lib(install_lib):
+class _pth_command_mixin:
     def run(self):
         super().run()
-        with NamedTemporaryFile("w") as file:
-            file.write("import os; exec({!r})".format(pth_src))
-            file.flush()
-            self.copy_file(
-                file.name, str(Path(self.install_dir, "mplcairo.pth")))
+        with Path(self.install_dir, "mplcairo.pth").open("w") as file:
+            file.write("import os; exec({!r}); _pth_hook()"
+                       .format(inspect.getsource(_pth_hook)))
+
+    def get_outputs(self):
+        return (super().get_outputs()
+                + [str(Path(self.install_dir, "mplcairo.pth"))])
 
 
 setup(
@@ -121,9 +130,11 @@ setup(
     description="A (new) cairo backend for Matplotlib.",
     long_description=open("README.rst", encoding="utf-8").read(),
     version=versioneer.get_version(),
-    cmdclass=ChainMap(versioneer.get_cmdclass(),
-                      {"build_ext": build_ext,
-                       "install_lib": install_lib}),
+    cmdclass=ChainMap(
+        versioneer.get_cmdclass(),
+        {"build_ext": build_ext,
+         "develop": type("", (_pth_command_mixin, develop), {}),
+         "install_lib": type("", (_pth_command_mixin, install_lib), {})}),
     author="Antony Lee",
     url="https://github.com/anntzer/mplcairo",
     license="MIT",
