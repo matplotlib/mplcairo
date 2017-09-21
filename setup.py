@@ -7,6 +7,7 @@ import sys
 from tempfile import NamedTemporaryFile
 
 from setuptools import Extension, find_packages, setup
+from setuptools.command.build_ext import build_ext
 from setuptools.command.install_lib import install_lib
 import versioneer
 
@@ -26,53 +27,64 @@ class get_pybind_include(object):
         return pybind11.get_include(self.user)
 
 
-def _get_pkg_config(info, lib):
+def get_pkg_config(info, lib):
     return shlex.split(subprocess.check_output(["pkg-config", info, lib],
                                                universal_newlines=True))
 
 
-ext_modules = [
-    Extension(
-        "mplcairo._mplcairo",
-        ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
-        depends=
-            ["setup.py",
-             "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"],
-        language=
-            "c++",
-        include_dirs=
-            [get_pybind_include(), get_pybind_include(user=True)],
-        extra_compile_args=
-            {"linux":
-             ["-std=c++17", "-fvisibility=hidden"]
-             + (_get_pkg_config("--cflags", "py3cairo")
-                if not os.environ.get("MANYLINUX") else
-                ["-static-libgcc", "-static-libstdc++",
-                 "-I/usr/include/cairo",
-                 "-I/usr/include/freetype2",
-                 "-I/usr/include/pycairo"]),
-             "darwin":
-             ["-std=c++17", "-fvisibility=hidden",
-              "-stdlib=libc++", "-mmacosx-version-min=10.7"],
-             "win32":
-             ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
-              # Windows conda paths.
-              "-I{}".format(Path(sys.prefix, "Library/include")),
-              "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
-              "-I{}".format(Path(sys.prefix, "include/pycairo"))]}
-             [sys.platform],
-        extra_link_args=
-            {"linux":
-             ([]
-              if not os.environ.get("MANYLINUX") else
-              ["-static-libgcc", "-static-libstdc++"]),
-             "darwin":
-             [],
-             "win32":
-             []}
-             [sys.platform]
-    ),
-]
+EXTENSION = Extension(
+    "mplcairo._mplcairo",
+    ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
+    depends=
+        ["setup.py", "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"],
+    language=
+        "c++",
+    include_dirs=
+        [get_pybind_include(), get_pybind_include(user=True)],
+    extra_compile_args=
+        {"linux":
+            ["-std=c++17", "-fvisibility=hidden"]
+            + (get_pkg_config("--cflags", "py3cairo")
+               if not os.environ.get("MANYLINUX") else
+               ["-static-libgcc", "-static-libstdc++",
+                "-I/usr/include/cairo",
+                "-I/usr/include/freetype2",
+                "-I/usr/include/pycairo"]),
+         "darwin":
+            ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.7"],
+         "win32":
+            ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
+             # Windows conda paths.
+             "-I{}".format(Path(sys.prefix, "Library/include")),
+             "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
+             "-I{}".format(Path(sys.prefix, "include/pycairo"))]}
+        [sys.platform],
+    extra_link_args=
+        {"linux":
+            ([]
+             if not os.environ.get("MANYLINUX") else
+             ["-static-libgcc", "-static-libstdc++"]),
+         "darwin":
+            # Min version needs to be repeated to avoid a warning.
+            ["-mmacosx-version-min=10.9"],
+         "win32":
+            []}
+        [sys.platform]
+)
+
+
+class build_ext(build_ext):
+    def build_extensions(self):
+        # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
+        # libstdc++ + std::variant = compilation error).
+        if (subprocess.check_output([self.compiler.compiler[0], "--version"],
+                                    universal_newlines=True)
+                .startswith("clang")):
+            EXTENSION.extra_compile_args += ["-stdlib=libc++"]
+            # Explicitly linking to libc++ is required to avoid picking up the
+            # system C++ library (libstdc++ or an outdated libc++).
+            EXTENSION.extra_link_args += ["-lc++"]
+        super().build_extensions()
 
 
 pth_src = """\
@@ -94,7 +106,7 @@ if os.environ.get("MPLCAIRO"):
 """
 
 
-class install_lib_with_pth(install_lib):
+class install_lib(install_lib):
     def run(self):
         super().run()
         with NamedTemporaryFile("w") as file:
@@ -110,7 +122,8 @@ setup(
     long_description=open("README.rst", encoding="utf-8").read(),
     version=versioneer.get_version(),
     cmdclass=ChainMap(versioneer.get_cmdclass(),
-                      {"install_lib": install_lib_with_pth}),
+                      {"build_ext": build_ext,
+                       "install_lib": install_lib}),
     author="Antony Lee",
     url="https://github.com/anntzer/mplcairo",
     license="MIT",
@@ -123,7 +136,7 @@ setup(
     ],
     packages=find_packages("lib"),
     package_dir={"": "lib"},
-    ext_modules=ext_modules,
+    ext_modules=[EXTENSION],
     python_requires=">=3.4",
     install_requires=["pybind11>=2.2", "pycairo>=1.12.0"],
 )

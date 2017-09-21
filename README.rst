@@ -78,7 +78,7 @@ Building (Linux only)
 In order to build mplcairo yourself, the following additional dependencies are
 required:
 
-- a C++ compiler with C++17 support, e.g. GCC≥7.1.
+- a C++ compiler with C++17 support, e.g. GCC≥7.1 or clang≥5.0.
 - cairo, fontconfig, and freetype headers.
 
 They are available on conda-forge.  Here, I assume that other dependencies have
