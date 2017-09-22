@@ -1,31 +1,12 @@
 from collections import ChainMap
-import inspect
 import os
 from pathlib import Path
 import shlex
 import subprocess
 import sys
 
-from setuptools import Extension, find_packages, setup
+from setupext import Extension, find_packages, get_pybind_include, setup
 from setuptools.command.build_ext import build_ext
-from setuptools.command.develop import develop
-from setuptools.command.install_lib import install_lib
-import versioneer
-
-
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path.
-
-    The purpose of this class is to postpone importing pybind11 until it is
-    actually installed, so that the ``get_include()`` method can be invoked.
-    """
-
-    def __init__(self, user=False):
-        self.user = user
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include(self.user)
 
 
 def get_pkg_config(info, lib):
@@ -88,6 +69,7 @@ class build_ext(build_ext):
         super().build_extensions()
 
 
+@setup.register_pth_hook("mplcairo.pth")
 def _pth_hook():
     if os.environ.get("MPLCAIRO"):
         from importlib.machinery import PathFinder
@@ -113,28 +95,10 @@ def _pth_hook():
         sys.meta_path.insert(0, PyplotMetaPathFinder())
 
 
-class _pth_command_mixin:
-    def run(self):
-        super().run()
-        with Path(self.install_dir, "mplcairo.pth").open("w") as file:
-            file.write("import os; exec({!r}); _pth_hook()"
-                       .format(inspect.getsource(_pth_hook)))
-
-    def get_outputs(self):
-        return (super().get_outputs()
-                + [str(Path(self.install_dir, "mplcairo.pth"))])
-
-
 setup(
     name="mplcairo",
     description="A (new) cairo backend for Matplotlib.",
     long_description=open("README.rst", encoding="utf-8").read(),
-    version=versioneer.get_version(),
-    cmdclass=ChainMap(
-        versioneer.get_cmdclass(),
-        {"build_ext": build_ext,
-         "develop": type("", (_pth_command_mixin, develop), {}),
-         "install_lib": type("", (_pth_command_mixin, install_lib), {})}),
     author="Antony Lee",
     url="https://github.com/anntzer/mplcairo",
     license="MIT",
@@ -145,6 +109,7 @@ setup(
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6"
     ],
+    cmdclass={"build_ext": build_ext},
     packages=find_packages("lib"),
     package_dir={"": "lib"},
     ext_modules=[EXTENSION],
