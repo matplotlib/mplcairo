@@ -15,11 +15,11 @@ exceptions noted below.
 Depending on the specific task, the backend can be up to ~10× faster (e.g.,
 when stamping circular markers of variable colors) than Agg.
 
-Currently, only Linux is supported, although I would welcome PRs for supporting
-other OSes.
+Currently, only Linux and OSX are supported.  Windows support is missing due to
+lack of full C++17 support by MSVC.
 
-Installation (Linux only)
-=========================
+Installation
+============
 
 Dependencies:
 
@@ -46,11 +46,11 @@ All code examples below assume that the appropriate conda environment is active
 
    git clone https://github.com/matplotlib/matplotlib.git
    (cd matplotlib
-    git pull origin pull/9202/head:pr/9202
+    git fetch origin pull/9202/head:pr/9202
     git checkout pr/9202
     pip install -e .)
 
-   # Download the wheel from Github releases.
+   # Download the wheel from Github releases -- pick either Linux or OSX.
    pip install /path/to/mplcairo-*.whl
 
 .. [#] We do not actually rely on pycairo's Python bindings.  Rather,
@@ -72,17 +72,22 @@ All code examples below assume that the appropriate conda environment is active
    link to a fixed version of FreeType, which may be different from the version
    of FreeType cairo is built against, causing binary incompatibilites.
 
-Building (Linux only)
-=====================
+Building
+========
 
 In order to build mplcairo yourself, the following additional dependencies are
 required:
 
 - a C++ compiler with C++17 support, e.g. GCC≥7.1 or clang≥5.0.
-- cairo, fontconfig, and freetype headers.
+- cairo, fontconfig, and freetype headers, and a way to locate them (currently,
+  pkg-config is required).
 
-They are available on conda-forge.  Here, I assume that other dependencies have
-already been installed as documented above.
+A suitably patched Matplotlib should first be installed as documented above.
+
+Linux
+-----
+
+Dependencies are available on conda-forge.
 
 .. code-block:: sh
 
@@ -100,8 +105,29 @@ already been installed as documented above.
 On a related note, the manylinux wheel is built using
 ``build-scripts/build-manylinux.sh``.
 
-Use
+OSX
 ---
+
+Clang≥5.0 can be installed with Homebrew (``brew install llvm``).  Note that
+the llvm formula is keg-only, i.e. it requires manual modifications to the PATH
+and LDFLAGS (as documented by ``brew info llvm``).  Other dependencies are
+available on conda-forge.
+
+.. code-block:: sh
+
+   conda install -y -c conda-forge cairo pkg-config
+
+   git clone https://github.com/anntzer/mplcairo.git
+   (cd mplcairo
+    pip install -e .)
+
+The OSX wheel is then built using delocate-wheel_ (to package a recent version
+of libc++).
+
+.. _delocate-wheel: https://github.com/matthew-brett/delocate
+
+Use
+===
 
 The backend can be selected by setting the ``MPLBACKEND`` environment variable
 to one of
