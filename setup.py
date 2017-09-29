@@ -5,11 +5,22 @@ import shlex
 import subprocess
 import sys
 
+if sys.platform == "darwin":
+    os.environ.setdefault("CC", "clang")
+    # Funnily enough, distutils uses CC to compile c++ extensions but CXX to
+    # *link* such extensions...
+    os.environ.setdefault("CXX", "clang")
+
 from setupext import Extension, find_packages, get_pybind_include, setup
 from setuptools.command.build_ext import build_ext
 
 
 def get_pkg_config(info, lib):
+    if os.environ.get("MANYLINUX") and info == "--cflags":
+        return ["-static-libgcc", "-static-libstdc++",
+                "-I/usr/include/cairo",
+                "-I/usr/include/freetype2",
+                "-I/usr/include/pycairo"]
     return shlex.split(subprocess.check_output(["pkg-config", info, lib],
                                                universal_newlines=True))
 
@@ -26,14 +37,12 @@ EXTENSION = Extension(
     extra_compile_args=
         {"linux":
             ["-std=c++17", "-fvisibility=hidden"]
-            + (get_pkg_config("--cflags", "py3cairo")
-               if not os.environ.get("MANYLINUX") else
-               ["-static-libgcc", "-static-libstdc++",
-                "-I/usr/include/cairo",
-                "-I/usr/include/freetype2",
-                "-I/usr/include/pycairo"]),
+            + get_pkg_config("--cflags", "py3cairo"),
          "darwin":
-            ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.7"],
+            # Setting min version to 10.9 avoids deprecation warning wrt.
+            # libstdc++.
+            ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.9"]
+            + get_pkg_config("--cflags", "py3cairo"),
          "win32":
             ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
              # Windows conda paths.

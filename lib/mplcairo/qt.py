@@ -20,6 +20,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # what QImage requires.
         qimage = QtGui.QImage(address, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
+        qimage.setDevicePixelRatio(self._dpi_ratio)
         painter = QtGui.QPainter(self)
         painter.eraseRect(self.rect())
         painter.drawImage(0, 0, qimage)

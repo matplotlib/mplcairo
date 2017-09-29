@@ -153,8 +153,9 @@ class FigureCanvasCairo(FigureCanvasBase):
     def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
-            *self.get_width_height(), self.figure.dpi,
-            _draw_if_new=_draw_if_new)
+            *(np.asarray(self.get_width_height())
+              * getattr(self, "_dpi_ratio", 1)),
+            self.figure.dpi, _draw_if_new=_draw_if_new)
 
     renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
 
