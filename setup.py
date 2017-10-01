@@ -66,6 +66,10 @@ EXTENSION = Extension(
 
 class build_ext(build_ext):
     def build_extensions(self):
+        try:
+            self.compiler.compiler_so.remove("-Wstrict-prototypes")
+        except ValueError:
+            pass
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
         # libstdc++ + std::variant = compilation error).
         if (subprocess.check_output([self.compiler.compiler[0], "--version"],
@@ -82,7 +86,7 @@ class build_ext(build_ext):
 def _pth_hook():
     if os.environ.get("MPLCAIRO"):
         from importlib.machinery import PathFinder
-        class PyplotMetaPathFinder(PathFinder):
+        class MplCairoMetaPathFinder(PathFinder):
             def find_spec(self, fullname, path=None, target=None):
                 spec = super().find_spec(fullname, path, target)
                 if fullname == "matplotlib.backends.backend_agg":
@@ -101,7 +105,7 @@ def _pth_hook():
                     spec.loader.exec_module = exec_module
                     sys.meta_path.remove(self)
                 return spec
-        sys.meta_path.insert(0, PyplotMetaPathFinder())
+        sys.meta_path.insert(0, MplCairoMetaPathFinder())
 
 
 setup(

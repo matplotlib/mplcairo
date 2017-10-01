@@ -4,7 +4,7 @@ namespace mplcairo {
 
 dash_t convert_dash(cairo_t* cr) {
   auto dash_count = cairo_get_dash_count(cr);
-  auto dashes = std::unique_ptr<double[]>(new double[dash_count]);
+  auto dashes = std::unique_ptr<double[]>{new double[dash_count]};
   double offset;
   cairo_get_dash(cr, dashes.get(), &offset);
   return {

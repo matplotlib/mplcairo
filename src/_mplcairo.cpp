@@ -923,7 +923,7 @@ void GraphicsContextRenderer::draw_text(
       mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
     capsule.release();  // Don't decref it.
-    double depth =
+    auto depth =
       *static_cast<double*>(
           cairo_surface_get_user_data(
               record, &detail::MATHTEXT_TO_BASELINE_KEY));
@@ -1030,12 +1030,11 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter() {
   auto buf = cairo_image_surface_get_data(raster_surface);
   auto stride = cairo_image_surface_get_stride(raster_surface);
   return
-    py::array_t<uint8_t>{
-      {height_, width_, 4}, {stride, 4, 1}, buf,
-      py::capsule(raster_surface, [](void* raster_surface) {
-        cairo_surface_destroy(
-            reinterpret_cast<cairo_surface_t*>(raster_surface));
-      })};
+    {{height_, width_, 4}, {stride, 4, 1}, buf,
+     py::capsule(raster_surface, [](void* raster_surface) {
+       cairo_surface_destroy(
+           reinterpret_cast<cairo_surface_t*>(raster_surface));
+     })};
 }
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox) {

@@ -191,12 +191,6 @@ Notes
   forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
   empirically, see ``examples/thin_line_antialiasing.py``.
 
-- For fast drawing of path with many segments, the ``agg.path.chunksize``
-  rcparam should be set to 1000 (see ``examples/time_drawing_per_element.py``
-  for the determination of this value); this causes longer paths to be split
-  into individually rendered sections of 1000 segments each (directly rendering
-  longer paths appears to have slightly superlinear complexity).
-
   Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
   rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass
   rcparam validation, using, e.g.
@@ -207,6 +201,12 @@ Notes
 
   (Support for ``text.antialiased`` is not implemented yet, mostly because we
   need to decide on whether to map ``True`` to ``GRAY`` or ``SUBPIXEL``.)
+
+- For fast drawing of path with many segments, the ``agg.path.chunksize``
+  rcparam should be set to 1000 (see ``examples/time_drawing_per_element.py``
+  for the determination of this value); this causes longer paths to be split
+  into individually rendered sections of 1000 segments each (directly rendering
+  longer paths appears to have slightly superlinear complexity).
 
 - The ``path.simplify_threshold`` rcparam is used to control the accuracy of
   marker stamping, down to an arbitrarily chosen threshold of 1/16px.  Values

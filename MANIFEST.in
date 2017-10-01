@@ -1,2 +1,4 @@
+include LICENSE.txt
+include setupext.py
 include versioneer.py
-include mplcairo/_version.py
+graft src
