@@ -142,9 +142,11 @@ to one of
   SVGZ using cairo's implementation, rather than Matplotlib's).
 
 Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
-to fully replace the Agg renderer by the cairo renderer throughout Matplotlib
-(but plotting is *much* less efficient in that case, due to the need of copies
-and conversions between various formats).
+to fully replace the Agg renderer by the cairo renderer throughout Matplotlib.
+However, this approach is *much* less efficient, due to the need of copies and
+conversions between various formats); additionally, it does not work with wx
+due to the non-standard signature of the wx canvas class (on the other hand, it
+does work for Tk).
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:

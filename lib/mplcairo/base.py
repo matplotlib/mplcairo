@@ -130,11 +130,16 @@ class GraphicsContextRendererCairo(
             _to_unmultiplied_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
 
+    # Needed when patching FigureCanvasAgg (for tkagg).
+    _renderer = property(lambda self: self._get_buffer())
+
 
 class FigureCanvasCairo(FigureCanvasBase):
-    def __init__(self, figure):
-        super().__init__(figure=figure)
-        self._last_renderer_call = None, None
+    # Although this attribute should semantically be set from __init__ (it is
+    # purely an instance attribute), initializing it at the class level helps
+    # when patching FigureCanvasAgg (for gtk3agg) as the latter would fail to
+    # initialize it.
+    _last_renderer_call = None, None
 
     def _get_cached_or_new_renderer(
             self, func, *args, _draw_if_new=False, **kwargs):
