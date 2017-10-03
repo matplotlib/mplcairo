@@ -446,12 +446,15 @@ void GraphicsContextRenderer::draw_image(
   if (im_raw.shape(2) != 4) {
     throw std::invalid_argument("RGBA array must have shape (m, n, 4)");
   }
-  auto stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width);
-  auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[height * stride]};
+  auto surface =
+    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+  auto data = cairo_image_surface_get_data(surface);
+  auto stride = cairo_image_surface_get_stride(surface);
+  cairo_surface_flush(surface);
   // The gcr's alpha has already been applied by ImageBase._make_image, we just
   // need to convert to premultiplied ARGB format.
   for (auto i = 0; i < height; ++i) {
-    auto ptr = reinterpret_cast<uint32_t*>(buf.get() + i * stride);
+    auto ptr = reinterpret_cast<uint32_t*>(data + i * stride);
     for (auto j = 0; j < width; ++j) {
       auto r = im_raw(i, j, 0), g = im_raw(i, j, 1),
            b = im_raw(i, j, 2), a = im_raw(i, j, 3);
@@ -460,8 +463,7 @@ void GraphicsContextRenderer::draw_image(
         | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
     }
   }
-  auto surface = cairo_image_surface_create_for_data(
-      buf.get(), CAIRO_FORMAT_ARGB32, width, height, stride);
+  cairo_surface_mark_dirty(surface);
   auto pattern = cairo_pattern_create_for_surface(surface);
   cairo_surface_destroy(surface);
   auto matrix = cairo_matrix_t{1, 0, 0, -1, -x, -y + height_};
