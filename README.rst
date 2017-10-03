@@ -136,7 +136,7 @@ to one of
   surface),
 - ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
   surface),
-- ``module://mplcairo.gtk3_native`` (GTK3 widget, directly drawn onto as a
+- ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
   native surface),
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's).
