@@ -18,7 +18,7 @@ from matplotlib.backend_bases import (
     RendererBase)
 from matplotlib.mathtext import MathTextParser
 
-from . import _mplcairo
+from . import _mplcairo, _util
 from ._mplcairo import _StreamSurfaceType
 
 
@@ -33,29 +33,6 @@ MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
 _LOCK = RLock()
 
 
-def _to_premultiplied_rgba8888(buf):
-    """Convert a buffer from premultipled ARGB32 to premultiplied RGBA8888.
-    """
-    # Using .take() instead of indexing ensures C-contiguity of the result.
-    return buf.take(
-        [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0], axis=2)
-
-
-def _to_unmultiplied_rgba8888(buf):
-    """Convert a buffer from premultiplied ARGB32 to unmultiplied RGBA8888.
-    """
-    rgba = _to_premultiplied_rgba8888(buf)
-    # Un-premultiply alpha.  The formula is the same as in cairo-png.c.
-    rgb = rgba[..., :-1]
-    alpha = rgba[..., -1]
-    mask = alpha != 0
-    for channel in np.rollaxis(rgb, -1):
-        channel[mask] = (
-            (channel[mask].astype(int) * 255 + alpha[mask] // 2)
-            // alpha[mask])
-    return rgba
-
-
 def _get_drawn_subarray_and_bounds(img):
     """Return the drawn region of a buffer and its ``(l, b, w, h)`` bounds.
     """
@@ -68,7 +45,7 @@ def _get_drawn_subarray_and_bounds(img):
 _mplcairo._Region.to_string_argb = (
     # For spoofing BackendAgg.BufferRegion.
     lambda self:
-    _to_unmultiplied_rgba8888(self._get_buffer())[
+    _util.to_unmultiplied_rgba8888(self._get_buffer())[
         ..., [2, 1, 0, 3] if sys.byteorder == "little" else [3, 0, 1, 2]]
     .tobytes())
 
@@ -117,7 +94,7 @@ class GraphicsContextRendererCairo(
         return True  # Similarly to Agg.
 
     def stop_filter(self, filter_func):
-        img = _to_unmultiplied_rgba8888(self._stop_filter())
+        img = _util.to_unmultiplied_rgba8888(self._stop_filter())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         img, dx, dy = filter_func(img[::-1] / 255, self.dpi)
         if img.dtype.kind == "f":
@@ -127,7 +104,7 @@ class GraphicsContextRendererCairo(
 
     def tostring_rgba_minimized(self):  # NOTE: Needed by MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(
-            _to_unmultiplied_rgba8888(self._get_buffer()))
+            _util.to_unmultiplied_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
 
     # Needed when patching FigureCanvasAgg (for tkagg).
@@ -218,7 +195,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.draw()
             if dryrun:
                 return
-            img = _to_unmultiplied_rgba8888(self.get_renderer()._get_buffer())
+            img = _util.to_unmultiplied_rgba8888(
+                self.get_renderer()._get_buffer())
         full_metadata = OrderedDict(
             [("Software",
               "matplotlib version {}, https://matplotlib.org"
@@ -244,7 +222,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 self.draw()
                 if dryrun:
                     return
-                img = _to_unmultiplied_rgba8888(
+                img = _util.to_unmultiplied_rgba8888(
                     self.get_renderer()._get_buffer())
             size = self.get_renderer().get_canvas_width_height()
             img = Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
@@ -269,7 +247,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 self.draw()
                 if dryrun:
                     return
-                img = _to_unmultiplied_rgba8888(
+                img = _util.to_unmultiplied_rgba8888(
                     self.get_renderer()._get_buffer())
             size = self.get_renderer().get_canvas_width_height()
             (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)

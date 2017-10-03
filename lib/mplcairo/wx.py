@@ -2,7 +2,7 @@ from matplotlib.backends.backend_wx import (
     _BackendWx, _FigureCanvasWxBase, FigureFrameWx, NavigationToolbar2Wx)
 import wx
 
-from . import base
+from . import _util
 from .base import FigureCanvasCairo
 
 
@@ -15,9 +15,9 @@ class FigureFrameWxCairo(FigureFrameWx):
 # 'premultiplied' by the alpha values. (The other platforms do the
 # multiplication themselves.)
 _to_native_bitmap = (
-    base._to_premultiplied_rgba8888
+    _util.to_premultiplied_rgba8888
     if wx.GetOsVersion()[0] & (wx.OS_WINDOWS | wx.OS_MAC) else
-    base._to_unmultiplied_rgba8888)
+    _util.to_unmultiplied_rgba8888)
 
 
 class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
@@ -33,7 +33,7 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
         buf = renderer._get_buffer()
         height, width, _ = buf.shape
         self.bitmap = wx.Bitmap.FromBufferRGBA(
-            width, height, base._to_unmultiplied_rgba8888(buf))
+            width, height, _util.to_unmultiplied_rgba8888(buf))
         self._isDrawn = True
         self.gui_repaint(drawDC=drawDC, origin='WXCairo')
 
