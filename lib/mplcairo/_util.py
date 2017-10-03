@@ -1,3 +1,7 @@
+import sys
+
+import numpy as np
+
 
 def to_premultiplied_rgba8888(buf):
     """Convert a buffer from premultipled ARGB32 to premultiplied RGBA8888.

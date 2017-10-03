@@ -29,8 +29,8 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
         _FigureCanvasWxBase.__init__(self, parent, id, figure)
 
     def draw(self, drawDC=None):
-        renderer = self.get_renderer(_draw_if_new=True)
-        buf = renderer._get_buffer()
+        super().draw()
+        buf = self.get_renderer()._get_buffer()
         height, width, _ = buf.shape
         self.bitmap = wx.Bitmap.FromBufferRGBA(
             width, height, _util.to_unmultiplied_rgba8888(buf))

@@ -4,9 +4,9 @@ A (new) cairo backend for Matplotlib
 
 .. contents:: :local:
 
-This is a new, near-complete implementation of a cairo backend for Matplotlib.
-It can be used in combination with a Qt5, GTK3 or wx UI, or non-interactively
-(i.e., to save figure to various file formats).
+This is a new, near-complete implementation of a cairo backend for
+Matplotlib.  It can be used in combination with a Qt5, GTK3, Tk, or wx UI, or
+non-interactively (i.e., to save figure to various file formats).
 
 This implementation "passes" Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with the
@@ -28,6 +28,7 @@ Dependencies:
 
   * ≥2.1.0rc1 for GTK3 or non-interactive backends,
   * with Matplotlib PR#9202 for Qt5 or wx,
+  * (with a yet un-PR'd Matplotlib patch for Tk).
 
 - pycairo≥1.12 [#]_,
 - pybind11≥2.2, automatically installed [#]_.
@@ -134,6 +135,8 @@ to one of
 
 - ``module://mplcairo.qt`` (Qt5 widget, copying data from a cairo image
   surface),
+- ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
+  surface),
 - ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
@@ -145,8 +148,7 @@ Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
 to fully replace the Agg renderer by the cairo renderer throughout Matplotlib.
 However, this approach is *much* less efficient, due to the need of copies and
 conversions between various formats); additionally, it does not work with wx
-due to the non-standard signature of the wx canvas class (on the other hand, it
-does work for Tk).
+due to the non-standard signature of the wx canvas class.
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:
