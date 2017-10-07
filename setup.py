@@ -35,32 +35,31 @@ EXTENSION = Extension(
     include_dirs=
         [get_pybind_include(), get_pybind_include(user=True)],
     extra_compile_args=
-        {"linux":
-            ["-std=c++17", "-fvisibility=hidden"]
-            + get_pkg_config("--cflags", "py3cairo"),
-         "darwin":
-            # Setting min version to 10.9 avoids deprecation warning wrt.
-            # libstdc++.
-            ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.9"]
-            + get_pkg_config("--cflags", "py3cairo"),
-         "win32":
-            ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
-             # Windows conda paths.
-             "-I{}".format(Path(sys.prefix, "Library/include")),
-             "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
-             "-I{}".format(Path(sys.prefix, "include/pycairo"))]}
-        [sys.platform],
+        ["-std=c++17", "-fvisibility=hidden"]
+        + get_pkg_config("--cflags", "py3cairo")
+        if sys.platform == "linux" else
+        # version-min=10.9 avoids deprecation warning wrt. libstdc++.
+        ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.9"]
+        + get_pkg_config("--cflags", "py3cairo")
+        if sys.platform == "darwin" else
+        ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
+         # Windows conda paths.
+         "-I{}".format(Path(sys.prefix, "Library/include")),
+         "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
+         "-I{}".format(Path(sys.prefix, "include/pycairo"))]
+        if sys.platform == "win32" else
+        None,
     extra_link_args=
-        {"linux":
-            ([]
-             if not os.environ.get("MANYLINUX") else
-             ["-static-libgcc", "-static-libstdc++"]),
-         "darwin":
-            # Min version needs to be repeated to avoid a warning.
-            ["-mmacosx-version-min=10.9"],
-         "win32":
-            []}
-        [sys.platform]
+        ([]
+         if not os.environ.get("MANYLINUX") else
+         ["-static-libgcc", "-static-libstdc++"])
+        if sys.platform == "linux" else
+        # version-min needs to be repeated to avoid a warning.
+        ["-mmacosx-version-min=10.9"]
+        if sys.platform == "darwin" else
+        []
+        if sys.platform == "win32" else
+        None,
 )
 
 
