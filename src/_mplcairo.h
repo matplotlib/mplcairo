@@ -76,7 +76,7 @@ class GraphicsContextRenderer {
   void set_dashes(
       std::optional<double> dash_offset,
       std::optional<py::array_t<double>> dash_list);
-  void set_foreground(py::object fg, bool /* is_rgba */=false);
+  void set_foreground(py::object fg, bool is_rgba=false);
   void set_hatch(std::optional<std::string> hatch);
   void set_hatch_color(py::object hatch);
   void set_joinstyle(std::string js);
@@ -136,12 +136,12 @@ class GraphicsContextRenderer {
       py::array_t<double> offsets,
       py::object offset_transform,
       py::array_t<double> fcs,
-      py::object /* aas */,
+      py::object aas,
       py::array_t<double> ecs);
   void draw_text(
       GraphicsContextRenderer& gc,
       double x, double y, std::string s, py::object prop, double angle,
-      bool ismath, py::object /* mtext */);
+      bool ismath, py::object mtext);
   std::tuple<double, double, double> get_text_width_height_descent(
       std::string s, py::object prop, py::object ismath);
 
@@ -161,7 +161,7 @@ class MathtextBackend {
   void render_glyph(double ox, double oy, py::object info);
   void render_rect_filled(double x1, double y1, double x2, double y2);
   // NOTE: The base class fails to document the second argument.
-  py::capsule get_results(py::object box, py::object /* used_characters */);
+  py::capsule get_results(py::object box, py::object used_characters);
 };
 
 }

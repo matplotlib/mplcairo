@@ -812,13 +812,14 @@ void GraphicsContextRenderer::draw_path_collection(
 // QuadMesh class, which does not provide a way to set its offsets (or per-quad
 // antialiasing), so we just drop them.  The mesh_{width,height} arguments are
 // also redundant with the coordinates shape.
+// FIXME Check that offset_transform and aas are indeed not set.
 void GraphicsContextRenderer::draw_quad_mesh(
     GraphicsContextRenderer& gc,
     py::object master_transform,
     ssize_t mesh_width, ssize_t mesh_height,
     py::array_t<double> coordinates,
     py::array_t<double> offsets,
-    py::object offset_transform,
+    py::object /* offset_transform */,
     py::array_t<double> fcs,
     py::object /* aas */,
     py::array_t<double> ecs) {
@@ -1091,7 +1092,7 @@ void GraphicsContextRenderer::restore_region(Region& region) {
 MathtextBackend::MathtextBackend() : cr_{} {}
 
 void MathtextBackend::set_canvas_size(
-    double width, double height, double depth) {
+    double /* width */, double height, double /* depth */) {
   // NOTE: "height" does *not* include "descent", and "descent" is (normally)
   // positive (see MathtextBackendAgg.set_canvas_size()).  This is a different
   // convention from get_text_width_height_descent()!
@@ -1340,7 +1341,7 @@ Backend rendering mathtext to a cairo recording surface, returned as a capsule.
     .def("render_glyph", &MathtextBackend::render_glyph)
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)
-    .def("get_hinting_type", [](MathtextBackend& mb) {
+    .def("get_hinting_type", [](MathtextBackend& /* mb */) {
       return get_hinting_flag();
     });
 }

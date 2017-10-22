@@ -35,7 +35,7 @@ EXTENSION = Extension(
     include_dirs=
         [get_pybind_include(), get_pybind_include(user=True)],
     extra_compile_args=
-        ["-std=c++17", "-fvisibility=hidden"]
+        ["-std=c++17", "-fvisibility=hidden", "-Wextra", "-pedantic"]
         + get_pkg_config("--cflags", "py3cairo")
         if sys.platform == "linux" else
         # version-min=10.9 avoids deprecation warning wrt. libstdc++.
