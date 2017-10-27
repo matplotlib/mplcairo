@@ -18,7 +18,6 @@ void set_dashes(cairo_t* cr, dash_t dash) {
   auto [offset, buf] = dash;
   cairo_set_dash(
       cr,
-      // std::launder(reinterpret_cast<double*>(buf.data())),
       reinterpret_cast<double*>(buf.data()),
       buf.size() / sizeof(double),
       offset);

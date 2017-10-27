@@ -168,7 +168,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
     double width, double height, double dpi) {
   auto cb = [](void* closure, const unsigned char* data, unsigned int length) {
     auto write =
-      py::reinterpret_borrow<py::object>(reinterpret_cast<PyObject*>(closure));
+      py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
     // NOTE: Work around lack of const buffers in pybind11.
     auto buf_info = py::buffer_info{
         const_cast<unsigned char*>(data),
@@ -182,7 +182,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   };
   auto write = file.attr("write").cast<py::handle>().inc_ref().ptr();
   auto dec_ref = [](void* write) {
-    py::handle{reinterpret_cast<PyObject*>(write)}.dec_ref();
+    py::handle{static_cast<PyObject*>(write)}.dec_ref();
   };
 
   detail::surface_create_for_stream_t surface_create_for_stream{};
@@ -239,7 +239,7 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer() {
     py::array_t<uint8_t>{
       {height_, width_, 4}, {stride, 4, 1}, buf,
       py::capsule(surface, [](void* surface) {
-        cairo_surface_destroy(reinterpret_cast<cairo_surface_t*>(surface));
+        cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
       })};
 }
 
@@ -1036,7 +1036,7 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter() {
     {{height_, width_, 4}, {stride, 4, 1}, buf,
      py::capsule(raster_surface, [](void* raster_surface) {
        cairo_surface_destroy(
-           reinterpret_cast<cairo_surface_t*>(raster_surface));
+           static_cast<cairo_surface_t*>(raster_surface));
      })};
 }
 
@@ -1144,7 +1144,7 @@ py::capsule MathtextBackend::get_results(
   // We could set the name for additional safety if people start passing in
   // arbitrary capsules, but that wouldn't really help either...
   return py::capsule(surface, [](void* surface) {
-    cairo_surface_destroy(reinterpret_cast<cairo_surface_t*>(surface));
+    cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
   });
 }
 
