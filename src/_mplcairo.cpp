@@ -562,6 +562,9 @@ void GraphicsContextRenderer::draw_markers(
       cairo_matrix_transform_point(&matrix, &x, &y);
       auto target_x = x + x0,
            target_y = y + y0;
+      if (!(std::isfinite(target_x) && std::isfinite(target_y))) {
+        continue;
+      }
       auto i_target_x = std::floor(target_x),
            i_target_y = std::floor(target_y);
       auto f_target_x = target_x - i_target_x,
