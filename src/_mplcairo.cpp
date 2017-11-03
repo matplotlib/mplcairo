@@ -4,6 +4,7 @@
 #include "_pattern_cache.h"
 
 #include <py3cairo.h>
+#include <cairo/cairo-script.h>
 
 #include <stack>
 
@@ -196,6 +197,18 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       break;
     case StreamSurfaceType::SVG:
       surface_create_for_stream = detail::cairo_svg_surface_create_for_stream;
+      break;
+    case StreamSurfaceType::Script:
+      surface_create_for_stream =
+        [](cairo_write_func_t write, void* closure,
+           double width, double height) {
+          auto script = cairo_script_create_for_stream(write, closure);
+          auto surface =
+            cairo_script_surface_create(
+                script, CAIRO_CONTENT_COLOR_ALPHA, width, height);
+          cairo_device_destroy(script);
+          return surface;
+        };
       break;
     default: ;
   }
@@ -1217,7 +1230,8 @@ PYBIND11_MODULE(_mplcairo, m) {
     .value("PDF", StreamSurfaceType::PDF)
     .value("PS", StreamSurfaceType::PS)
     .value("EPS", StreamSurfaceType::EPS)
-    .value("SVG", StreamSurfaceType::SVG);
+    .value("SVG", StreamSurfaceType::SVG)
+    .value("Script", StreamSurfaceType::Script);
 
   py::class_<Region>(m, "_Region")
     // NOTE: Only for patching Agg.

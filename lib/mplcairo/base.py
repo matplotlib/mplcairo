@@ -2,6 +2,7 @@ from collections import OrderedDict
 from contextlib import ExitStack
 from functools import partialmethod
 from gzip import GzipFile
+import os
 import sys
 from threading import RLock
 
@@ -77,6 +78,8 @@ class GraphicsContextRendererCairo(
     _for_ps_output = partialmethod(_for_fmt_output, _StreamSurfaceType.PS)
     _for_eps_output = partialmethod(_for_fmt_output, _StreamSurfaceType.EPS)
     _for_svg_output = partialmethod(_for_fmt_output, _StreamSurfaceType.SVG)
+    _for_script_output = partialmethod(
+        _for_fmt_output, _StreamSurfaceType.Script)
 
     @classmethod
     def _for_svgz_output(cls, file, width, height, dpi):
@@ -184,6 +187,9 @@ class FigureCanvasCairo(FigureCanvasBase):
         _print_method, GraphicsContextRendererCairo._for_svg_output)
     print_svgz = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_svgz_output)
+    if os.environ.get("MPLCAIRO_DEBUG"):
+        print_cairoscript = partialmethod(
+            _print_method, GraphicsContextRendererCairo._for_script_output)
 
     # Split out as a separate method for metadata support.
     def print_png(

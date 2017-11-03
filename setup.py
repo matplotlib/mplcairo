@@ -83,7 +83,7 @@ class build_ext(build_ext):
 
 @setup.register_pth_hook("mplcairo.pth")
 def _pth_hook():
-    if os.environ.get("MPLCAIRO"):
+    if os.environ.get("MPLCAIRO_PATCH_AGG"):
         from importlib.machinery import PathFinder
         class MplCairoMetaPathFinder(PathFinder):
             def find_spec(self, fullname, path=None, target=None):

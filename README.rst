@@ -144,11 +144,11 @@ to one of
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's).
 
-Alternatively, set the ``MPLCAIRO`` environment variable to a non-empty value
-to fully replace the Agg renderer by the cairo renderer throughout Matplotlib.
-However, this approach is *much* less efficient, due to the need of copies and
-conversions between various formats); additionally, it does not work with wx
-due to the non-standard signature of the wx canvas class.
+Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
+non-empty value to fully replace the Agg renderer by the cairo renderer
+throughout Matplotlib.  However, this approach is *much* less efficient, due to
+the need of copies and conversions between various formats); additionally, it
+does not work with wx due to the non-standard signature of the wx canvas class.
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:
@@ -229,6 +229,11 @@ Notes
 - ``draw_markers`` draws a marker at each control point of the given path,
   which is the documented behavior, even though all builtin renderers only draw
   markers at straight or Bézier segment ends.
+
+- Setting the ``MPLCAIRO_DEBUG`` environment variable to a non-empty value
+  allows one to save figures (with ``savefig``) in the ``.cairoscript`` format,
+  which is a "native script that matches the cairo drawing model".  This may be
+  helpful for troubleshooting purposes.
 
 Known issues
 ============

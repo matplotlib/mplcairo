@@ -14,7 +14,7 @@ namespace mplcairo {
 namespace py = pybind11;
 
 enum class StreamSurfaceType {
-  PDF, PS, EPS, SVG
+  PDF, PS, EPS, SVG, Script
 };
 
 struct Region {

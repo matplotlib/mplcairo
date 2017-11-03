@@ -88,6 +88,7 @@ bool has_vector_surface(cairo_t* cr) {
     case CAIRO_SURFACE_TYPE_PDF:
     case CAIRO_SURFACE_TYPE_PS:
     case CAIRO_SURFACE_TYPE_SVG:
+    case CAIRO_SURFACE_TYPE_SCRIPT:
       return true;
     default:
       throw std::invalid_argument("Unexpected surface type");
