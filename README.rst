@@ -80,8 +80,13 @@ In order to build mplcairo yourself, the following additional dependencies are
 required:
 
 - a C++ compiler with C++17 support, e.g. GCC≥7.1 or clang≥5.0.
-- cairo, fontconfig, and freetype headers, and a way to locate them (currently,
-  pkg-config is required).
+- cairo and FreeType headers, and pkg-config information to locate them.
+
+If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
+uses Raqm_ to perform complex text layout (right-to-left scripts, etc.).  An
+installation of Raqm is required.
+
+.. _raqm: https://github.com/HOST-Oman/libraqm
 
 A suitably patched Matplotlib should first be installed as documented above.
 
@@ -273,11 +278,6 @@ Possible optimizations
 - ``hexbin`` currently falls back on the slow implementation due to its use of
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's
   side.
-
-Other ideas
-===========
-
-- Complex text layout (e.g. using libraqm).
 
 What about the already existing cairo (gtk3cairo) backend?
 ==========================================================

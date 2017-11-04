@@ -34,33 +34,43 @@ EXTENSION = Extension(
         "c++",
     include_dirs=
         [get_pybind_include(), get_pybind_include(user=True)],
-    extra_compile_args=
+)
+
+
+if sys.platform == "linux":
+    EXTENSION.extra_compile_args += (
         ["-std=c++17", "-fvisibility=hidden", "-Wextra", "-pedantic"]
-        + get_pkg_config("--cflags", "py3cairo")
-        if sys.platform == "linux" else
+        + get_pkg_config("--cflags", "py3cairo"))
+    if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
+        EXTENSION.define_macros = [("MPLCAIRO_USE_LIBRAQM", "1")]
+        EXTENSION.extra_compile_args += (
+            get_pkg_config("--cflags", "raqm"))
+        EXTENSION.extra_link_args += (
+            get_pkg_config("--libs", "raqm"))
+    if os.environ.get("MANYLINUX"):
+        EXTENSION.extra_link_args += (
+            ["-static-libgcc", "-static-libstdc++"])
+elif sys.platform == "darwin":
+    EXTENSION.extra_compile_args += (
         # version-min=10.9 avoids deprecation warning wrt. libstdc++.
         ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.9"]
-        + get_pkg_config("--cflags", "py3cairo")
-        if sys.platform == "darwin" else
+        + get_pkg_config("--cflags", "py3cairo"))
+    EXTENSION.extra_link_args += (
+        # version-min needs to be repeated to avoid a warning.
+        ["-mmacosx-version-min=10.9"])
+    if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
+        EXTENSION.define_macros = [("MPLCAIRO_USE_LIBRAQM", "1")]
+        EXTENSION.extra_compile_args += (
+            get_pkg_config("--cflags", "raqm"))
+        EXTENSION.extra_link_args += (
+            get_pkg_config("--libs", "raqm"))
+elif sys.platform == "win32":
+    EXTENSION.extra_compile_args += (
         ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
          # Windows conda paths.
          "-I{}".format(Path(sys.prefix, "Library/include")),
          "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
-         "-I{}".format(Path(sys.prefix, "include/pycairo"))]
-        if sys.platform == "win32" else
-        None,
-    extra_link_args=
-        ([]
-         if not os.environ.get("MANYLINUX") else
-         ["-static-libgcc", "-static-libstdc++"])
-        if sys.platform == "linux" else
-        # version-min needs to be repeated to avoid a warning.
-        ["-mmacosx-version-min=10.9"]
-        if sys.platform == "darwin" else
-        []
-        if sys.platform == "win32" else
-        None,
-)
+         "-I{}".format(Path(sys.prefix, "include/pycairo"))])
 
 
 class build_ext(build_ext):

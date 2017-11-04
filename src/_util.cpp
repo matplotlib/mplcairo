@@ -1,5 +1,9 @@
 #include "_util.h"
 
+#ifdef MPLCAIRO_USE_LIBRAQM
+#include <raqm.h>
+#endif
+
 #include <stack>
 
 namespace mplcairo {
@@ -506,6 +510,50 @@ std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(
     py::module::import("matplotlib.font_manager").attr("findfont")(prop)
     .cast<std::string>();
   return ft_face_and_font_face_from_path(path);
+}
+
+std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
+  text_to_glyphs(
+    std::string s, cairo_t* cr, FT_Face ft_face) {
+  // TODO This should actually just take the fontprop as argument.
+#ifdef MPLCAIRO_USE_LIBRAQM
+  auto rq = raqm_create();
+  if (!(rq
+        && raqm_set_text_utf8(rq, s.c_str(), s.size())
+        && raqm_set_freetype_face(rq, ft_face)
+        && raqm_layout(rq))) {
+    throw std::runtime_error("Failed to compute text layout");
+  }
+  auto count = size_t{};
+  auto rq_glyphs = raqm_get_glyphs(rq, &count);
+  auto glyphs = cairo_glyph_allocate(count);
+  auto x = 0., y = 0.;
+  for (auto i = 0u; i < count; ++i) {
+    auto rq_glyph = rq_glyphs[i];
+    glyphs[i].index = rq_glyph.index;
+    glyphs[i].x = x + rq_glyph.x_offset / 64.;
+    x += rq_glyph.x_advance / 64.;
+    glyphs[i].y = y + rq_glyph.y_offset / 64.;
+    y += rq_glyph.y_advance / 64.;
+  }
+  raqm_destroy(rq);
+#else
+  auto glyphs = (cairo_glyph_t*){};
+  auto count = int{};
+  auto status =
+    cairo_scaled_font_text_to_glyphs(
+        cairo_get_scaled_font(cr),
+        0, 0, s.c_str(), s.size(), &glyphs, &count, nullptr, nullptr, nullptr);
+  if (status != CAIRO_STATUS_SUCCESS) {
+    throw std::runtime_error(
+        "cairo_scaled_font_text_to_glyphs failed with error:"
+        + std::string{cairo_status_to_string(status)});
+  }
+#endif
+  auto ptr =
+    std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>{
+      glyphs, cairo_glyph_free};
+  return {std::move(ptr), count};
 }
 
 }

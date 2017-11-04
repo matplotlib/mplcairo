@@ -978,10 +978,16 @@ void GraphicsContextRenderer::draw_text(
     auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
     (void)ft_face;
     cairo_set_font_face(cr_, font_face);
-    cairo_set_font_size(
-        cr_,
-        points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
-    cairo_show_text(cr_, s.c_str());
+    auto font_size =
+      points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
+    cairo_set_font_size(cr_, font_size);
+
+    if (FT_Set_Char_Size(ft_face, 64 * font_size, 0, 0, 0)) {
+      throw std::runtime_error("Failed to set font size");
+    }
+    auto [glyphs, count] = text_to_glyphs(s, cr_, ft_face);
+    cairo_show_glyphs(cr_, glyphs.get(), count);
+
     cairo_font_face_destroy(font_face);
   }
 }
@@ -1019,11 +1025,17 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
     (void)ft_face;
     cairo_set_font_face(cr_, font_face);
-    cairo_set_font_size(
-        cr_,
-        points_to_pixels(prop.attr("get_size_in_points")().cast<double>()));
+    auto font_size =
+      points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
+    cairo_set_font_size(cr_, font_size);
     cairo_text_extents_t extents;
-    cairo_text_extents(cr_, s.c_str(), &extents);
+
+    if (FT_Set_Char_Size(ft_face, 64 * font_size, 0, 0, 0)) {
+      throw std::runtime_error("Failed to set font size");
+    }
+    auto [glyphs, count] = text_to_glyphs(s, cr_, ft_face);
+    cairo_glyph_extents(cr_, glyphs.get(), count, &extents);
+
     cairo_font_face_destroy(font_face);
     cairo_restore(cr_);
     return {extents.width, extents.height, extents.height + extents.y_bearing};

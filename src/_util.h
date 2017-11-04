@@ -75,5 +75,8 @@ std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
     std::string path);
 std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(
     py::object prop);
+std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
+  text_to_glyphs(
+    std::string s, cairo_t* cr, FT_Face ft_face);
 
 }
