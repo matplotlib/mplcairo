@@ -975,17 +975,13 @@ void GraphicsContextRenderer::draw_text(
     cairo_translate(cr_, x, y);
     cairo_rotate(cr_, -angle * M_PI / 180);
     cairo_move_to(cr_, 0, 0);
-    auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
-    (void)ft_face;
+    auto font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
     auto font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
 
-    if (FT_Set_Char_Size(ft_face, 64 * font_size, 0, 0, 0)) {
-      throw std::runtime_error("Failed to set font size");
-    }
-    auto [glyphs, count] = text_to_glyphs(s, cr_, ft_face);
+    auto [glyphs, count] = text_to_glyphs(cr_, s);
     cairo_show_glyphs(cr_, glyphs.get(), count);
 
     cairo_font_face_destroy(font_face);
@@ -1022,18 +1018,14 @@ GraphicsContextRenderer::get_text_width_height_descent(
     return {width, height, y0 + height - to_baseline};
   } else {
     cairo_save(cr_);
-    auto [ft_face, font_face] = ft_face_and_font_face_from_prop(prop);
-    (void)ft_face;
+    auto font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
     auto font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
     cairo_text_extents_t extents;
 
-    if (FT_Set_Char_Size(ft_face, 64 * font_size, 0, 0, 0)) {
-      throw std::runtime_error("Failed to set font size");
-    }
-    auto [glyphs, count] = text_to_glyphs(s, cr_, ft_face);
+    auto [glyphs, count] = text_to_glyphs(cr_, s);
     cairo_glyph_extents(cr_, glyphs.get(), count, &extents);
 
     cairo_font_face_destroy(font_face);
@@ -1143,14 +1135,16 @@ void MathtextBackend::set_canvas_size(
 }
 
 void MathtextBackend::render_glyph(double ox, double oy, py::object info) {
-  auto [ft_face, font_face] =
-    ft_face_and_font_face_from_path(
+  auto font_face =
+    font_face_from_path(
         info.attr("font").attr("fname").cast<std::string>());
   cairo_set_font_face(cr_, font_face);
   cairo_set_font_size(
       cr_, info.attr("fontsize").cast<double>() * CURRENT_DPI / 72);
   auto index = FT_Get_Char_Index(
-      ft_face, info.attr("num").cast<unsigned long>());
+      static_cast<FT_Face>(
+          cairo_font_face_get_user_data(font_face, &detail::FT_KEY)),
+      info.attr("num").cast<unsigned long>());
   auto glyph = cairo_glyph_t{index, ox, oy};
   cairo_show_glyphs(cr_, &glyph, 1);
   cairo_font_face_destroy(font_face);

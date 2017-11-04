@@ -479,7 +479,7 @@ long get_hinting_flag() {
     .attr("get_hinting_flag")().cast<long>();
 }
 
-std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
+cairo_font_face_t* font_face_from_path(
     std::string path) {
   FT_Face ft_face;
   if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
@@ -498,10 +498,10 @@ std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_path(
         "cairo_font_face_set_user_data failed with error: "
         + std::string{cairo_status_to_string(status)});
   }
-  return {ft_face, font_face};
+  return font_face;
 }
 
-std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(
+cairo_font_face_t* font_face_from_prop(
     py::object prop) {
   // It is probably not worth implementing an additional layer of caching here
   // as findfont already has its cache and object equality needs would also
@@ -509,19 +509,21 @@ std::tuple<FT_Face, cairo_font_face_t*> ft_face_and_font_face_from_prop(
   auto path =
     py::module::import("matplotlib.font_manager").attr("findfont")(prop)
     .cast<std::string>();
-  return ft_face_and_font_face_from_path(path);
+  return font_face_from_path(path);
 }
 
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
-  text_to_glyphs(
-    std::string s, cairo_t* cr, FT_Face ft_face) {
-  // TODO This should actually just take the fontprop as argument.
+  text_to_glyphs(cairo_t* cr, std::string s) {
+  auto scaled_font = cairo_get_scaled_font(cr);
 #ifdef MPLCAIRO_USE_LIBRAQM
+  auto ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
   auto rq = raqm_create();
   if (!(rq
         && raqm_set_text_utf8(rq, s.c_str(), s.size())
         && raqm_set_freetype_face(rq, ft_face)
         && raqm_layout(rq))) {
+    raqm_destroy(rq);
+    cairo_ft_scaled_font_unlock_face(scaled_font);
     throw std::runtime_error("Failed to compute text layout");
   }
   auto count = size_t{};
@@ -537,12 +539,13 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
     y += rq_glyph.y_advance / 64.;
   }
   raqm_destroy(rq);
+  cairo_ft_scaled_font_unlock_face(scaled_font);
 #else
   auto glyphs = (cairo_glyph_t*){};
   auto count = int{};
   auto status =
     cairo_scaled_font_text_to_glyphs(
-        cairo_get_scaled_font(cr),
+        scaled_font,
         0, 0, s.c_str(), s.size(), &glyphs, &count, nullptr, nullptr, nullptr);
   if (status != CAIRO_STATUS_SUCCESS) {
     throw std::runtime_error(
