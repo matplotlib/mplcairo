@@ -1003,13 +1003,18 @@ GraphicsContextRenderer::get_text_width_height_descent(
       mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
     capsule.release();  // ... and don't decref it.
-    double to_baseline =
+    auto to_baseline =
       *static_cast<double*>(
           cairo_surface_get_user_data(
               record, &detail::MATHTEXT_TO_BASELINE_KEY));
-    double x0, y0, width, height;
-    cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
-    return {width, height, y0 + height - to_baseline};
+    // We can't rely on cairo_recording_surface_ink_extents as it is limited to
+    // full-pixel resolution, which is insufficient.
+    auto extents =
+      *static_cast<cairo_rectangle_t*>(
+          cairo_surface_get_user_data(
+              record, &detail::MATHTEXT_RECTANGLE));
+    return {
+      extents.width, extents.height, extents.y + extents.height - to_baseline};
   } else {
     cairo_save(cr_);
     auto font_face = font_face_from_prop(prop);
@@ -1103,7 +1108,8 @@ void GraphicsContextRenderer::restore_region(Region& region) {
   cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
 }
 
-MathtextBackend::MathtextBackend() : cr_{} {}
+MathtextBackend::MathtextBackend() :
+  cr_{}, xmin_{}, ymin_{}, xmax_{}, ymax_{} {}
 
 void MathtextBackend::set_canvas_size(
     double /* width */, double height, double /* depth */) {
@@ -1130,6 +1136,13 @@ void MathtextBackend::set_canvas_size(
 }
 
 void MathtextBackend::render_glyph(double ox, double oy, py::object info) {
+  auto metrics = info.attr("metrics");
+  xmin_ = std::min(xmin_, ox + metrics.attr("xmin").cast<double>());
+  ymin_ = std::min(ymin_, oy - metrics.attr("ymin").cast<double>());
+  // TODO: Perhaps use advance here instead?  Keep consistent with
+  // cairo_glyph_extents (which ignores whitespace) in non-mathtext mode.
+  xmax_ = std::max(xmax_, ox + metrics.attr("xmax").cast<double>());
+  ymax_ = std::max(ymax_, oy - metrics.attr("ymax").cast<double>());
   auto font_face =
     font_face_from_path(
         info.attr("font").attr("fname").cast<std::string>());
@@ -1147,6 +1160,10 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info) {
 
 void MathtextBackend::render_rect_filled(
     double x1, double y1, double x2, double y2) {
+  xmin_ = std::min(xmin_, x1);
+  ymin_ = std::min(ymin_, y1);
+  xmax_ = std::max(xmax_, x2);
+  ymax_ = std::max(ymax_, y2);
   cairo_rectangle(cr_, x1, y1, x2 - x1, y2 - y1);
   cairo_fill(cr_);
 }
@@ -1155,6 +1172,12 @@ py::capsule MathtextBackend::get_results(
     py::object box, py::object /* used_characters */) {
   py::module::import("matplotlib.mathtext").attr("ship")(0, 0, box);
   auto surface = cairo_get_target(cr_);
+  CAIRO_CHECK(  // Set data before incref'ing the surface, in case this fails.
+      cairo_surface_set_user_data,
+      surface,
+      &detail::MATHTEXT_RECTANGLE,
+      new cairo_rectangle_t{xmin_, ymin_, xmax_ - xmin_, ymax_ - ymin_},
+      operator delete);
   cairo_surface_reference(surface);
   cairo_destroy(cr_);
   cr_ = nullptr;

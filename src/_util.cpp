@@ -37,8 +37,11 @@ surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                             cairo_svg_surface_create_for_stream;
 void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
 
-cairo_user_data_key_t const
-  FILE_KEY{0}, FT_KEY{0}, MATHTEXT_TO_BASELINE_KEY{0}, STATE_KEY{0};
+cairo_user_data_key_t const FILE_KEY{},
+                            FT_KEY{},
+                            MATHTEXT_RECTANGLE{},
+                            MATHTEXT_TO_BASELINE_KEY{},
+                            STATE_KEY{};
 py::object UNIT_CIRCLE{};
 }
 

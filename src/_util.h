@@ -25,7 +25,7 @@ extern surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
 extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
 
 extern cairo_user_data_key_t const
-  FILE_KEY, FT_KEY, MATHTEXT_TO_BASELINE_KEY, STATE_KEY;
+  FILE_KEY, FT_KEY, MATHTEXT_RECTANGLE, MATHTEXT_TO_BASELINE_KEY, STATE_KEY;
 extern py::object UNIT_CIRCLE;
 }
 

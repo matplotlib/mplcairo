@@ -154,6 +154,7 @@ class GraphicsContextRenderer {
 
 class MathtextBackend {
   cairo_t* cr_;
+  double xmin_, ymin_, xmax_, ymax_;
 
   public:
   MathtextBackend();
