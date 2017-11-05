@@ -8,6 +8,8 @@
 
 #include <stack>
 
+#include "_macros.h"
+
 namespace mplcairo {
 
 using namespace pybind11::literals;
@@ -78,12 +80,7 @@ double GraphicsContextRenderer::pixels_to_points(double pixels) {
 
 rgba_t GraphicsContextRenderer::get_rgba() {
   double r, g, b, a;
-  auto status = cairo_pattern_get_rgba(cairo_get_source(cr_), &r, &g, &b, &a);
-  if (status != CAIRO_STATUS_SUCCESS) {
-    throw std::runtime_error(
-        "Could not retrieve color from pattern: "
-        + std::string{cairo_status_to_string(status)});
-  }
+  CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr_), &r, &g, &b, &a);
   if (auto alpha = get_additional_state().alpha) {
     a = *alpha;
   }
@@ -118,7 +115,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
   stack->top().sketch = {};
   stack->top().snap = true;  // Defaults to None, i.e. True for us.
-  cairo_set_user_data(cr, &detail::STATE_KEY, stack, operator delete);
+  CAIRO_CHECK(
+      cairo_set_user_data, cr, &detail::STATE_KEY, stack, operator delete);
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
@@ -147,11 +145,7 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx) {
     throw std::invalid_argument("Argument is not a cairo.Context");
   }
   auto cr = PycairoContext_GET(ctx.ptr());
-  if (auto status = cairo_status(cr); status != CAIRO_STATUS_SUCCESS) {
-    throw std::invalid_argument(
-        "Context is in an error state:"
-        + std::string{cairo_status_to_string(status)});
-  }
+  CAIRO_CHECK(cairo_status, cr);
   cairo_reference(cr);
   return cr;
 }
@@ -221,7 +215,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   cairo_surface_set_fallback_resolution(surface, dpi, dpi);
   auto cr = cairo_create(surface);
   cairo_surface_destroy(surface);
-  cairo_set_user_data(cr, &detail::FILE_KEY, write, dec_ref);
+  CAIRO_CHECK(cairo_set_user_data, cr, &detail::FILE_KEY, write, dec_ref);
   if (type == StreamSurfaceType::EPS) {
     // If cairo was built without PS support, we'd already have errored above.
     detail::cairo_ps_surface_set_eps(surface, true);
@@ -1129,7 +1123,8 @@ void MathtextBackend::set_canvas_size(
   auto surface = cairo_recording_surface_create(CAIRO_CONTENT_ALPHA, nullptr);
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
-  cairo_surface_set_user_data(
+  CAIRO_CHECK(
+      cairo_surface_set_user_data,
       surface, &detail::MATHTEXT_TO_BASELINE_KEY,
       new double{height}, operator delete);
 }

@@ -6,6 +6,8 @@
 
 #include <stack>
 
+#include "_macros.h"
+
 namespace mplcairo {
 
 namespace {
@@ -132,7 +134,7 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
   cairo_set_dash(dest, dashes.get(), dash_count, offset);
 
   double r, g, b, a;
-  cairo_pattern_get_rgba(cairo_get_source(orig), &r, &g, &b, &a);
+  CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(orig), &r, &g, &b, &a);
   cairo_set_source_rgba(dest, r, g, b, a);
 }
 
@@ -489,15 +491,10 @@ cairo_font_face_t* font_face_from_path(
   }
   auto font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
-  auto status = cairo_font_face_set_user_data(
+  CAIRO_CLEANUP_CHECK(
+      { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
+      cairo_font_face_set_user_data,
       font_face, &detail::FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face));
-  if (status) {
-    cairo_font_face_destroy(font_face);
-    FT_Done_Face(ft_face);
-    throw std::runtime_error(
-        "cairo_font_face_set_user_data failed with error: "
-        + std::string{cairo_status_to_string(status)});
-  }
   return font_face;
 }
 
@@ -543,15 +540,10 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
 #else
   auto glyphs = (cairo_glyph_t*){};
   auto count = int{};
-  auto status =
-    cairo_scaled_font_text_to_glyphs(
-        scaled_font,
-        0, 0, s.c_str(), s.size(), &glyphs, &count, nullptr, nullptr, nullptr);
-  if (status != CAIRO_STATUS_SUCCESS) {
-    throw std::runtime_error(
-        "cairo_scaled_font_text_to_glyphs failed with error:"
-        + std::string{cairo_status_to_string(status)});
-  }
+  CAIRO_CHECK(
+      cairo_scaled_font_text_to_glyphs,
+      scaled_font, 0, 0, s.c_str(), s.size(),
+      &glyphs, &count, nullptr, nullptr, nullptr);
 #endif
   auto ptr =
     std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>{

@@ -1,5 +1,7 @@
 #include "_pattern_cache.h"
 
+#include "_macros.h"
+
 namespace mplcairo {
 
 dash_t convert_dash(cairo_t* cr) {
@@ -118,7 +120,7 @@ void PatternCache::mask(
         cairo_get_line_cap(cr), cairo_get_line_join(cr)};
   if (!n_subpix_) {
     double r, g, b, a;
-    cairo_pattern_get_rgba(cairo_get_source(cr), &r, &g, &b, &a);
+    CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});
     return;
   }
@@ -151,7 +153,7 @@ void PatternCache::mask(
        y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
   if ((x_max < threshold_) || (y_max < threshold_)) {
     double r, g, b, a;
-    cairo_pattern_get_rgba(cairo_get_source(cr), &r, &g, &b, &a);
+    CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});
     return;
   }

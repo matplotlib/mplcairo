@@ -29,7 +29,8 @@ EXTENSION = Extension(
     "mplcairo._mplcairo",
     ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
     depends=
-        ["setup.py", "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"],
+        ["setup.py", "src/_macros.h",
+         "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"],
     language=
         "c++",
     include_dirs=
@@ -39,7 +40,7 @@ EXTENSION = Extension(
 
 if sys.platform == "linux":
     EXTENSION.extra_compile_args += (
-        ["-std=c++17", "-fvisibility=hidden", "-Wextra", "-pedantic"]
+        ["-std=c++17", "-fvisibility=hidden", "-Wextra", "-Wpedantic"]
         + get_pkg_config("--cflags", "py3cairo"))
     if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
         EXTENSION.define_macros = [("MPLCAIRO_USE_LIBRAQM", "1")]
