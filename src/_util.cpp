@@ -57,29 +57,29 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
   auto py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
   if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
     throw std::invalid_argument(
-        "Transformation matrix must have shape (3, 3)");
+      "Transformation matrix must have shape (3, 3)");
   }
   return cairo_matrix_t{
-      py_matrix(0, 0), -py_matrix(1, 0),
-      py_matrix(0, 1), -py_matrix(1, 1),
-      py_matrix(0, 2), y0 - py_matrix(1, 2)};
+    py_matrix(0, 0), -py_matrix(1, 0),
+    py_matrix(0, 1), -py_matrix(1, 1),
+    py_matrix(0, 2), y0 - py_matrix(1, 2)};
 }
 
 cairo_matrix_t matrix_from_transform(
-    py::object transform, cairo_matrix_t* master_matrix) {
+  py::object transform, cairo_matrix_t* master_matrix) {
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
   auto py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
   if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
     throw std::invalid_argument(
-        "Transformation matrix must have shape (3, 3)");
+      "Transformation matrix must have shape (3, 3)");
   }
   // The y flip is already handled by the master matrix.
   auto matrix = cairo_matrix_t{
-      py_matrix(0, 0), py_matrix(1, 0),
-      py_matrix(0, 1), py_matrix(1, 1),
-      py_matrix(0, 2), py_matrix(1, 2)};
+    py_matrix(0, 0), py_matrix(1, 0),
+    py_matrix(0, 1), py_matrix(1, 1),
+    py_matrix(0, 2), py_matrix(1, 2)};
   cairo_matrix_multiply(&matrix, &matrix, master_matrix);
   return matrix;
 }
@@ -98,7 +98,7 @@ bool has_vector_surface(cairo_t* cr) {
     default:
       throw
         std::invalid_argument(
-            "Unexpected surface type: " + std::to_string(type));
+          "Unexpected surface type: " + std::to_string(type));
   }
 }
 
@@ -171,7 +171,7 @@ class LoadPathContext {
 
 // This overload implements the general case.
 void load_path_exact(
-    cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+  cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto lpc = LoadPathContext{cr};
 
@@ -197,8 +197,8 @@ void load_path_exact(
   auto snapper =
     snap
     ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
-        ? [](double x) { return std::floor(x) + .5; }
-        : [](double x) { return std::round(x); })
+       ? [](double x) { return std::floor(x) + .5; }
+       : [](double x) { return std::round(x); })
     // Snap between pixels if lw is exactly zero 0 (in which case the edge is
     // defined by the fill) or if lw rounds to an even value other than 0
     // (minimizing the alpha due to antialiasing).
@@ -244,9 +244,9 @@ void load_path_exact(
             double x_prev, y_prev;
             cairo_get_current_point(cr, &x_prev, &y_prev);
             cairo_curve_to(cr,
-                (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
-                (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
-                snapper(x1), snapper(y1));
+              (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
+              (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
+              snapper(x1), snapper(y1));
           } else {
             cairo_move_to(cr, snapper(x1), snapper(y1));
           }
@@ -288,8 +288,8 @@ void load_path_exact(
 // This overload implements the case of a codeless path.  Exposing start and
 // stop in the signature helps implementing support for agg.path.chunksize.
 void load_path_exact(
-    cairo_t* cr, py::array_t<double> vertices_keepref,
-    ssize_t start, ssize_t stop, cairo_matrix_t* matrix) {
+  cairo_t* cr, py::array_t<double> vertices_keepref,
+  ssize_t start, ssize_t stop, cairo_matrix_t* matrix) {
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto lpc = LoadPathContext{cr};
 
@@ -422,15 +422,15 @@ void load_path_exact(
   }
   auto path =
     cairo_path_t{
-        CAIRO_STATUS_SUCCESS, path_data.data(), int(path_data.size())};
+      CAIRO_STATUS_SUCCESS, path_data.data(), int(path_data.size())};
   cairo_append_path(cr, &path);
 }
 
 // Fill and/or stroke `path` onto `cr` after transformation by `matrix`,
 // ignoring the CTM ("exact").
 void fill_and_stroke_exact(
-    cairo_t* cr, py::object path, cairo_matrix_t* matrix,
-    std::optional<rgba_t> fill, std::optional<rgba_t> stroke) {
+  cairo_t* cr, py::object path, cairo_matrix_t* matrix,
+  std::optional<rgba_t> fill, std::optional<rgba_t> stroke) {
   cairo_save(cr);
   auto path_loaded = false;
   if (fill) {
@@ -476,25 +476,23 @@ long get_hinting_flag() {
     .attr("get_hinting_flag")().cast<long>();
 }
 
-cairo_font_face_t* font_face_from_path(
-    std::string path) {
+cairo_font_face_t* font_face_from_path(std::string path) {
   FT_Face ft_face;
   if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error(
-        "FT_New_Face(_ft2Library, \"" + path + "\", 0, &ft_face) failed with "
-        "error: " + ft_errors.at(error));
+      "FT_New_Face(_ft2Library, \"" + path + "\", 0, &ft_face) failed with "
+      "error: " + ft_errors.at(error));
   }
   auto font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
   CAIRO_CLEANUP_CHECK(
-      { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
-      cairo_font_face_set_user_data,
-      font_face, &detail::FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face));
+    { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
+    cairo_font_face_set_user_data,
+    font_face, &detail::FT_KEY, ft_face, cairo_destroy_func_t(FT_Done_Face));
   return font_face;
 }
 
-cairo_font_face_t* font_face_from_prop(
-    py::object prop) {
+cairo_font_face_t* font_face_from_prop(py::object prop) {
   // It is probably not worth implementing an additional layer of caching here
   // as findfont already has its cache and object equality needs would also
   // need to go through Python anyways.
@@ -536,9 +534,9 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
   auto glyphs = (cairo_glyph_t*){};
   auto count = int{};
   CAIRO_CHECK(
-      cairo_scaled_font_text_to_glyphs,
-      scaled_font, 0, 0, s.c_str(), s.size(),
-      &glyphs, &count, nullptr, nullptr, nullptr);
+    cairo_scaled_font_text_to_glyphs,
+    scaled_font, 0, 0, s.c_str(), s.size(),
+    &glyphs, &count, nullptr, nullptr, nullptr);
 #endif
   auto ptr =
     std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>{

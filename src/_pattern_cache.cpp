@@ -10,27 +10,27 @@ dash_t convert_dash(cairo_t* cr) {
   double offset;
   cairo_get_dash(cr, dashes.get(), &offset);
   return {
-      offset,
-      std::string{
-          reinterpret_cast<char*>(dashes.get()),
-          dash_count * sizeof(dashes[0])}};
+    offset,
+    std::string{
+      reinterpret_cast<char*>(dashes.get()),
+      dash_count * sizeof(dashes[0])}};
 }
 
 void set_dashes(cairo_t* cr, dash_t dash) {
   auto [offset, buf] = dash;
   cairo_set_dash(
-      cr,
-      reinterpret_cast<double*>(buf.data()),
-      buf.size() / sizeof(double),
-      offset);
+    cr,
+    reinterpret_cast<double*>(buf.data()),
+    buf.size() / sizeof(double),
+    offset);
 }
 
 void PatternCache::CacheKey::draw(
-    cairo_t* cr, double x, double y, rgba_t color) {
+  cairo_t* cr, double x, double y, rgba_t color) {
   auto m = cairo_matrix_t{
-      matrix.xx, matrix.yx,
-      matrix.xy, matrix.yy,
-      matrix.x0 + x, matrix.y0 + y};
+    matrix.xx, matrix.yx,
+    matrix.xy, matrix.yy,
+    matrix.x0 + x, matrix.y0 + y};
   switch (draw_func) {
     case draw_func_t::Fill:
       fill_and_stroke_exact(cr, path, &m, color, {});
@@ -73,7 +73,7 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const {
 }
 
 bool PatternCache::EqualTo::operator()(
-    CacheKey const& lhs, CacheKey const& rhs) const {
+  CacheKey const& lhs, CacheKey const& rhs) const {
   return (lhs.path.is(rhs.path))
     && (lhs.matrix.xx == rhs.matrix.xx) && (lhs.matrix.xy == rhs.matrix.xy)
     && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
@@ -101,23 +101,23 @@ PatternCache::~PatternCache() {
 }
 
 void PatternCache::mask(
-    cairo_t* cr,
-    py::object path,
-    cairo_matrix_t matrix,
-    draw_func_t draw_func,
-    double linewidth,
-    dash_t dash,
-    double x, double y) {
+  cairo_t* cr,
+  py::object path,
+  cairo_matrix_t matrix,
+  draw_func_t draw_func,
+  double linewidth,
+  dash_t dash,
+  double x, double y) {
   // The matrix gets cached, so we may as well take it by value instead of by
   // pointer.
   auto key =
     draw_func == draw_func_t::Fill
     ? CacheKey{
-        path, matrix, draw_func, 0, {},
-        static_cast<cairo_line_cap_t>(-1), static_cast<cairo_line_join_t>(-1)}
+      path, matrix, draw_func, 0, {},
+      static_cast<cairo_line_cap_t>(-1), static_cast<cairo_line_join_t>(-1)}
     : CacheKey{
-        path, matrix, draw_func, linewidth, dash,
-        cairo_get_line_cap(cr), cairo_get_line_join(cr)};
+      path, matrix, draw_func, linewidth, dash,
+      cairo_get_line_cap(cr), cairo_get_line_join(cr)};
   if (!n_subpix_) {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
@@ -191,7 +191,7 @@ void PatternCache::mask(
     bool ok;
     std::tie(it_patterns, ok) =
       patterns_.emplace(
-          key, PatternEntry{x0, y0, x1 - x0, y1 - y0, std::move(patterns)});
+        key, PatternEntry{x0, y0, x1 - x0, y1 - y0, std::move(patterns)});
     if (!ok) {
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
@@ -205,12 +205,12 @@ void PatternCache::mask(
   auto& pattern = entry.patterns[idx];
   if (!pattern) {
     auto raster_surface = cairo_image_surface_create(
-        CAIRO_FORMAT_A8,
-        std::ceil(entry.width + 1), std::ceil(entry.height + 1));
+      CAIRO_FORMAT_A8,
+      std::ceil(entry.width + 1), std::ceil(entry.height + 1));
     auto raster_cr = cairo_create(raster_surface);
     key.draw(
-        raster_cr,
-        -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
+      raster_cr,
+      -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
     pattern = cairo_pattern_create_for_surface(raster_surface);
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
     cairo_destroy(raster_cr);
