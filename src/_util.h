@@ -55,7 +55,6 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0 = 0);
 cairo_matrix_t matrix_from_transform(
     py::object transform, cairo_matrix_t* master_matrix);
 bool has_vector_surface(cairo_t* cr);
-void set_ctx_defaults(cairo_t* cr);
 AdditionalState& get_additional_state(cairo_t* cr);
 void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
 void load_path_exact(

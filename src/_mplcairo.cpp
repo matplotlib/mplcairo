@@ -104,7 +104,21 @@ GraphicsContextRenderer::GraphicsContextRenderer(
           "cairo")},
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
-  set_ctx_defaults(cr_);
+  // NOTE: Collections and text PathEffects have no joinstyle and implicitly
+  // rely on a "round" default.
+  cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+  auto stack = new std::stack<AdditionalState>{{{
+      /* alpha */           {},
+      /* antialias */       {true},
+      /* clip_rectangle */  {},
+      /* clip_path */       {nullptr, &cairo_path_destroy},
+      /* hatch */           {},
+      /* hatch_color */     to_rgba(rc_param("hatch.color")),
+      /* hatch_linewidth */ rc_param("hatch.linewidth").cast<double>(),
+      /* sketch */          {},
+      /* snap */            true}}};  // Defaults to None, i.e. True for us.
+  CAIRO_CHECK(
+      cairo_set_user_data, cr, &detail::STATE_KEY, stack, operator delete);
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
