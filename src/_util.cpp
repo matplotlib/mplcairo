@@ -40,17 +40,20 @@ cairo_user_data_key_t const FILE_KEY{},
 py::object UNIT_CIRCLE{};
 }
 
-py::object rc_param(std::string key) {
+py::object rc_param(std::string key)
+{
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
 }
 
-rgba_t to_rgba(py::object color, std::optional<double> alpha) {
+rgba_t to_rgba(py::object color, std::optional<double> alpha)
+{
   return
     py::module::import("matplotlib.colors")
     .attr("to_rgba")(color, alpha).cast<rgba_t>();
 }
 
-cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
+cairo_matrix_t matrix_from_transform(py::object transform, double y0)
+{
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
@@ -66,7 +69,8 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0) {
 }
 
 cairo_matrix_t matrix_from_transform(
-  py::object transform, cairo_matrix_t* master_matrix) {
+  py::object transform, cairo_matrix_t* master_matrix)
+{
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
@@ -84,7 +88,8 @@ cairo_matrix_t matrix_from_transform(
   return matrix;
 }
 
-bool has_vector_surface(cairo_t* cr) {
+bool has_vector_surface(cairo_t* cr)
+{
   switch (auto type = cairo_surface_get_type(cairo_get_target(cr))) {
     case CAIRO_SURFACE_TYPE_IMAGE:
     case CAIRO_SURFACE_TYPE_XLIB:
@@ -104,7 +109,8 @@ bool has_vector_surface(cairo_t* cr) {
 
 // Same as GraphicsContextRenderer::get_additional_state() but with checking
 // for cairo_t*'s that we may not have initialized.
-AdditionalState& get_additional_state(cairo_t* cr) {
+AdditionalState& get_additional_state(cairo_t* cr)
+{
   auto data = cairo_get_user_data(cr, &detail::STATE_KEY);
   if (!data) {
     throw std::runtime_error("cairo_t* missing additional state");
@@ -116,7 +122,8 @@ AdditionalState& get_additional_state(cairo_t* cr) {
   return stack.top();
 }
 
-void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest) {
+void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest)
+{
   cairo_set_antialias(dest, cairo_get_antialias(orig));
   cairo_set_line_cap(dest, cairo_get_line_cap(orig));
   cairo_set_line_join(dest, cairo_get_line_join(orig));
@@ -159,19 +166,21 @@ class LoadPathContext {
   cairo_matrix_t ctm;
 
   public:
-  LoadPathContext(cairo_t* cr) : cr{cr} {
+  LoadPathContext(cairo_t* cr) : cr{cr}
+  {
     cairo_get_matrix(cr, &ctm);
     cairo_identity_matrix(cr);
     cairo_new_path(cr);
   }
-  ~LoadPathContext() {
+  ~LoadPathContext()
+  {
     cairo_set_matrix(cr, &ctm);
   }
 };
 
 // This overload implements the general case.
-void load_path_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t* matrix) {
+void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
+{
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto lpc = LoadPathContext{cr};
 
@@ -289,7 +298,8 @@ void load_path_exact(
 // stop in the signature helps implementing support for agg.path.chunksize.
 void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices_keepref,
-  ssize_t start, ssize_t stop, cairo_matrix_t* matrix) {
+  ssize_t start, ssize_t stop, cairo_matrix_t* matrix)
+{
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto lpc = LoadPathContext{cr};
 
@@ -430,7 +440,8 @@ void load_path_exact(
 // ignoring the CTM ("exact").
 void fill_and_stroke_exact(
   cairo_t* cr, py::object path, cairo_matrix_t* matrix,
-  std::optional<rgba_t> fill, std::optional<rgba_t> stroke) {
+  std::optional<rgba_t> fill, std::optional<rgba_t> stroke)
+{
   cairo_save(cr);
   auto path_loaded = false;
   if (fill) {
@@ -469,14 +480,16 @@ void fill_and_stroke_exact(
   cairo_restore(cr);
 }
 
-long get_hinting_flag() {
+long get_hinting_flag()
+{
   // NOTE: Should be moved out of backend_agg.
   return
     py::module::import("matplotlib.backends.backend_agg")
     .attr("get_hinting_flag")().cast<long>();
 }
 
-cairo_font_face_t* font_face_from_path(std::string path) {
+cairo_font_face_t* font_face_from_path(std::string path)
+{
   FT_Face ft_face;
   if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error(
@@ -492,7 +505,8 @@ cairo_font_face_t* font_face_from_path(std::string path) {
   return font_face;
 }
 
-cairo_font_face_t* font_face_from_prop(py::object prop) {
+cairo_font_face_t* font_face_from_prop(py::object prop)
+{
   // It is probably not worth implementing an additional layer of caching here
   // as findfont already has its cache and object equality needs would also
   // need to go through Python anyways.
@@ -503,7 +517,8 @@ cairo_font_face_t* font_face_from_prop(py::object prop) {
 }
 
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
-  text_to_glyphs(cairo_t* cr, std::string s) {
+  text_to_glyphs(cairo_t* cr, std::string s)
+{
   auto scaled_font = cairo_get_scaled_font(cr);
 #ifdef MPLCAIRO_USE_LIBRAQM
   auto ft_face = cairo_ft_scaled_font_lock_face(scaled_font);

@@ -4,7 +4,8 @@
 
 namespace mplcairo {
 
-dash_t convert_dash(cairo_t* cr) {
+dash_t convert_dash(cairo_t* cr)
+{
   auto dash_count = cairo_get_dash_count(cr);
   auto dashes = std::unique_ptr<double[]>{new double[dash_count]};
   double offset;
@@ -16,7 +17,8 @@ dash_t convert_dash(cairo_t* cr) {
       dash_count * sizeof(dashes[0])}};
 }
 
-void set_dashes(cairo_t* cr, dash_t dash) {
+void set_dashes(cairo_t* cr, dash_t dash)
+{
   auto [offset, buf] = dash;
   cairo_set_dash(
     cr,
@@ -26,7 +28,8 @@ void set_dashes(cairo_t* cr, dash_t dash) {
 }
 
 void PatternCache::CacheKey::draw(
-  cairo_t* cr, double x, double y, rgba_t color) {
+  cairo_t* cr, double x, double y, rgba_t color)
+{
   auto m = cairo_matrix_t{
     matrix.xx, matrix.yx,
     matrix.xy, matrix.yy,
@@ -48,11 +51,13 @@ void PatternCache::CacheKey::draw(
   }
 }
 
-size_t PatternCache::Hash::operator()(py::object const& path) const {
+size_t PatternCache::Hash::operator()(py::object const& path) const
+{
   return std::hash<void*>{}(path.ptr());
 }
 
-size_t PatternCache::Hash::operator()(CacheKey const& key) const {
+size_t PatternCache::Hash::operator()(CacheKey const& key) const
+{
   // std::tuple is not hashable by default.  Reuse boost::hash_combine.
   size_t hashes[] = {
     std::hash<void*>{}(key.path.ptr()),
@@ -73,7 +78,8 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const {
 }
 
 bool PatternCache::EqualTo::operator()(
-  CacheKey const& lhs, CacheKey const& rhs) const {
+  CacheKey const& lhs, CacheKey const& rhs) const
+{
   return (lhs.path.is(rhs.path))
     && (lhs.matrix.xx == rhs.matrix.xx) && (lhs.matrix.xy == rhs.matrix.xy)
     && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
@@ -83,7 +89,8 @@ bool PatternCache::EqualTo::operator()(
     && (lhs.capstyle == rhs.capstyle) && (lhs.joinstyle == rhs.joinstyle);
 }
 
-PatternCache::PatternCache(double threshold) : threshold_{threshold} {
+PatternCache::PatternCache(double threshold) : threshold_{threshold}
+{
   if (threshold >= 1. / 16) {  // NOTE: Arbitrary limit.
     n_subpix_ = std::ceil(1 / threshold);
   } else {
@@ -91,7 +98,8 @@ PatternCache::PatternCache(double threshold) : threshold_{threshold} {
   }
 }
 
-PatternCache::~PatternCache() {
+PatternCache::~PatternCache()
+{
   for (auto& [key, entry]: patterns_) {
     (void)key;
     for (size_t i = 0; i < n_subpix_ * n_subpix_; ++i) {
@@ -107,7 +115,8 @@ void PatternCache::mask(
   draw_func_t draw_func,
   double linewidth,
   dash_t dash,
-  double x, double y) {
+  double x, double y)
+{
   // The matrix gets cached, so we may as well take it by value instead of by
   // pointer.
   auto key =
