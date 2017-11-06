@@ -172,7 +172,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             if needs_close:
                 stack.push(file)
             renderer = renderer_factory(file, *self.get_width_height(), dpi)
-            self.figure.draw(renderer)
+            with _LOCK:
+                self.figure.draw(renderer)
             # NOTE: _finish() corresponds finalize() in Matplotlib's PDF and
             # SVG backends; it is inlined for Matplotlib's PS backend.
             renderer._finish()
@@ -191,18 +192,25 @@ class FigureCanvasCairo(FigureCanvasBase):
         print_cairoscript = partialmethod(
             _print_method, GraphicsContextRendererCairo._for_script_output)
 
+    def _get_fresh_unmultiplied_rgba8888(self):
+        # Swap out the cache, as savefig may be playing with the background
+        # color.
+        last_renderer_call = self._last_renderer_call
+        self._last_renderer_call = (None, None)
+        with _LOCK:
+            renderer = self.get_renderer(_draw_if_new=True)
+        self._last_renderer_call = last_renderer_call
+        return _util.to_unmultiplied_rgba8888(renderer._get_buffer())
+
     # Split out as a separate method for metadata support.
     def print_png(
             self, filename_or_obj, *, metadata=None,
             # These arguments are already taken care of by print_figure().
             dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
-        with _LOCK:
-            self.draw()
-            if dryrun:
-                return
-            img = _util.to_unmultiplied_rgba8888(
-                self.get_renderer()._get_buffer())
+        img = self._get_fresh_unmultiplied_rgba8888()
+        if dryrun:
+            return
         full_metadata = OrderedDict(
             [("Software",
               "matplotlib version {}, https://matplotlib.org"
@@ -224,12 +232,9 @@ class FigureCanvasCairo(FigureCanvasBase):
                 dryrun=False, bbox_inches_restore=None,
                 # Remaining kwargs are passed to PIL.
                 **kwargs):
-            with _LOCK:
-                self.draw()
-                if dryrun:
-                    return
-                img = _util.to_unmultiplied_rgba8888(
-                    self.get_renderer()._get_buffer())
+            img = self._get_fresh_unmultiplied_rgba8888()
+            if dryrun:
+                return
             size = self.get_renderer().get_canvas_width_height()
             img = Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
             # Composite against the background (actually we could just skip the
@@ -249,12 +254,9 @@ class FigureCanvasCairo(FigureCanvasBase):
                 # These arguments are already taken care of by print_figure().
                 dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
                 dryrun=False, bbox_inches_restore=None):
-            with _LOCK:
-                self.draw()
-                if dryrun:
-                    return
-                img = _util.to_unmultiplied_rgba8888(
-                    self.get_renderer()._get_buffer())
+            img = self._get_fresh_unmultiplied_rgba8888()
+            if dryrun:
+                return
             size = self.get_renderer().get_canvas_width_height()
             (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
             .save(filename_or_obj, format="tiff",
