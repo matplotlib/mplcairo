@@ -110,14 +110,15 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()}
 {
-  // NOTE: Collections and text PathEffects have no joinstyle and implicitly
-  // rely on a "round" default.
+  // Collections and text PathEffects implicitly rely on defaulting to
+  // JOIN_ROUND (cairo defaults to JOIN_MITER) and CAP_BUTT (cairo too).  See
+  // GraphicsContextBase.__init__.
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
   auto stack = new std::stack<AdditionalState>{{{
     /* alpha */           {},
     /* antialias */       {true},
     /* clip_rectangle */  {},
-    /* clip_path */       {nullptr, &cairo_path_destroy},
+    /* clip_path */       {nullptr, cairo_path_destroy},
     /* hatch */           {},
     /* hatch_color */     to_rgba(rc_param("hatch.color")),
     /* hatch_linewidth */ rc_param("hatch.linewidth").cast<double>(),
@@ -251,7 +252,7 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
 {
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error("Only image surfaces are supported");
+    throw std::runtime_error("_get_buffer only supports image surfaces");
   }
   auto buf = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
@@ -309,7 +310,7 @@ void GraphicsContextRenderer::set_clip_path(
     auto matrix = matrix_from_transform(transform, height_);
     load_path_exact(cr_, path, &matrix);
     get_additional_state().clip_path.reset(
-      cairo_copy_path(cr_), &cairo_path_destroy);
+      cairo_copy_path(cr_), cairo_path_destroy);
   } else {
     get_additional_state().clip_path.reset();
   }
@@ -1115,7 +1116,7 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
   auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[4 * width * height]};
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error("Only image surfaces are supported");
+    throw std::runtime_error("copy_from_bbox only supports image surfaces");
   }
   auto raw = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
@@ -1135,7 +1136,7 @@ void GraphicsContextRenderer::restore_region(Region& region)
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
     // NOTE: We can probably use cairo_surface_map_to_image, but I'm not sure
     // there's an use for it anyways.
-    throw std::runtime_error("Only image surfaces are supported");
+    throw std::runtime_error("restore_region only supports image surfaces");
   }
   auto raw = cairo_image_surface_get_data(surface);
   auto stride = cairo_image_surface_get_stride(surface);
