@@ -629,32 +629,29 @@ void GraphicsContextRenderer::draw_path(
   if (auto hatch_path =
         py::cast(this).attr("get_hatch_path")()
         .cast<std::optional<py::object>>()) {
-    load_path();
     cairo_save(cr_);
     auto dpi = int(dpi_);  // Truncating is good enough.
-    auto hatch_surface = cairo_image_surface_create(
-        CAIRO_FORMAT_ARGB32, dpi, dpi);
+    auto hatch_surface =
+      cairo_surface_create_similar(
+          cairo_get_target(cr_), CAIRO_CONTENT_COLOR_ALPHA, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
     cairo_surface_destroy(hatch_surface);
-    set_ctx_defaults(hatch_cr);
-    // Snapped hatches look bad at high density.
-    mplcairo::get_additional_state(hatch_cr).snap = false;
+    auto hatch_gcr = GraphicsContextRenderer{hatch_cr, dpi, dpi, double(dpi)};
+    hatch_gcr.get_additional_state().snap = false;
+    hatch_gcr.set_linewidth(get_additional_state().hatch_linewidth);
+    auto matrix =
+      cairo_matrix_t{double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     auto hatch_color = get_additional_state().hatch_color;
-    cairo_set_line_width(
-        hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));
-    // cf. set_linewidth.
-    cairo_set_miter_limit(hatch_cr, cairo_get_line_width(hatch_cr));
-    auto matrix = cairo_matrix_t{
-        double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     fill_and_stroke_exact(
-        hatch_cr, *hatch_path, &matrix, hatch_color, hatch_color);
-    auto hatch_pattern = cairo_pattern_create_for_surface(hatch_surface);
+        hatch_gcr.cr_, *hatch_path, &matrix, hatch_color, hatch_color);
+    auto hatch_pattern =
+      cairo_pattern_create_for_surface(cairo_get_target(hatch_gcr.cr_));
     cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
     cairo_set_source(cr_, hatch_pattern);
+    cairo_pattern_destroy(hatch_pattern);
+    load_path();
     cairo_clip_preserve(cr_);
     cairo_paint(cr_);
-    cairo_pattern_destroy(hatch_pattern);
-    cairo_destroy(hatch_cr);
     cairo_restore(cr_);
   }
   auto chunksize = rc_param("agg.path.chunksize").cast<int>();

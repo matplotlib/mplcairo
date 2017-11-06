@@ -85,17 +85,20 @@ cairo_matrix_t matrix_from_transform(
 }
 
 bool has_vector_surface(cairo_t* cr) {
-  switch (cairo_surface_get_type(cairo_get_target(cr))) {
+  switch (auto type = cairo_surface_get_type(cairo_get_target(cr))) {
     case CAIRO_SURFACE_TYPE_IMAGE:
     case CAIRO_SURFACE_TYPE_XLIB:
       return false;
     case CAIRO_SURFACE_TYPE_PDF:
     case CAIRO_SURFACE_TYPE_PS:
     case CAIRO_SURFACE_TYPE_SVG:
+    case CAIRO_SURFACE_TYPE_RECORDING:
     case CAIRO_SURFACE_TYPE_SCRIPT:
       return true;
     default:
-      throw std::invalid_argument("Unexpected surface type");
+      throw
+        std::invalid_argument(
+            "Unexpected surface type: " + std::to_string(type));
   }
 }
 
