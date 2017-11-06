@@ -104,19 +104,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
           "cairo")},
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()} {
-  set_ctx_defaults(cr);
-  auto stack = new std::stack<AdditionalState>{{AdditionalState{}}};
-  stack->top().alpha = {};
-  stack->top().antialias = true;
-  stack->top().clip_rectangle = {};
-  stack->top().clip_path = {nullptr, &cairo_path_destroy};
-  stack->top().hatch = {};
-  stack->top().hatch_color = to_rgba(rc_param("hatch.color"));
-  stack->top().hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
-  stack->top().sketch = {};
-  stack->top().snap = true;  // Defaults to None, i.e. True for us.
-  CAIRO_CHECK(
-      cairo_set_user_data, cr, &detail::STATE_KEY, stack, operator delete);
+  set_ctx_defaults(cr_);
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer() {
@@ -352,7 +340,7 @@ void GraphicsContextRenderer::set_linewidth(double lw) {
 }
 
 void GraphicsContextRenderer::set_snap(std::optional<bool> snap) {
-  // NOTE: We treat None as True (snap); see load_path_exact() for rationale.
+  // NOTE: We treat None (snap if only vertical or horizontal lines) as True.
   // NOTE: It appears that even when rcParams["path.snap"] is False, this is
   // sometimes set to True.
   get_additional_state().snap = snap.value_or(true);
@@ -649,6 +637,8 @@ void GraphicsContextRenderer::draw_path(
     auto hatch_cr = cairo_create(hatch_surface);
     cairo_surface_destroy(hatch_surface);
     set_ctx_defaults(hatch_cr);
+    // Snapped hatches look bad at high density.
+    mplcairo::get_additional_state(hatch_cr).snap = false;
     auto hatch_color = get_additional_state().hatch_color;
     cairo_set_line_width(
         hatch_cr, points_to_pixels(get_additional_state().hatch_linewidth));

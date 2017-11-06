@@ -11,11 +11,6 @@
 namespace mplcairo {
 
 namespace {
-AdditionalState const DEFAULT_ADDITIONAL_STATE{
-    {}, {true}, {}, {}, {}, {0, 0, 0, 0}, 0, {}, true};
-}
-
-namespace {
 // Load FreeType error codes.  This approach (modified to use
 // std::unordered_map) is documented in fterror.h.
 // NOTE that if we require FreeType>=2.6.3 then the macro can be replaced by
@@ -108,18 +103,28 @@ void set_ctx_defaults(cairo_t* cr) {
   // NOTE: Collections and text PathEffects have no joinstyle and implicitly
   // rely on a "round" default.
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+  auto stack = new std::stack<AdditionalState>{{{
+      /* alpha */           {},
+      /* antialias */       {true},
+      /* clip_rectangle */  {},
+      /* clip_path */       {nullptr, &cairo_path_destroy},
+      /* hatch */           {},
+      /* hatch_color */     to_rgba(rc_param("hatch.color")),
+      /* hatch_linewidth */ rc_param("hatch.linewidth").cast<double>(),
+      /* sketch */          {},
+      /* snap */            true}}};  // Defaults to None, i.e. True for us.
+  CAIRO_CHECK(
+      cairo_set_user_data, cr, &detail::STATE_KEY, stack, operator delete);
 }
 
-// Variant of GraphicsContextRenderer::get_additional_state() that is able to
-// handle cairo_t* from other sources as well.
-AdditionalState const& get_additional_state(cairo_t* cr) {
+AdditionalState& get_additional_state(cairo_t* cr) {
   auto data = cairo_get_user_data(cr, &detail::STATE_KEY);
   if (!data) {
-    return DEFAULT_ADDITIONAL_STATE;
+    throw std::runtime_error("cairo_t* missing additional state");
   }
   auto& stack = *static_cast<std::stack<AdditionalState>*>(data);
   if (stack.empty()) {
-    return DEFAULT_ADDITIONAL_STATE;
+    throw std::runtime_error("cairo_t* missing additional state");
   }
   return stack.top();
 }
