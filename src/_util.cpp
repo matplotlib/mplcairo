@@ -206,12 +206,12 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
   auto snapper =
     snap
     ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
-       ? [](double x) { return std::floor(x) + .5; }
-       : [](double x) { return std::round(x); })
+       ? [](double x) -> double { return std::floor(x) + .5; }
+       : [](double x) -> double { return std::round(x); })
     // Snap between pixels if lw is exactly zero 0 (in which case the edge is
     // defined by the fill) or if lw rounds to an even value other than 0
     // (minimizing the alpha due to antialiasing).
-    : [](double x) { return x; };
+    : [](double x) -> double { return x; };
   // Main loop.
   for (auto i = 0; i < n; ++i) {
     auto x0 = vertices(i, 0), y0 = vertices(i, 1);
@@ -312,7 +312,7 @@ void load_path_exact(
   auto path_data = std::vector<cairo_path_data_t>{};
   path_data.reserve(2 * (stop - start));
   auto const LEFT = 1 << 0, RIGHT = 1 << 1, BOTTOM = 1 << 2, TOP = 1 << 3;
-  auto outcode = [&](double x, double y) {
+  auto outcode = [&](double x, double y) -> int {
     auto code = 0;
     if (x < min) {
       code |= LEFT;
@@ -331,8 +331,8 @@ void load_path_exact(
   auto lw = cairo_get_line_width(cr);
   auto snapper =
     (lw < 1) || (std::lround(lw) % 2 == 1)
-    ? [](double x) { return std::floor(x) + .5; }
-    : [](double x) { return std::round(x); };
+    ? [](double x) -> double { return std::floor(x) + .5; }
+    : [](double x) -> double { return std::round(x); };
   // The previous point, if any, before clipping and snapping.
   auto prev = std::optional<std::tuple<double, double>>{};
   // Main loop.

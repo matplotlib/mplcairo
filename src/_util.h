@@ -41,7 +41,8 @@ struct AdditionalState {
   std::optional<double> alpha;
   std::variant<cairo_antialias_t, bool> antialias;
   std::optional<rectangle_t> clip_rectangle;
-  std::shared_ptr<cairo_path_t> clip_path;
+  std::tuple<std::optional<py::object>, std::shared_ptr<cairo_path_t>>
+    clip_path;
   std::optional<std::string> hatch;
   rgba_t hatch_color;
   double hatch_linewidth;

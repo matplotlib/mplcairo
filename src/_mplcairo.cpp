@@ -42,7 +42,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   // Set antialiasing: if "true", then pick either CAIRO_ANTIALIAS_FAST or
   // CAIRO_ANTIALIAS_BEST, depending on the linewidth.  The threshold of 1/3
   // was determined empirically.
-  std::visit([&](auto aa) {
+  std::visit([&](auto aa) -> void {
     if constexpr (std::is_same_v<decltype(aa), cairo_antialias_t>) {
       cairo_set_antialias(cr, aa);
     } else if constexpr (std::is_same_v<decltype(aa), bool>) {
@@ -65,7 +65,8 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     cairo_restore(cr);
     cairo_clip(cr);
   }
-  if (auto clip_path = state.clip_path) {
+  if (auto [py_clip_path, clip_path] = state.clip_path; clip_path) {
+    (void)py_clip_path;
     cairo_new_path(cr);
     cairo_append_path(cr, clip_path.get());
     cairo_clip(cr);
@@ -118,7 +119,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     /* alpha */           {},
     /* antialias */       {true},
     /* clip_rectangle */  {},
-    /* clip_path */       {nullptr, cairo_path_destroy},
+    /* clip_path */       {{}, {nullptr, cairo_path_destroy}},
     /* hatch */           {},
     /* hatch_color */     to_rgba(rc_param("hatch.color")),
     /* hatch_linewidth */ rc_param("hatch.linewidth").cast<double>(),
@@ -173,7 +174,8 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   StreamSurfaceType type, py::object file,
   double width, double height, double dpi)
 {
-  auto cb = [](void* closure, const unsigned char* data, unsigned int length) {
+  auto cb = [](void* closure, const unsigned char* data, unsigned int length)
+            -> cairo_status_t {
     auto write =
       py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
     // NOTE: Work around lack of const buffers in pybind11.
@@ -188,7 +190,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
   };
   auto write = file.attr("write").cast<py::handle>().inc_ref().ptr();
-  auto dec_ref = [](void* write) {
+  auto dec_ref = [](void* write) -> void {
     py::handle{static_cast<PyObject*>(write)}.dec_ref();
   };
 
@@ -207,7 +209,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
     case StreamSurfaceType::Script:
       surface_create_for_stream =
         [](cairo_write_func_t write, void* closure,
-           double width, double height) {
+           double width, double height) -> cairo_surface_t* {
           auto script = cairo_script_create_for_stream(write, closure);
           auto surface =
             cairo_script_surface_create(
@@ -260,7 +262,7 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
   return
     py::array_t<uint8_t>{
       {height_, width_, 4}, {stride, 4, 1}, buf,
-      py::capsule(surface, [](void* surface) {
+      py::capsule(surface, [](void* surface) -> void {
         cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
       })};
 }
@@ -309,10 +311,10 @@ void GraphicsContextRenderer::set_clip_path(
       .cast<std::tuple<py::object, py::object>>();
     auto matrix = matrix_from_transform(transform, height_);
     load_path_exact(cr_, path, &matrix);
-    get_additional_state().clip_path.reset(
-      cairo_copy_path(cr_), cairo_path_destroy);
+    get_additional_state().clip_path =
+      {transformed_path, {cairo_copy_path(cr_), cairo_path_destroy}};
   } else {
-    get_additional_state().clip_path.reset();
+    get_additional_state().clip_path = {{}, {}};
   }
 }
 
@@ -546,7 +548,7 @@ void GraphicsContextRenderer::draw_markers(
     fc ? to_rgba(*fc, get_additional_state().alpha) : std::optional<rgba_t>{};
   auto ec_raw = get_rgba();
 
-  auto draw_one_marker = [&](cairo_t* cr, double x, double y) {
+  auto draw_one_marker = [&](cairo_t* cr, double x, double y) -> void {
     auto m = cairo_matrix_t{
       marker_matrix.xx, marker_matrix.yx, marker_matrix.xy, marker_matrix.yy,
       marker_matrix.x0 + x, marker_matrix.y0 + y};
@@ -658,7 +660,7 @@ void GraphicsContextRenderer::draw_path(
   auto ac = additional_context();
   auto path_loaded = false;
   auto matrix = matrix_from_transform(transform, height_);
-  auto load_path = [&]() {
+  auto load_path = [&]() -> void {
     if (!path_loaded) {
       load_path_exact(cr_, path, &matrix);
       path_loaded = true;
@@ -788,12 +790,11 @@ void GraphicsContextRenderer::draw_path_collection(
     throw std::invalid_argument("Invalid offsets shape");
   }
   auto offset_matrix = matrix_from_transform(offset_transform);
-  auto convert_colors = [&](py::object colors) {
+  auto convert_colors = [&](py::object colors) -> py::array_t<double> {
     auto alpha = get_additional_state().alpha;
     return
       py::module::import("matplotlib.colors").attr("to_rgba_array")(
-        colors, alpha ? py::cast(*alpha) : py::none())
-      .cast<py::array_t<double>>();
+        colors, alpha ? py::cast(*alpha) : py::none());
   };
   // Don't drop the arrays until the function exits.  NOTE: Perhaps pybind11
   // should ensure that?
@@ -1053,8 +1054,9 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto extents =
       *static_cast<cairo_rectangle_t*>(
         cairo_surface_get_user_data(record, &detail::MATHTEXT_RECTANGLE));
-    return {
-      extents.width, extents.height, extents.y + extents.height - to_baseline};
+    return
+      {extents.width, extents.height,
+       extents.y + extents.height - to_baseline};
   } else {
     cairo_save(cr_);
     auto font_face = font_face_from_prop(prop);
@@ -1095,7 +1097,7 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter()
   auto stride = cairo_image_surface_get_stride(raster_surface);
   return
     {{height_, width_, 4}, {stride, 4, 1}, buf,
-     py::capsule(raster_surface, [](void* raster_surface) {
+     py::capsule(raster_surface, [](void* raster_surface) -> void {
        cairo_surface_destroy(static_cast<cairo_surface_t*>(raster_surface));
      })};
 }
@@ -1229,7 +1231,7 @@ py::capsule MathtextBackend::get_results(
   cr_ = nullptr;
   // We could set the name for additional safety if people start passing in
   // arbitrary capsules, but that wouldn't really help either...
-  return py::capsule(surface, [](void* surface) {
+  return py::capsule(surface, [](void* surface) -> void {
     cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
   });
 }
@@ -1306,11 +1308,11 @@ PYBIND11_MODULE(_mplcairo, m)
 
   py::class_<Region>(m, "_Region")
     // NOTE: Only for patching Agg.
-    .def("_get_buffer", [](Region& r) {
-      return py::array_t<uint8_t>{
-        {r.bbox.height, r.bbox.width, 4},
-        {r.bbox.width * 4, 4, 1},
-        r.buf.get()};
+    .def("_get_buffer", [](Region& r) -> py::array_t<uint8_t> {
+      return
+        {{r.bbox.height, r.bbox.width, 4},
+         {r.bbox.width * 4, 4, 1},
+         r.buf.get()};
     });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
@@ -1338,21 +1340,33 @@ PYBIND11_MODULE(_mplcairo, m)
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
     .def("set_snap", &GraphicsContextRenderer::set_snap)
 
-    .def("get_clip_rectangle", [](GraphicsContextRenderer& gcr) {
-      return gcr.get_additional_state().clip_rectangle;
-    })
-    .def("get_clip_path", [](GraphicsContextRenderer& gcr) {
-      return gcr.get_additional_state().clip_path;
-    })
-    .def("get_hatch", [](GraphicsContextRenderer& gcr) {
-      return gcr.get_additional_state().hatch;
-    })
-    .def("get_hatch_color", [](GraphicsContextRenderer& gcr) {
-      return gcr.get_additional_state().hatch_color;
-    })
-    .def("get_hatch_linewidth", [](GraphicsContextRenderer& gcr) {
-      return gcr.get_additional_state().hatch_linewidth;
-    })
+    .def(
+      "get_clip_rectangle",
+      [](GraphicsContextRenderer& gcr) -> std::optional<rectangle_t> {
+        return gcr.get_additional_state().clip_rectangle;
+      })
+    .def(
+      "get_clip_path",
+      [](GraphicsContextRenderer& gcr) -> std::optional<py::object> {
+        auto [py_path, path] = gcr.get_additional_state().clip_path;
+        (void)path;
+        return py_path;
+      })
+    .def(
+      "get_hatch",
+      [](GraphicsContextRenderer& gcr) -> std::optional<std::string> {
+        return gcr.get_additional_state().hatch;
+      })
+    .def(
+      "get_hatch_color",
+      [](GraphicsContextRenderer& gcr) -> rgba_t {
+        return gcr.get_additional_state().hatch_color;
+      })
+    .def(
+      "get_hatch_linewidth",
+      [](GraphicsContextRenderer& gcr) -> double {
+        return gcr.get_additional_state().hatch_linewidth;
+      })
     // Not strictly needed now.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)
     // Needed for patheffects.
@@ -1362,10 +1376,11 @@ PYBIND11_MODULE(_mplcairo, m)
     // in set_sketch_params().
     .def_property(
       "_sketch",
-      [](GraphicsContextRenderer& gcr) {
+      [](GraphicsContextRenderer& gcr) -> std::optional<py::object> {
         return gcr.get_additional_state().sketch;
       },
-      [](GraphicsContextRenderer& gcr, std::optional<py::object> sketch) {
+      [](GraphicsContextRenderer& gcr, std::optional<py::object> sketch)
+      -> void {
         gcr.get_additional_state().sketch = sketch;
       })
 
@@ -1380,9 +1395,11 @@ PYBIND11_MODULE(_mplcairo, m)
     // NOTE: Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
-    .def("get_canvas_width_height", [](GraphicsContextRenderer& gcr) {
-      return std::tuple{gcr.width_, gcr.height_};
-    })
+    .def(
+      "get_canvas_width_height",
+      [](GraphicsContextRenderer& gcr) -> std::tuple<double, double> {
+        return {gcr.width_, gcr.height_};
+      })
     // NOTE: Needed for patheffects, which should use get_canvas_width_height().
     .def_readonly("width", &GraphicsContextRenderer::width_)
     .def_readonly("height", &GraphicsContextRenderer::height_)
@@ -1429,7 +1446,7 @@ Backend rendering mathtext to a cairo recording surface, returned as a capsule.
     .def("render_glyph", &MathtextBackend::render_glyph)
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)
-    .def("get_hinting_type", [](MathtextBackend& /* mb */) {
+    .def("get_hinting_type", [](MathtextBackend& /* mb */) -> long {
       return get_hinting_flag();
     });
 }
