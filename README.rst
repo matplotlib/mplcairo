@@ -65,13 +65,11 @@ All code examples below assume that the appropriate conda environment is active
 .. [#] pybind11 is technically only a build-time requirement, but I'd rather
    not use ``setup_requires``.
 
-..
-
-   Do *not* build Matplotlib with the "local FreeType" option set (i.e., do
-   not set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
-   ``local_freetype`` entry in ``setup.cfg``).  This option will statically
-   link to a fixed version of FreeType, which may be different from the version
-   of FreeType cairo is built against, causing binary incompatibilites.
+**NOTE**: Do *not* build Matplotlib with the "local FreeType" option set (i.e.,
+do not set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
+``local_freetype`` entry in ``setup.cfg``).  This option will statically link
+to a fixed version of FreeType, which may be different from the version of
+FreeType cairo is built against, causing binary incompatibilites.
 
 Building
 ========
@@ -189,56 +187,71 @@ must not be compressed with another short argument.
 Notes
 =====
 
-- The artist antialiasing property can be set to any of the
-  ``cairo_antialias_t`` enum values, or ``True`` (the default) or ``False``
-  (which is synonym to ``NONE``).
+Antialiasing
+------------
 
-  Setting antialiasing to ``True`` uses ``FAST`` antialiasing for lines thicker
-  than 1/3px and ``BEST`` for lines thinner than that: for lines thinner
-  than 1/3px, the former leads to artefacts such as lines disappearing in
-  certain sections (see e.g. ``test_cycles.test_property_collision_plot`` after
-  forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
-  empirically, see ``examples/thin_line_antialiasing.py``.
+The artist antialiasing property can be set to any of the ``cairo_antialias_t``
+enum values, or ``True`` (the default) or ``False`` (which is synonym to
+``NONE``).
 
-  Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
-  rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass
-  rcparam validation, using, e.g.
+Setting antialiasing to ``True`` uses ``FAST`` antialiasing for lines thicker
+than 1/3px and ``BEST`` for lines thinner than that: for lines thinner
+than 1/3px, the former leads to artefacts such as lines disappearing in
+certain sections (see e.g. ``test_cycles.test_property_collision_plot`` after
+forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
+empirically, see ``examples/thin_line_antialiasing.py``.
 
-  .. code-block:: python
+Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
+rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass
+rcparam validation, using, e.g.
 
-      dict.__setitem__(plt.rcParams, "lines.antialiased", antialias_t.FAST)
+.. code-block:: python
 
-  (Support for ``text.antialiased`` is not implemented yet, mostly because we
-  need to decide on whether to map ``True`` to ``GRAY`` or ``SUBPIXEL``.)
+   dict.__setitem__(plt.rcParams, "lines.antialiased", antialias_t.FAST)
 
-- For fast drawing of path with many segments, the ``agg.path.chunksize``
-  rcparam should be set to 1000 (see ``examples/time_drawing_per_element.py``
-  for the determination of this value); this causes longer paths to be split
-  into individually rendered sections of 1000 segments each (directly rendering
-  longer paths appears to have slightly superlinear complexity).
+(Support for ``text.antialiased`` is not implemented yet, mostly because we
+need to decide on whether to map ``True`` to ``GRAY`` or ``SUBPIXEL``.)
 
-- The ``path.simplify_threshold`` rcparam is used to control the accuracy of
-  marker stamping, down to an arbitrarily chosen threshold of 1/16px.  Values
-  lower than that will use the exact (slower) marker drawing path.  Marker
-  stamping is also implemented for scatter plots (which can have multiple
-  colors).  Likewise, markers of different sizes get mapped into markers of
-  discretized sizes, with an error bounded by the threshold.
+Fast drawing
+------------
 
-  **NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
-  where the facets join each other.  This is because these functions internally
-  use a ``PathCollection``, thus triggering the approximate stamping.
-  ``pcolor`` should be deprecated in favor of ``pcolormesh`` (internally using
-  a ``QuadMesh``), and ``plot_surface`` should likewise instead represent the
-  surface using ``QuadMesh``, which is drawn without such artefacts.
+For fast drawing of path with many segments, the ``agg.path.chunksize`` rcparam
+should be set to 1000 (see ``examples/time_drawing_per_element.py`` for the
+determination of this value); this causes longer paths to be split into
+individually rendered sections of 1000 segments each (directly rendering longer
+paths appears to have slightly superlinear complexity).
 
-- ``draw_markers`` draws a marker at each control point of the given path,
-  which is the documented behavior, even though all builtin renderers only draw
-  markers at straight or Bézier segment ends.
+Simplification threshold
+------------------------
 
-- Setting the ``MPLCAIRO_DEBUG`` environment variable to a non-empty value
-  allows one to save figures (with ``savefig``) in the ``.cairoscript`` format,
-  which is a "native script that matches the cairo drawing model".  This may be
-  helpful for troubleshooting purposes.
+The ``path.simplify_threshold`` rcparam is used to control the accuracy of
+marker stamping, down to an arbitrarily chosen threshold of 1/16px.  Values
+lower than that will use the exact (slower) marker drawing path.  Marker
+stamping is also implemented for scatter plots (which can have multiple
+colors).  Likewise, markers of different sizes get mapped into markers of
+discretized sizes, with an error bounded by the threshold.
+
+**NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
+where the facets join each other.  This is because these functions internally
+use a ``PathCollection``, thus triggering the approximate stamping.
+``pcolor`` should be deprecated in favor of ``pcolormesh`` (internally using
+a ``QuadMesh``), and ``plot_surface`` should likewise instead represent the
+surface using ``QuadMesh``, which is drawn without such artefacts.
+
+``cairo-script`` output
+-----------------------
+
+Setting the ``MPLCAIRO_DEBUG`` environment variable to a non-empty value allows
+one to save figures (with ``savefig``) in the ``.cairoscript`` format, which is
+a "native script that matches the cairo drawing model".  This may be helpful
+for troubleshooting purposes.
+
+Markers at Bézier control points
+--------------------------------
+
+``draw_markers`` draws a marker at each control point of the given path, which
+is the documented behavior, even though all builtin renderers only draw markers
+at straight or Bézier segment ends.
 
 Known issues
 ============
@@ -263,6 +276,9 @@ Known issues
   partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or by
   implementing a rastered cache (but it would be preferable to fix the general
   issue with recording surfaces first).
+
+- SVG output does not set URLs on any element, as cairo provides no support for
+  doing so.
 
 Possible optimizations
 ======================
