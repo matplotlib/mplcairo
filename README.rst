@@ -4,19 +4,24 @@ A (new) cairo backend for Matplotlib
 
 .. contents:: :local:
 
-This is a new, near-complete implementation of a cairo backend for
-Matplotlib.  It can be used in combination with a Qt5, GTK3, Tk, or wx UI, or
+This is a new, essentially complete implementation of a cairo_ backend for
+Matplotlib_.  It can be used in combination with a Qt5, GTK3, Tk, or wx UI, or
 non-interactively (i.e., to save figure to various file formats).
 
 This implementation "passes" Matplotlib's entire image comparison test suite
--- after accounting for inevitable differences in rasterization, and with the
+-- after accounting for inevitable differences in rasterization, and with a few
 exceptions noted below.
 
-Depending on the specific task, the backend can be up to ~10× faster (e.g.,
-when stamping circular markers of variable colors) than Agg.
+Noteworthy points include speed (the backend can be up to ~10× faster than
+Agg, e.g., when stamping circular markers of variable colors) and optional
+support for complex text layout (right-to-left languages, etc.) using Raqm_.
 
 Currently, only Linux and OSX are supported.  Windows support is missing due to
 lack of full C++17 support by MSVC.
+
+.. _cairo: https://www.cairographics.org/
+.. _Matplotlib: http://matplotlib.org/
+.. _Raqm: https://github.com/HOST-Oman/libraqm
 
 Installation
 ============
@@ -69,7 +74,7 @@ All code examples below assume that the appropriate conda environment is active
 do not set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
 ``local_freetype`` entry in ``setup.cfg``).  This option will statically link
 to a fixed version of FreeType, which may be different from the version of
-FreeType cairo is built against, causing binary incompatibilites.
+FreeType that cairo is built against, causing binary incompatibilites.
 
 Building
 ========
@@ -81,10 +86,8 @@ required:
 - cairo and FreeType headers, and pkg-config information to locate them.
 
 If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
-uses Raqm_ to perform complex text layout (right-to-left scripts, etc.).  An
+uses Raqm to perform complex text layout (right-to-left scripts, etc.).  An
 installation of Raqm is required; run ``setup.py`` for instructions.
-
-.. _raqm: https://github.com/HOST-Oman/libraqm
 
 A suitably patched Matplotlib should first be installed as documented above.
 
@@ -97,7 +100,7 @@ Dependencies are available on conda-forge.
 
    # cairo and pkg-config from the anaconda channel will *not* work.
    conda install -y -c conda-forge cairo pkg-config
-   conda install -y -c rdonnelly gxx_linux-64\>=7.1
+   conda install -y -c anaconda gxx_linux-64\>=7.1
 
    # The environment needs to be reactivated for the compiler paths to be set.
    source activate "$CONDA_DEFAULT_ENV"
@@ -272,10 +275,10 @@ Known issues
 
       inkscape --without-gui input.ps --export-plain-svg output.svg
 
-  Rendering of hinted mathtext is *extremely* slow on Xlib (GTK3).  This may be
-  partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or by
-  implementing a rastered cache (but it would be preferable to fix the general
-  issue with recording surfaces first).
+  Rendering of hinted mathtext is *extremely* slow on Xlib (GTK3).  This may
+  be partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or
+  by implementing a rasterization cache (but it would be preferable to fix the
+  general issue with recording surfaces first).
 
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
@@ -300,4 +303,4 @@ What about the already existing cairo (gtk3cairo) backend?
 
 It is slow (try running ``examples/mplot3d/wire3d_animation.py``), buggy (try
 calling ``imshow``, especially with an alpha channel), and renders math poorly
-(try ``title(r"\sqrt{2}")``).
+(try ``title(r"$\sqrt{2}$")``).
