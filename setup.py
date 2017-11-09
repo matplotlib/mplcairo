@@ -44,13 +44,31 @@ if sys.platform == "linux":
         + get_pkg_config("--cflags", "py3cairo"))
     if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
         EXTENSION.define_macros = [("MPLCAIRO_USE_LIBRAQM", "1")]
-        EXTENSION.extra_compile_args += (
-            get_pkg_config("--cflags", "raqm"))
-        EXTENSION.extra_link_args += (
-            get_pkg_config("--libs", "raqm"))
+        try:
+            EXTENSION.extra_compile_args += (
+                get_pkg_config("--cflags", "raqm"))
+            EXTENSION.extra_link_args += (
+                get_pkg_config("--libs", "raqm"))
+        except subprocess.CalledProcessError:
+            if Path("build/raqm-prefix").is_dir():
+                EXTENSION.include_dirs += (
+                    ["build/raqm-prefix/include"])
+                EXTENSION.extra_objects += (
+                    ["build/raqm-prefix/lib/libraqm.a"])
+            else:
+                sys.exit("""
+Raqm is not installed system-wide.  If your system package manager does not
+provide it,
+
+1. Install the FriBiDi and HarfBuzz headers (e.g., 'libfribidi-dev' and
+  'libharfbuzz-dev') using your system package manager.
+2. Run 'tools/build-raqm.sh' *outside of any conda environment*.
+3. Build and install mplcairo normally.
+""")
     if os.environ.get("MANYLINUX"):
         EXTENSION.extra_link_args += (
             ["-static-libgcc", "-static-libstdc++"])
+
 elif sys.platform == "darwin":
     EXTENSION.extra_compile_args += (
         # version-min=10.9 avoids deprecation warning wrt. libstdc++.
@@ -65,6 +83,7 @@ elif sys.platform == "darwin":
             get_pkg_config("--cflags", "raqm"))
         EXTENSION.extra_link_args += (
             get_pkg_config("--libs", "raqm"))
+
 elif sys.platform == "win32":
     EXTENSION.extra_compile_args += (
         ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",

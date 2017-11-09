@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cairo/cairo.h>
-#include <cairo/cairo-ft.h>
+#include <cairo.h>
+#include <cairo-ft.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>

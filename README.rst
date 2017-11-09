@@ -82,7 +82,7 @@ required:
 
 If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
 uses Raqm_ to perform complex text layout (right-to-left scripts, etc.).  An
-installation of Raqm is required.
+installation of Raqm is required; run ``setup.py`` for instructions.
 
 .. _raqm: https://github.com/HOST-Oman/libraqm
 

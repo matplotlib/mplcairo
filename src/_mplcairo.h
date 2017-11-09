@@ -2,7 +2,7 @@
 
 #include "_util.h"
 
-#include <cairo/cairo.h>
+#include <cairo.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/eval.h>
