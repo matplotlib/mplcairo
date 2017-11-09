@@ -40,10 +40,13 @@ EXTENSION = Extension(
 
 if sys.platform == "linux":
     EXTENSION.extra_compile_args += (
-        ["-std=c++17", "-fvisibility=hidden", "-Wextra", "-Wpedantic"]
+        ["-std=c++17", "-fvisibility=hidden", "-flto", "-Wextra", "-Wpedantic"]
         + get_pkg_config("--cflags", "py3cairo"))
+    EXTENSION.extra_link_args += (
+        ["-flto"])
     if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
-        EXTENSION.define_macros = [("MPLCAIRO_USE_LIBRAQM", "1")]
+        EXTENSION.define_macros = (
+            [("MPLCAIRO_USE_LIBRAQM", "1")])
         try:
             EXTENSION.extra_compile_args += (
                 get_pkg_config("--cflags", "raqm"))
@@ -68,17 +71,22 @@ provide it,
     if os.environ.get("MANYLINUX"):
         EXTENSION.extra_link_args += (
             ["-static-libgcc", "-static-libstdc++"])
+    else:
+        EXTENSION.extra_compile_args += (
+            ["-march=native"])
 
 elif sys.platform == "darwin":
     EXTENSION.extra_compile_args += (
         # version-min=10.9 avoids deprecation warning wrt. libstdc++.
-        ["-std=c++17", "-fvisibility=hidden", "-mmacosx-version-min=10.9"]
+        ["-std=c++17", "-fvisibility=hidden", "-flto",
+         "-mmacosx-version-min=10.9"]
         + get_pkg_config("--cflags", "py3cairo"))
     EXTENSION.extra_link_args += (
         # version-min needs to be repeated to avoid a warning.
-        ["-mmacosx-version-min=10.9"])
+        ["-flto", "-mmacosx-version-min=10.9"])
     if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
-        EXTENSION.define_macros = [("MPLCAIRO_USE_LIBRAQM", "1")]
+        EXTENSION.define_macros += (
+            [("MPLCAIRO_USE_LIBRAQM", "1")])
         EXTENSION.extra_compile_args += (
             get_pkg_config("--cflags", "raqm"))
         EXTENSION.extra_link_args += (
