@@ -1,6 +1,7 @@
 **/.ipynb_checkpoints/
 *.egg-info/
 .cache/
+.eggs
 build/
 dist/
 doc/_build/

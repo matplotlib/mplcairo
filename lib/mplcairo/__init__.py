@@ -1,6 +1,14 @@
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+import setuptools_scm
+try:
+    __version__ = setuptools_scm.get_version(  # xref setup.py
+        root="../..", relative_to=__file__,
+        version_scheme="post-release", local_scheme="node-and-date")
+except LookupError:
+    try:
+        from ._version import version as __version__
+    except ImportError:
+        pass
+
 
 def _load_symbols():
     # dlopen() the ft2font extension module with RTLD_GLOBAL to make

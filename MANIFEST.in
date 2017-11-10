@@ -1,4 +1,0 @@
-include LICENSE.txt
-include setupext.py
-include versioneer.py
-graft src

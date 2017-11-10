@@ -164,5 +164,11 @@ setup(
     package_dir={"": "lib"},
     ext_modules=[EXTENSION],
     python_requires=">=3.4",
-    install_requires=["pybind11>=2.2", "pycairo>=1.12.0"],
+    setup_requires=["setuptools_scm"],
+    use_scm_version={  # xref __init__.py
+        "version_scheme": "post-release",
+        "local_scheme": "node-and-date",
+        "write_to": "lib/mplcairo/_version.py",
+    },
+    install_requires=["pybind11>=2.2", "pycairo>=1.12.0", "setuptools_scm"],
 )
