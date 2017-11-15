@@ -12,9 +12,13 @@ This implementation "passes" Matplotlib's entire image comparison test suite
 -- after accounting for inevitable differences in rasterization, and with a few
 exceptions noted below.
 
-Noteworthy points include speed (the backend can be up to ~10× faster than
-Agg, e.g., when stamping circular markers of variable colors) and optional
-support for complex text layout (right-to-left languages, etc.) using Raqm_.
+Noteworthy points include:
+- Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
+  circular markers of variable colors).
+- Vector backends (PDF, PS, SVG) support a wider variety of font formats, such
+  as otf and pfb.
+- Optional support for complex text layout (right-to-left languages, etc.)
+  using Raqm_.
 
 Currently, only Linux and OSX are supported.  Windows support is missing due to
 lack of full C++17 support by MSVC.
@@ -240,6 +244,28 @@ use a ``PathCollection``, thus triggering the approximate stamping.
 ``pcolor`` should be deprecated in favor of ``pcolormesh`` (internally using
 a ``QuadMesh``), and ``plot_surface`` should likewise instead represent the
 surface using ``QuadMesh``, which is drawn without such artefacts.
+
+Font formats
+------------
+
+In order to use a specific font that Matplotlib may be unable to use, pass a
+filename directly:
+
+.. code-block:: python
+
+   from matplotlib.font_manager import FontProperties
+   ax.text(.5, .5, "hello, world", fontproperties=FontProperties(fname="..."))
+
+mplcairo still relies on Matplotlib's font cache, so fonts unsupported by
+Matplotlib remain unavailable by other means.  Matplotlib's current FreeType
+wrapper also limits the use of ttc collections to the first font in the
+collection.
+
+Note that Matplotlib's (default) Agg backend will handle such fonts equally
+well (ultimately, both backends relies on FreeType for rasterization).  It
+is Matplotlib's vector backends (PS, PDF, and, for pfb fonts, SVG) that do
+not support these fonts, whereas mplcairo support these fonts in all output
+formats.
 
 ``cairo-script`` output
 -----------------------
