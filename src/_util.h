@@ -17,12 +17,18 @@ namespace py = pybind11;
 
 namespace detail {
 
-using surface_create_for_stream_t = cairo_surface_t* (*)(
-  cairo_write_func_t, void*, double, double);
+using surface_create_for_stream_t =
+  cairo_surface_t* (*)(cairo_write_func_t, void*, double, double);
+using surface_set_size_t =
+  void (*)(cairo_surface_t*, double, double);
+using ps_surface_set_eps_t =
+  void (*)(cairo_surface_t*, cairo_bool_t);
 extern surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                                    cairo_ps_surface_create_for_stream,
                                    cairo_svg_surface_create_for_stream;
-extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
+extern surface_set_size_t          cairo_pdf_surface_set_size,
+                                   cairo_ps_surface_set_size;
+extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 
 extern cairo_user_data_key_t const
   FILE_KEY, FT_KEY, MATHTEXT_RECTANGLE, MATHTEXT_TO_BASELINE_KEY, STATE_KEY;

@@ -245,11 +245,6 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     int(width), int(height), 72}
 {}
 
-void GraphicsContextRenderer::_finish()
-{
-  cairo_surface_finish(cairo_get_target(cr_));
-}
-
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
 {
   auto surface = cairo_get_target(cr_);
@@ -265,6 +260,34 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
       py::capsule(surface, [](void* surface) -> void {
         cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
       })};
+}
+
+void GraphicsContextRenderer::_finish()
+{
+  cairo_surface_finish(cairo_get_target(cr_));
+}
+
+void GraphicsContextRenderer::_set_size(
+  double width, double height, double dpi)
+{
+  width_ = int(width);
+  height_ = int(height);
+  dpi_ = dpi;
+  auto surface = cairo_get_target(cr_);
+  switch (cairo_surface_get_type(surface)) {
+    case CAIRO_SURFACE_TYPE_PDF:
+      detail::cairo_pdf_surface_set_size(surface, width_, height_);
+      break;
+    case CAIRO_SURFACE_TYPE_PS:
+      detail::cairo_ps_surface_set_size(surface, width_, height_);
+      break;
+    default: ;
+  }
+}
+
+void GraphicsContextRenderer::_show_page()
+{
+  cairo_show_page(cr_);
 }
 
 void GraphicsContextRenderer::set_alpha(std::optional<double> alpha)
@@ -1262,6 +1285,8 @@ PYBIND11_MODULE(_mplcairo, m)
                   for name in ["cairo_pdf_surface_create_for_stream",
                                "cairo_ps_surface_create_for_stream",
                                "cairo_svg_surface_create_for_stream",
+                               "cairo_pdf_surface_set_size",
+                               "cairo_ps_surface_set_size",
                                "cairo_ps_surface_set_eps"]}
       _addresses = _load_addresses()
     )__py__",
@@ -1276,8 +1301,14 @@ PYBIND11_MODULE(_mplcairo, m)
   detail::cairo_svg_surface_create_for_stream =
     reinterpret_cast<detail::surface_create_for_stream_t>(
       addresses["cairo_svg_surface_create_for_stream"].cast<uintptr_t>());
+  detail::cairo_pdf_surface_set_size =
+    reinterpret_cast<detail::surface_set_size_t>(
+      addresses["cairo_pdf_surface_set_size"].cast<uintptr_t>());
+  detail::cairo_ps_surface_set_size =
+    reinterpret_cast<detail::surface_set_size_t>(
+      addresses["cairo_ps_surface_set_size"].cast<uintptr_t>());
   detail::cairo_ps_surface_set_eps =
-    reinterpret_cast<decltype(detail::cairo_ps_surface_set_eps)>(
+    reinterpret_cast<detail::ps_surface_set_eps_t>(
       addresses["cairo_ps_surface_set_eps"].cast<uintptr_t>());
 
   detail::UNIT_CIRCLE =
@@ -1324,6 +1355,10 @@ PYBIND11_MODULE(_mplcairo, m)
 
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
     .def("_finish", &GraphicsContextRenderer::_finish)
+
+    // Multi-page support
+    .def("_set_size", &GraphicsContextRenderer::_set_size)
+    .def("_show_page", &GraphicsContextRenderer::_show_page)
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)

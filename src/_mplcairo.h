@@ -45,7 +45,7 @@ class GraphicsContextRenderer {
 
   public:
   // Extents cannot be easily recovered from PDF/SVG surfaces, so record them.
-  int const width_, height_;
+  int width_, height_;
   double dpi_;
   py::object mathtext_parser_;
   py::object texmanager_;
@@ -67,6 +67,8 @@ class GraphicsContextRenderer {
 
   py::array_t<uint8_t> _get_buffer();
   void _finish();
+  void _set_size(double width, double height, double dpi);
+  void _show_page();
 
   void set_alpha(std::optional<double> alpha);
   void set_antialiased(std::variant<cairo_antialias_t, bool> aa);

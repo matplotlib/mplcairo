@@ -68,8 +68,8 @@ class GraphicsContextRendererCairo(
         return obj
 
     @classmethod
-    def _for_fmt_output(cls, fmt, file, width, height, dpi):
-        args = fmt, file, width, height, dpi
+    def _for_fmt_output(cls, fmt, stream, width, height, dpi):
+        args = fmt, stream, width, height, dpi
         obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
         _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
         return obj
@@ -82,8 +82,8 @@ class GraphicsContextRendererCairo(
         _for_fmt_output, _StreamSurfaceType.Script)
 
     @classmethod
-    def _for_svgz_output(cls, file, width, height, dpi):
-        gzip_file = GzipFile(fileobj=file)
+    def _for_svgz_output(cls, stream, width, height, dpi):
+        gzip_file = GzipFile(fileobj=stream)
         obj = cls._for_svg_output(gzip_file, width, height, dpi)
 
         def _finish():
@@ -159,19 +159,19 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     def _print_method(
             self, renderer_factory,
-            filename_or_obj, *, dpi=72,
+            path_or_stream, *, dpi=72,
             # These arguments are already taken care of by print_figure().
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
         # NOTE: we do not write the metadata (this is only possible for some
         # cairo backends).
         self.figure.set_dpi(72)
-        file, needs_close = cbook.to_filehandle(
-            filename_or_obj, "wb", return_opened=True)
+        stream, was_path = cbook.to_filehandle(
+            path_or_stream, "wb", return_opened=True)
         with ExitStack() as stack:
-            if needs_close:
-                stack.push(file)
-            renderer = renderer_factory(file, *self.get_width_height(), dpi)
+            if was_path:
+                stack.push(stream)
+            renderer = renderer_factory(stream, *self.get_width_height(), dpi)
             with _LOCK:
                 self.figure.draw(renderer)
             # NOTE: _finish() corresponds finalize() in Matplotlib's PDF and
@@ -204,7 +204,7 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     # Split out as a separate method for metadata support.
     def print_png(
-            self, filename_or_obj, *, metadata=None,
+            self, path_or_stream, *, metadata=None,
             # These arguments are already taken care of by print_figure().
             dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
@@ -216,17 +216,17 @@ class FigureCanvasCairo(FigureCanvasBase):
               "matplotlib version {}, https://matplotlib.org"
               .format(matplotlib.__version__))])
         full_metadata.update(metadata or {})
-        file, needs_close = cbook.to_filehandle(
-            filename_or_obj, "wb", return_opened=True)
+        stream, was_path = cbook.to_filehandle(
+            path_or_stream, "wb", return_opened=True)
         with ExitStack() as stack:
-            if needs_close:
-                stack.push(file)
-            _png.write_png(img, file, metadata=full_metadata)
+            if was_path:
+                stack.push(stream)
+            _png.write_png(img, stream, metadata=full_metadata)
 
     if Image:
 
         def print_jpeg(
-                self, filename_or_obj, *,
+                self, path_or_stream, *,
                 # These arguments are already taken care of by print_figure().
                 dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
                 dryrun=False, bbox_inches_restore=None,
@@ -245,12 +245,12 @@ class FigureCanvasCairo(FigureCanvasBase):
             composited = Image.new("RGB", size, background)
             composited.paste(img, img)
             kwargs.setdefault("quality", rcParams["savefig.jpeg_quality"])
-            composited.save(filename_or_obj, format="jpeg", **kwargs)
+            composited.save(path_or_stream, format="jpeg", **kwargs)
 
         print_jpg = print_jpeg
 
         def print_tiff(
-                self, filename_or_obj, *,
+                self, path_or_stream, *,
                 # These arguments are already taken care of by print_figure().
                 dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
                 dryrun=False, bbox_inches_restore=None):
@@ -259,7 +259,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 return
             size = self.get_renderer().get_canvas_width_height()
             (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
-            .save(filename_or_obj, format="tiff",
+            .save(path_or_stream, format="tiff",
                 dpi=(self.figure.dpi, self.figure.dpi)))
 
         print_tif = print_tiff

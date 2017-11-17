@@ -30,7 +30,9 @@ namespace detail {
 surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                             cairo_ps_surface_create_for_stream,
                             cairo_svg_surface_create_for_stream;
-void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
+surface_set_size_t          cairo_pdf_surface_set_size,
+                            cairo_ps_surface_set_size;
+ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 
 cairo_user_data_key_t const FILE_KEY{},
                             FT_KEY{},

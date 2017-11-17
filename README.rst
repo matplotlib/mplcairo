@@ -13,12 +13,15 @@ This implementation "passes" Matplotlib's entire image comparison test suite
 exceptions noted below.
 
 Noteworthy points include:
+
 - Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
   circular markers of variable colors).
 - Vector backends (PDF, PS, SVG) support a wider variety of font formats, such
   as otf and pfb.
 - Optional support for complex text layout (right-to-left languages, etc.)
   using Raqm_.
+- Support for multi-page output both for PDF and PS (Matplotlib only supports
+  multi-page PDF).
 
 Currently, only Linux and OSX are supported.  Windows support is missing due to
 lack of full C++17 support by MSVC.
@@ -74,11 +77,13 @@ All code examples below assume that the appropriate conda environment is active
 .. [#] pybind11 is technically only a build-time requirement, but I'd rather
    not use ``setup_requires``.
 
-**NOTE**: Do *not* build Matplotlib with the "local FreeType" option set (i.e.,
-do not set the ``MPLLOCALFREETYPE`` environment variable, and do not set the
-``local_freetype`` entry in ``setup.cfg``).  This option will statically link
-to a fixed version of FreeType, which may be different from the version of
-FreeType that cairo is built against, causing binary incompatibilites.
+**NOTE**: Matplotlib builds with the "local FreeType" option set (i.e.,
+with the ``MPLLOCALFREETYPE`` environment variable set, or with the
+``local_freetype`` entry set in ``setup.cfg``) are **not** supported.  This
+option will statically link to a fixed version of FreeType, which may be
+different from the version of FreeType that cairo is built against, causing
+binary incompatibilites.  In particular, PyPI wheels are built with this
+option, and are thus (unfortunately) **not** supported.
 
 Building
 ========
@@ -152,7 +157,8 @@ to one of
 - ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
   native surface),
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
-  SVGZ using cairo's implementation, rather than Matplotlib's).
+  SVGZ using cairo's implementation, rather than Matplotlib's).  This backend
+  can be used with Matplotlib 2.1.
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
@@ -267,6 +273,24 @@ is Matplotlib's vector backends (PS, PDF, and, for pfb fonts, SVG) that do
 not support these fonts, whereas mplcairo support these fonts in all output
 formats.
 
+Multi-page output
+-----------------
+
+Matplotlib's ``PdfPages`` class is deeply tied with the builtin ``backend_pdf``
+(in fact, it cannot even be used with Matplotlib's own cairo backend).
+Instead, use ``mplcairo.multipage.MultiPage`` for multi-page PDF and PS output.
+The API is similar:
+
+.. code-block:: python
+
+   from mplcairo.multipage import MultiPage
+
+   fig1 = ...
+   fig2 = ...
+   with MultiPage(path_or_stream) as mp:
+       mp.savefig(fig1)
+       mp.savefig(fig2)
+
 ``cairo-script`` output
 -----------------------
 
@@ -287,7 +311,7 @@ Known issues
 
 - Blitting-based animations to image-base backends (e.g., ``mplcairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
-  affect Xlib-based backends (e.g., ``mplcairo.gtk3``).
+  affect Xlib-based backends (e.g., ``mplcairo.gtk_native``).
 
 - SVG and Xlib (i.e, GTK3) currently need to rasterize mathtext before
   rendering it (this is mostly an issue for SVG, altough it affects vertical
