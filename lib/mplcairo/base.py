@@ -179,8 +179,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
             with _LOCK:
                 self.figure.draw(renderer)
-            # NOTE: _finish() corresponds finalize() in Matplotlib's PDF and
-            # SVG backends; it is inlined for Matplotlib's PS backend.
+            # _finish() corresponds finalize() in Matplotlib's PDF and SVG
+            # backends; it is inlined in Matplotlib's PS backend.
             renderer._finish()
 
     print_eps = partialmethod(

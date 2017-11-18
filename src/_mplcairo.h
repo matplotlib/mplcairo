@@ -164,7 +164,7 @@ class MathtextBackend {
   void set_canvas_size(double width, double height, double depth);
   void render_glyph(double ox, double oy, py::object info);
   void render_rect_filled(double x1, double y1, double x2, double y2);
-  // NOTE: The base class fails to document the second argument.
+  // FIXME[matplotlib]: The base class fails to document the second argument.
   py::capsule get_results(py::object box, py::object used_characters);
 };
 

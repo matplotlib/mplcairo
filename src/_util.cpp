@@ -13,7 +13,7 @@ namespace mplcairo {
 namespace {
 // Load FreeType error codes.  This approach (modified to use
 // std::unordered_map) is documented in fterror.h.
-// NOTE that if we require FreeType>=2.6.3 then the macro can be replaced by
+// NOTE: If we require FreeType>=2.6.3 then the macro can be replaced by
 // FTERRORS_H_.
 #undef __FTERRORS_H__
 #define FT_ERRORDEF( e, v, s )  { e, s },
@@ -150,7 +150,7 @@ void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest)
 // RendererAgg::_draw_path), which helps with snappiness.  We do not provide
 // this behavior; instead, one should set the default linewidths appropriately
 // if desired.
-// NOTE: cairo requires coordinates to fit within a 24-bit signed
+// FIXME[cairo]: cairo requires coordinates to fit within a 24-bit signed
 // integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091 and
 // test_simplification.test_overflow).  We simply clamp the values in the
 // general case (with codes) -- proper handling would involve clipping
@@ -239,7 +239,7 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
           cairo_new_sub_path(cr);
         }
         break;
-      // NOTE: The semantics of nonfinite control points are tested in
+      // The semantics of nonfinite control points are tested in
       // test_simplification.test_simplify_curve: if the last point is finite,
       // it sets the current point for the next curve; otherwise, a new
       // sub-path is created.
@@ -406,8 +406,8 @@ void load_path_exact(
         if (snap) {
           if ((x == x_prev) || (y == y_prev)) {
             // If we have a horizontal or a vertical line, snap both
-            // coordinates.  NOTE: While it may make sense to only snap in
-            // the direction orthogonal to the displacement, this would cause
+            // coordinates.  While it may make sense to only snap in the
+            // direction orthogonal to the displacement, this would cause
             // e.g. axes spines to not line up properly, as they are drawn as
             // independent segments.
             path_data.back().point = {snapper(x_prev), snapper(y_prev)};
@@ -484,7 +484,7 @@ void fill_and_stroke_exact(
 
 long get_hinting_flag()
 {
-  // NOTE: Should be moved out of backend_agg.
+  // FIXME[matplotlib]: Should be moved out of backend_agg.
   return
     py::module::import("matplotlib.backends.backend_agg")
     .attr("get_hinting_flag")().cast<long>();

@@ -178,7 +178,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
             -> cairo_status_t {
     auto write =
       py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
-    // NOTE: Work around lack of const buffers in pybind11.
+    // FIXME[pybind11]: Work around lack of const buffers in pybind11.
     auto buf_info = py::buffer_info{
       const_cast<unsigned char*>(data),
       sizeof(char), py::format_descriptor<char>::format(),
@@ -398,7 +398,7 @@ void GraphicsContextRenderer::set_joinstyle(std::string joinstyle)
 void GraphicsContextRenderer::set_linewidth(double lw)
 {
   cairo_set_line_width(cr_, points_to_pixels(lw));
-  // NOTE: Somewhat weird setting, but that's what the Agg backend does
+  // Somewhat weird setting, but that's what the Agg backend does
   // (_backend_agg.h).
   cairo_set_miter_limit(cr_, cairo_get_line_width(cr_));
 }
@@ -561,8 +561,8 @@ void GraphicsContextRenderer::draw_markers(
   // copy and we don't need to explicitly keep the intermediate result alive.
   auto vertices =
     path.attr("vertices").cast<py::array_t<double>>().unchecked<2>();
-  // NOTE: For efficiency, we ignore codes, which is the documented behavior
-  // even though not the actual one of other backends.
+  // FIXME[matplotlib]: For efficiency, we ignore codes, which is the
+  // documented behavior even though not the actual one of other backends.
   auto n_vertices = vertices.shape(0);
 
   auto marker_matrix = matrix_from_transform(marker_transform);
@@ -594,9 +594,8 @@ void GraphicsContextRenderer::draw_markers(
   if (patterns) {
     // Get the extent of the marker.  Importantly, cairo_*_extents() ignores
     // surface dimensions and clipping.
-    // NOTE: Currently Matplotlib chooses *not* to call draw_markers() if the
-    // marker is bigger than the canvas, but this is really a limitation on
-    // Agg's side.
+    // Matplotlib chooses *not* to call draw_markers() if the marker is bigger
+    // than the canvas (which may make sense if the marker is indeed huge...).
     load_path_exact(cr_, marker_path, &marker_matrix);
     double x0, y0, x1, y1;
     cairo_stroke_extents(cr_, &x0, &y0, &x1, &y1);
@@ -771,10 +770,11 @@ void GraphicsContextRenderer::draw_path_collection(
   // - Hatching is used: the stamp cache cannot be used anymore, as the hatch
   //   positions would be different on every stamp.  (NOTE: Actually it may be
   //   possible to use the hatch as the source and mask it with the pattern.)
-  // - NOTE: offset_position is set to "data".  This feature is only used by
-  //   hexbin(), so it should really just be deprecated; hexbin() should
-  //   provide its own Container class which correctly adjusts the transforms
-  //   at draw time (or just be drawn as a quadmesh, see draw_quad_mesh).
+  // - FIXME[matplotlib]: offset_position is set to "data".  This feature
+  //   is only used by hexbin(), so it should really just be deprecated;
+  //   hexbin() should provide its own Container class which correctly adjusts
+  //   the transforms at draw time (or just be drawn as a quadmesh, see
+  //   draw_quad_mesh).
   if ((py::bool_(py::cast(this).attr("get_hatch")()))
       || (offset_position == "data")) {
     py::module::import("matplotlib.backend_bases")
@@ -821,8 +821,7 @@ void GraphicsContextRenderer::draw_path_collection(
       py::module::import("matplotlib.colors").attr("to_rgba_array")(
         colors, alpha ? py::cast(*alpha) : py::none());
   };
-  // Don't drop the arrays until the function exits.  NOTE: Perhaps pybind11
-  // should ensure that?
+  // Don't drop the arrays until the function exits.
   auto fcs_raw_keepref = convert_colors(fcs),
        ecs_raw_keepref = convert_colors(ecs);
   auto fcs_raw = fcs_raw_keepref.unchecked<2>(),
@@ -883,11 +882,11 @@ void GraphicsContextRenderer::draw_path_collection(
 // While draw_quad_mesh is technically optional, the fallback is to use
 // draw_path_collections, which creates artefacts at the junctions due to
 // stamping.
-// NOTE: The spec for this method is overly general; it is only used by the
-// QuadMesh class, which does not provide a way to set its offsets (or per-quad
+// The spec for this method is overly general; it is only used by the QuadMesh
+// class, which does not provide a way to set its offsets (or per-quad
 // antialiasing), so we just drop them.  The mesh_{width,height} arguments are
 // also redundant with the coordinates shape.
-// FIXME Check that offset_transform and aas are indeed not set.
+// FIXME: Check that offset_transform and aas are indeed not set.
 void GraphicsContextRenderer::draw_quad_mesh(
   GraphicsContextRenderer& gc,
   py::object master_transform,
@@ -928,11 +927,12 @@ void GraphicsContextRenderer::draw_quad_mesh(
         coords_raw.mutable_data(i, j, 0), coords_raw.mutable_data(i, j, 1));
     }
   }
-  // If edge colors are set, we need to draw the quads one at a time in order
-  // to be able to draw the edges as well.  If they are not set, using cairo's
-  // mesh pattern support instead avoids conflation artifacts.  (NOTE: In fact,
-  // it may make sense to rewrite hexbin in terms of quadmeshes in order to fix
-  // their long-standing issues with such artifacts.)
+  // If edge colors are set, we need to draw the quads one at a time in
+  // order to be able to draw the edges as well.  If they are not set, using
+  // cairo's mesh pattern support instead avoids conflation artifacts.
+  // (FIXME[matplotlib]: In fact, it may make sense to rewrite hexbin in terms
+  // of quadmeshes in order to fix their long-standing issues with such
+  // artifacts.)
   if (ecs_raw.shape(0)) {
     for (auto i = 0; i < mesh_height; ++i) {
       for (auto j = 0; j < mesh_width; ++j) {
@@ -1006,8 +1006,9 @@ void GraphicsContextRenderer::draw_text(
       *static_cast<double*>(
         cairo_surface_get_user_data(
           record, &detail::MATHTEXT_TO_BASELINE_KEY));
-    // NOTE: On Xlib and SVG surfaces, replaying the recording surface seems to
-    // have no effect.  Work around this by drawing it on an image first.
+    // FIXME[cairo]: On Xlib and SVG surfaces, replaying the recording surface
+    // seems to have no effect.  Work around this by drawing it on an image
+    // first.
     switch (cairo_surface_get_type(cairo_get_target(cr_))) {
       case CAIRO_SURFACE_TYPE_XLIB:
       case CAIRO_SURFACE_TYPE_SVG: {
@@ -1052,11 +1053,11 @@ std::tuple<double, double, double>
 GraphicsContextRenderer::get_text_width_height_descent(
   std::string s, py::object prop, py::object ismath)
 {
-  // NOTE: "height" includes "descent", and "descent" is (normally) positive
+  // - "height" includes "descent", and "descent" is (normally) positive
   // (see MathtextBackendAgg.get_results()).
-  // NOTE: ismath can be True, False, "TeX" (i.e., usetex).
-  // NOTE: RendererAgg relies on the text.usetex rcParam, whereas RendererBase
-  // relies (correctly?) on the value of ismath.
+  // - "ismath" can be True, False, "TeX" (i.e., usetex).
+  // FIXME[matplotlib]: RendererAgg relies on the text.usetex rcParam, whereas
+  // RendererBase relies (correctly?) on the value of ismath.
   if (py::module::import("operator").attr("eq")(ismath, "TeX").cast<bool>()) {
     return
       py::module::import("matplotlib.backend_bases").attr("RendererBase")
@@ -1163,8 +1164,6 @@ void GraphicsContextRenderer::restore_region(Region& region)
   int /* x1 = x0 + width, */ y1 = y0 + height;
   auto surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
-    // NOTE: We can probably use cairo_surface_map_to_image, but I'm not sure
-    // there's an use for it anyways.
     throw std::runtime_error("restore_region only supports image surfaces");
   }
   auto raw = cairo_image_surface_get_data(surface);
@@ -1185,19 +1184,19 @@ MathtextBackend::MathtextBackend() :
 void MathtextBackend::set_canvas_size(
   double /* width */, double height, double /* depth */)
 {
-  // NOTE: "height" does *not* include "descent", and "descent" is (normally)
+  // "height" does *not* include "descent", and "descent" is (normally)
   // positive (see MathtextBackendAgg.set_canvas_size()).  This is a different
   // convention from get_text_width_height_descent()!
   cairo_destroy(cr_);
-  // NOTE: It would make sense to use {0, depth, width, -(height+depth)} as
-  // extents ("upper" character regions correspond to negative y's), but
-  // negative extents are buggy as of cairo 1.14.  Moreover, render_glyph() and
-  // render_rect_filled() use coordinates relative to the upper left corner, so
-  // that doesn't help anyways.
-  // NOTE: It would alternatively make sense to use {0, 0, width,
-  // -(height+depth)} as extents but the required size is actually
-  // underestimated by Matplotlib (possibly due to differing FreeType
-  // options?), leading to extraneous clipping.
+  // - It would make sense to use {0, depth, width, -(height+depth)} as extents
+  //   ("upper" character regions correspond to negative y's), but negative
+  //   extents are buggy as of cairo 1.14.  Moreover, render_glyph() and
+  //   render_rect_filled() use coordinates relative to the upper left corner,
+  //   so that doesn't help anyways.
+  // - It would alternatively make sense to use {0, 0, width, -(height+depth)}
+  //   as extents but the required size is actually underestimated by
+  //   Matplotlib (possibly due to differing FreeType options?), leading to
+  //   extraneous clipping.
   auto surface = cairo_recording_surface_create(CAIRO_CONTENT_ALPHA, nullptr);
   cr_ = cairo_create(surface);
   cairo_surface_destroy(surface);
@@ -1342,7 +1341,7 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("Script", StreamSurfaceType::Script);
 
   py::class_<Region>(m, "_Region")
-    // NOTE: Only for patching Agg.
+    // Only for patching Agg.
     .def("_get_buffer", [](Region& r) -> py::array_t<uint8_t> {
       return
         {{r.bbox.height, r.bbox.width, 4},
@@ -1411,8 +1410,8 @@ PYBIND11_MODULE(_mplcairo, m)
     // Needed for patheffects.
     .def("get_rgb", &GraphicsContextRenderer::get_rgb)
 
-    // NOTE: Slightly hackish, but works.  Avoids having to reproduce the logic
-    // in set_sketch_params().
+    // Slightly hackish, but works.  Avoids having to reproduce the logic in
+    // set_sketch_params().
     .def_property(
       "_sketch",
       [](GraphicsContextRenderer& gcr) -> std::optional<py::object> {
@@ -1431,7 +1430,7 @@ PYBIND11_MODULE(_mplcairo, m)
     // Technically unneeded, but exposed by RendererAgg, and useful for
     // stop_filter().
     .def_readonly("dpi", &GraphicsContextRenderer::dpi_)
-    // NOTE: Needed for usetex and patheffects.
+    // Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def(
@@ -1439,7 +1438,8 @@ PYBIND11_MODULE(_mplcairo, m)
       [](GraphicsContextRenderer& gcr) -> std::tuple<double, double> {
         return {gcr.width_, gcr.height_};
       })
-    // NOTE: Needed for patheffects, which should use get_canvas_width_height().
+    // FIXME[matplotlib]: Needed for patheffects, which should use
+    // get_canvas_width_height().  FIXME: Check rounding rules.
     .def_readonly("width", &GraphicsContextRenderer::width_)
     .def_readonly("height", &GraphicsContextRenderer::height_)
 
