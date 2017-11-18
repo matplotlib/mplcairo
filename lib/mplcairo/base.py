@@ -2,6 +2,7 @@ from collections import OrderedDict
 from contextlib import ExitStack
 from functools import partialmethod
 from gzip import GzipFile
+import logging
 import os
 import sys
 from threading import RLock
@@ -23,6 +24,7 @@ from . import _mplcairo, _util
 from ._mplcairo import _StreamSurfaceType
 
 
+_log = logging.getLogger()
 MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
 
 
@@ -138,7 +140,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
-            *(np.asarray(self.get_width_height())
+            *(np.array([self.figure.bbox.width, self.figure.bbox.height])
               * getattr(self, "_dpi_ratio", 1)),
             self.figure.dpi, _draw_if_new=_draw_if_new)
 
@@ -159,19 +161,22 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     def _print_method(
             self, renderer_factory,
-            path_or_stream, *, dpi=72,
+            path_or_stream, *, metadata=None, dpi=72,
             # These arguments are already taken care of by print_figure().
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
         # NOTE: we do not write the metadata (this is only possible for some
         # cairo backends).
+        if metadata:
+            _log.warning("mplcairo does not support saving metadata.")
         self.figure.set_dpi(72)
         stream, was_path = cbook.to_filehandle(
             path_or_stream, "wb", return_opened=True)
         with ExitStack() as stack:
             if was_path:
                 stack.push(stream)
-            renderer = renderer_factory(stream, *self.get_width_height(), dpi)
+            renderer = renderer_factory(
+                stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
             with _LOCK:
                 self.figure.draw(renderer)
             # NOTE: _finish() corresponds finalize() in Matplotlib's PDF and
@@ -202,7 +207,21 @@ class FigureCanvasCairo(FigureCanvasBase):
         self._last_renderer_call = last_renderer_call
         return _util.to_unmultiplied_rgba8888(renderer._get_buffer())
 
-    # Split out as a separate method for metadata support.
+    def print_rgba(
+            self, path_or_stream, *, metadata=None,
+            # These arguments are already taken care of by print_figure().
+            dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
+            dryrun=False, bbox_inches_restore=None):
+        img = self._get_fresh_unmultiplied_rgba8888()
+        if dryrun:
+            return
+        stream, was_path = cbook.to_filehandle(
+            path_or_stream, "wb", return_opened=True)
+        with ExitStack() as stack:
+            if was_path:
+                stack.push(stream)
+            stream.write(img.tobytes())
+
     def print_png(
             self, path_or_stream, *, metadata=None,
             # These arguments are already taken care of by print_figure().
@@ -232,20 +251,21 @@ class FigureCanvasCairo(FigureCanvasBase):
                 dryrun=False, bbox_inches_restore=None,
                 # Remaining kwargs are passed to PIL.
                 **kwargs):
-            img = self._get_fresh_unmultiplied_rgba8888()
+            buf = self._get_fresh_unmultiplied_rgba8888()
             if dryrun:
                 return
-            size = self.get_renderer().get_canvas_width_height()
-            img = Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
+            img = Image.frombuffer(
+                "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
             # Composite against the background (actually we could just skip the
             # conversion to unpremultiplied RGBA earlier).
             # NOTE: Agg composites against rcParams["savefig.facecolor"].
             background = tuple(
                 (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
-            composited = Image.new("RGB", size, background)
+            composited = Image.new("RGB", buf.shape[:2][::-1], background)
             composited.paste(img, img)
             kwargs.setdefault("quality", rcParams["savefig.jpeg_quality"])
-            composited.save(path_or_stream, format="jpeg", **kwargs)
+            composited.save(path_or_stream, format="jpeg",
+                            dpi=(self.figure.dpi, self.figure.dpi), **kwargs)
 
         print_jpg = print_jpeg
 
@@ -254,13 +274,13 @@ class FigureCanvasCairo(FigureCanvasBase):
                 # These arguments are already taken care of by print_figure().
                 dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
                 dryrun=False, bbox_inches_restore=None):
-            img = self._get_fresh_unmultiplied_rgba8888()
+            buf = self._get_fresh_unmultiplied_rgba8888()
             if dryrun:
                 return
-            size = self.get_renderer().get_canvas_width_height()
-            (Image.frombuffer("RGBA", size, img, "raw", "RGBA", 0, 1)
-            .save(path_or_stream, format="tiff",
-                dpi=(self.figure.dpi, self.figure.dpi)))
+            (Image.frombuffer(
+                "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
+             .save(path_or_stream, format="tiff",
+                   dpi=(self.figure.dpi, self.figure.dpi)))
 
         print_tif = print_tiff
 

@@ -192,8 +192,9 @@ Keep in mind that conda-forge's cairo is (on my setup) ~2× slower than a
 Test suite
 ==========
 
-Run ``run-mpl-test-suite.py`` to run the Matplotlib test suite with the Agg
-backend patched by the mplcairo backend.
+Run ``run-mpl-test-suite.py`` to run the Matplotlib test suite with
+the Agg backend patched by the mplcairo backend.  Matplotlib *must* be
+editably-installed from a git checkout.
 
 Notes
 =====

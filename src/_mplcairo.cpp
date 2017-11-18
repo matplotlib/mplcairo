@@ -100,7 +100,7 @@ GraphicsContextRenderer::additional_context()
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(
-  cairo_t* cr, int width, int height, double dpi) :
+  cairo_t* cr, double width, double height, double dpi) :
   // This does *not* incref the cairo_t, but the destructor *will* decref it.
   cr_{cr},
   width_{width},
@@ -134,8 +134,7 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
   cairo_destroy(cr_);
 }
 
-cairo_t* GraphicsContextRenderer::cr_from_image_args(
-  double width, double height)
+cairo_t* GraphicsContextRenderer::cr_from_image_args(int width, int height)
 {
   auto surface =
     cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
@@ -147,7 +146,8 @@ cairo_t* GraphicsContextRenderer::cr_from_image_args(
 GraphicsContextRenderer::GraphicsContextRenderer(
   double width, double height, double dpi) :
   GraphicsContextRenderer{
-    cr_from_image_args(int(width), int(height)), int(width), int(height), dpi}
+    cr_from_image_args(int(width), int(height)),
+    std::floor(width), std::floor(height), dpi}
 {}
 
 cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
@@ -165,8 +165,8 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
 GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
   GraphicsContextRenderer{
     cr_from_pycairo_ctx(ctx),
-    ctx.attr("get_target")().attr("get_width")().cast<int>(),
-    ctx.attr("get_target")().attr("get_height")().cast<int>(),
+    ctx.attr("get_target")().attr("get_width")().cast<double>(),
+    ctx.attr("get_target")().attr("get_height")().cast<double>(),
     dpi}
 {}
 
@@ -241,8 +241,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   StreamSurfaceType type, py::object file,
   double width, double height, double dpi) :
   GraphicsContextRenderer{
-    cr_from_fileformat_args(type, file, width, height, dpi),
-    int(width), int(height), 72}
+    cr_from_fileformat_args(type, file, width, height, dpi), width, height, 72}
 {}
 
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
@@ -251,12 +250,14 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
     throw std::runtime_error("_get_buffer only supports image surfaces");
   }
-  auto buf = cairo_image_surface_get_data(surface);
-  auto stride = cairo_image_surface_get_stride(surface);
   cairo_surface_reference(surface);
   return
     py::array_t<uint8_t>{
-      {height_, width_, 4}, {stride, 4, 1}, buf,
+      {cairo_image_surface_get_height(surface),
+       cairo_image_surface_get_width(surface),
+       4},
+      {cairo_image_surface_get_stride(surface), 4, 1},
+      cairo_image_surface_get_data(surface),
       py::capsule(surface, [](void* surface) -> void {
         cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
       })};
@@ -270,16 +271,16 @@ void GraphicsContextRenderer::_finish()
 void GraphicsContextRenderer::_set_size(
   double width, double height, double dpi)
 {
-  width_ = int(width);
-  height_ = int(height);
+  width_ = width;
+  height_ = height;
   dpi_ = dpi;
   auto surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_PDF:
-      detail::cairo_pdf_surface_set_size(surface, width_, height_);
+      detail::cairo_pdf_surface_set_size(surface, width, height);
       break;
     case CAIRO_SURFACE_TYPE_PS:
-      detail::cairo_ps_surface_set_size(surface, width_, height_);
+      detail::cairo_ps_surface_set_size(surface, width, height);
       break;
     default: ;
   }
@@ -713,7 +714,8 @@ void GraphicsContextRenderer::draw_path(
         cairo_get_target(cr_), CAIRO_CONTENT_COLOR_ALPHA, dpi, dpi);
     auto hatch_cr = cairo_create(hatch_surface);
     cairo_surface_destroy(hatch_surface);
-    auto hatch_gcr = GraphicsContextRenderer{hatch_cr, dpi, dpi, double(dpi)};
+    auto hatch_gcr = GraphicsContextRenderer{
+      hatch_cr, double(dpi), double(dpi), double(dpi)};
     hatch_gcr.get_additional_state().snap = false;
     hatch_gcr.set_linewidth(get_additional_state().hatch_linewidth);
     auto matrix =
@@ -1109,17 +1111,19 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter()
   restore();
   auto pattern = cairo_pop_group(cr_);
   auto raster_surface =
-    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width_, height_);
+    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, int(width_), int(height_));
   auto raster_cr = cairo_create(raster_surface);
   cairo_set_source(raster_cr, pattern);
   cairo_pattern_destroy(pattern);
   cairo_paint(raster_cr);
   cairo_destroy(raster_cr);
   cairo_surface_flush(raster_surface);
-  auto buf = cairo_image_surface_get_data(raster_surface);
-  auto stride = cairo_image_surface_get_stride(raster_surface);
   return
-    {{height_, width_, 4}, {stride, 4, 1}, buf,
+    {{cairo_image_surface_get_height(raster_surface),
+      cairo_image_surface_get_width(raster_surface),
+      4},
+     {cairo_image_surface_get_stride(raster_surface), 4, 1},
+     cairo_image_surface_get_data(raster_surface),
      py::capsule(raster_surface, [](void* raster_surface) -> void {
        cairo_surface_destroy(static_cast<cairo_surface_t*>(raster_surface));
      })};
