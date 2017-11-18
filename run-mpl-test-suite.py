@@ -1,32 +1,51 @@
 #!/usr/bin/env python
+from argparse import ArgumentParser
+import inspect
+import os
 from pathlib import Path
+import subprocess
 import sys
 
+import matplotlib
+matplotlib.use("agg")
 import matplotlib.backends.backend_agg
+import matplotlib.testing.decorators as mtd
 import mplcairo.base
 
-if Path().resolve() == Path(__file__).parent.resolve():
-    print("This script must be run from the Matplotlib source folder.",
-          file=sys.stderr)
-    sys.exit(1)
+import pytest
 
-mplcairo.base.get_hinting_flag = \
-    matplotlib.backends.backend_agg.get_hinting_flag
-mplcairo.base.FigureCanvasAgg = mplcairo.base.FigureCanvasCairo
-mplcairo.base.RendererAgg = mplcairo.base.GraphicsContextRendererCairo
-matplotlib.backends.backend_agg = \
-    sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
-matplotlib.use("agg", warn=False, force=True)
 
-argv = sys.argv[1:]
-idxs = [i for i, arg in enumerate(argv) if arg.startswith("-k")]
-if idxs:
-    idx = idxs[-1]
-    if argv[idx] == "-k":
-        argv[idx + 1] = "[png] and ({})".format(argv[idx + 1])
-    else:
-        argv[idx] = "-k[png] and ({})".format(argv[idx][2:])
-else:
-    argv.append("-k[png]")
+def main():
+    parser = ArgumentParser(epilog="Other arguments are forwarded to pytest.")
+    parser.add_argument("--infinite-tolerance", action="store_true",
+                        help="Set image comparison tolerance to infinity.")
+    args, rest = parser.parse_known_args()
 
-sys.exit(matplotlib.test(argv=argv))
+    if args.infinite_tolerance:
+        sig = inspect.signature(mtd.image_comparison)
+        idx = [p.name for p in sig.parameters.values()
+               if p.default is not p.empty].index("tol")
+        defaults = list(mtd.image_comparison.__defaults__)
+        defaults[idx] = float("inf")
+        mtd.image_comparison.__defaults__ = tuple(defaults)
+
+    matplotlib_srcdir = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=Path(matplotlib.__file__).parent)[:-1]
+    os.chdir(matplotlib_srcdir)
+
+    mplcairo.base.get_hinting_flag = \
+        matplotlib.backends.backend_agg.get_hinting_flag
+    mplcairo.base.FigureCanvasAgg = \
+        mplcairo.base.FigureCanvasCairo
+    mplcairo.base.RendererAgg = \
+        mplcairo.base.GraphicsContextRendererCairo
+    matplotlib.backends.backend_agg = \
+        sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
+    matplotlib.use("agg", warn=False, force=True)
+
+    return pytest.main(rest)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

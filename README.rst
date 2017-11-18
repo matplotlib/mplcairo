@@ -192,10 +192,8 @@ Keep in mind that conda-forge's cairo is (on my setup) ~2× slower than a
 Test suite
 ==========
 
-Run ``run-mpl-test-suite.py`` *from the Matplotlib source folder* to run the
-subset of matplotlib tests that rely on png image comparison, while using this
-backend.  Pass command-line options as you would to pytest, although ``-k``
-must not be compressed with another short argument.
+Run ``run-mpl-test-suite.py`` to run the Matplotlib test suite with the Agg
+backend patched by the mplcairo backend.
 
 Notes
 =====
