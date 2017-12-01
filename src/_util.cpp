@@ -124,24 +124,6 @@ AdditionalState& get_additional_state(cairo_t* cr)
   return stack.top();
 }
 
-void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest)
-{
-  cairo_set_antialias(dest, cairo_get_antialias(orig));
-  cairo_set_line_cap(dest, cairo_get_line_cap(orig));
-  cairo_set_line_join(dest, cairo_get_line_join(orig));
-  cairo_set_line_width(dest, cairo_get_line_width(orig));
-
-  auto dash_count = cairo_get_dash_count(orig);
-  auto dashes = std::unique_ptr<double[]>(new double[dash_count]);
-  double offset;
-  cairo_get_dash(orig, dashes.get(), &offset);
-  cairo_set_dash(dest, dashes.get(), dash_count, offset);
-
-  double r, g, b, a;
-  CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(orig), &r, &g, &b, &a);
-  cairo_set_source_rgba(dest, r, g, b, a);
-}
-
 // Set the current path of `cr` to `path`, after transformation by `matrix`,
 // ignoring the CTM ("exact").
 //

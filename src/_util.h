@@ -63,7 +63,6 @@ cairo_matrix_t matrix_from_transform(
   py::object transform, cairo_matrix_t* master_matrix);
 bool has_vector_surface(cairo_t* cr);
 AdditionalState& get_additional_state(cairo_t* cr);
-void copy_for_marker_stamping(cairo_t* orig, cairo_t* dest);
 void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
 void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices, ssize_t start, ssize_t stop,

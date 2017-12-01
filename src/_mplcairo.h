@@ -37,13 +37,12 @@ class GraphicsContextRenderer {
     AdditionalContext operator=(AdditionalContext&& other) = delete;
   };
 
-  cairo_t* const cr_;
-
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
   AdditionalContext additional_context();
 
   public:
+  cairo_t* const cr_;
   // Extents cannot be easily recovered from PDF/SVG surfaces, so record them.
   double width_, height_;
   double dpi_;
@@ -65,6 +64,8 @@ class GraphicsContextRenderer {
   GraphicsContextRenderer(
     StreamSurfaceType type, py::object file,
     double width, double height, double dpi);
+
+  static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
 
   py::array_t<uint8_t> _get_buffer();
   void _finish();

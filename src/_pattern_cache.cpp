@@ -1,5 +1,6 @@
 #include "_pattern_cache.h"
 
+#include "_mplcairo.h"
 #include "_macros.h"
 
 namespace mplcairo {
@@ -213,17 +214,17 @@ void PatternCache::mask(
   auto idx = i * n_subpix_ + j;
   auto& pattern = entry.patterns[idx];
   if (!pattern) {
-    auto raster_surface = cairo_image_surface_create(
-      CAIRO_FORMAT_A8,
-      std::ceil(entry.width + 1), std::ceil(entry.height + 1));
-    auto raster_cr = cairo_create(raster_surface);
+    auto width = std::ceil(entry.width + 1),
+         height = std::ceil(entry.height + 1);
+    auto raster_surface =
+      cairo_image_surface_create(CAIRO_FORMAT_A8, width, height);
+    auto raster_gcr =
+      GraphicsContextRenderer::make_pattern_gcr(raster_surface);
     key.draw(
-      raster_cr,
+      raster_gcr.cr_,
       -entry.x + double(i) / n_subpix_, -entry.y + double(j) / n_subpix_);
     pattern = cairo_pattern_create_for_surface(raster_surface);
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
-    cairo_destroy(raster_cr);
-    cairo_surface_destroy(raster_surface);
   }
   // Draw using the pattern.
   auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
