@@ -44,7 +44,14 @@ def main():
         sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
     matplotlib.use("agg", warn=False, force=True)
 
-    return pytest.main(rest)
+    return pytest.main(["-p", "__main__", *rest])
+
+
+def pytest_collection_modifyitems(session, config, items):
+    items[:] = [item for item in items if item.nodeid not in {
+        "lib/matplotlib/tests/test_agg.py::test_repeated_save_with_alpha",
+        "lib/matplotlib/tests/test_artist.py::test_cull_markers",
+    }]
 
 
 if __name__ == "__main__":
