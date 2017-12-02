@@ -111,6 +111,11 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()}
 {
+  if (auto status = cairo_status(cr); status == CAIRO_STATUS_INVALID_SIZE) {
+    // Matplotlib wants a ValueError here, not a RuntimeError.
+    throw std::length_error{cairo_status_to_string(status)};
+  }
+  CAIRO_CHECK(cairo_status, cr);
   // Collections and text PathEffects implicitly rely on defaulting to
   // JOIN_ROUND (cairo defaults to JOIN_MITER) and CAP_BUTT (cairo too).  See
   // GraphicsContextBase.__init__.
@@ -174,7 +179,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   StreamSurfaceType type, py::object file,
   double width, double height, double dpi)
 {
-  auto cb = [](void* closure, const unsigned char* data, unsigned int length)
+  auto cb = [](void* closure, unsigned char const* data, unsigned int length)
             -> cairo_status_t {
     auto write =
       py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
@@ -1105,7 +1110,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
     // full-pixel resolution, which is insufficient.
     auto extents =
       *static_cast<cairo_rectangle_t*>(
-        cairo_surface_get_user_data(record, &detail::MATHTEXT_RECTANGLE));
+        cairo_surface_get_user_data(record, &detail::MATHTEXT_RECTANGLE_KEY));
     return
       {extents.width, extents.height,
        extents.y + extents.height - to_baseline};
@@ -1275,7 +1280,7 @@ py::capsule MathtextBackend::get_results(
   CAIRO_CHECK(  // Set data before incref'ing the surface, in case this fails.
     cairo_surface_set_user_data,
     surface,
-    &detail::MATHTEXT_RECTANGLE,
+    &detail::MATHTEXT_RECTANGLE_KEY,
     new cairo_rectangle_t{xmin_, ymin_, xmax_ - xmin_, ymax_ - ymin_},
     operator delete);
   cairo_surface_reference(surface);

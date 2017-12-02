@@ -36,7 +36,7 @@ ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 
 cairo_user_data_key_t const FILE_KEY{},
                             FT_KEY{},
-                            MATHTEXT_RECTANGLE{},
+                            MATHTEXT_RECTANGLE_KEY{},
                             MATHTEXT_TO_BASELINE_KEY{},
                             STATE_KEY{};
 py::object UNIT_CIRCLE{};

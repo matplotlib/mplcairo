@@ -1,15 +1,16 @@
 #!/usr/bin/env python
+
 from argparse import ArgumentParser
-import inspect
 import os
+import inspect
 from pathlib import Path
 import subprocess
 import sys
 
-import matplotlib
-matplotlib.use("agg")
+import matplotlib as mpl
 import matplotlib.backends.backend_agg
-import matplotlib.testing.decorators as mtd
+import matplotlib.pyplot as plt
+import matplotlib.testing.compare
 import mplcairo.base
 
 import pytest
@@ -22,36 +23,51 @@ def main():
     args, rest = parser.parse_known_args()
 
     if args.infinite_tolerance:
-        sig = inspect.signature(mtd.image_comparison)
-        idx = [p.name for p in sig.parameters.values()
-               if p.default is not p.empty].index("tol")
-        defaults = list(mtd.image_comparison.__defaults__)
-        defaults[idx] = float("inf")
-        mtd.image_comparison.__defaults__ = tuple(defaults)
+        sig = inspect.signature(mpl.testing.compare.compare_images)
+        def compare_images(*args, **kwargs):
+            ba = sig.bind(*args, **kwargs)
+            ba.arguments["tol"] = float("inf")
+            return compare_images.__wrapped__(*ba.args, **ba.kwargs)
+        compare_images.__wrapped__ = mpl.testing.compare.compare_images
+        mpl.testing.compare.compare_images = compare_images
 
     matplotlib_srcdir = subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"],
         cwd=Path(matplotlib.__file__).parent)[:-1]
     os.chdir(matplotlib_srcdir)
 
-    mplcairo.base.get_hinting_flag = \
-        matplotlib.backends.backend_agg.get_hinting_flag
+    mplcairo.base.get_hinting_flag = mpl.backends.backend_agg.get_hinting_flag
     mplcairo.base.FigureCanvasAgg = \
         mplcairo.base.FigureCanvasCairo
     mplcairo.base.RendererAgg = \
         mplcairo.base.GraphicsContextRendererCairo
-    matplotlib.backends.backend_agg = \
+    mpl.backends.backend_agg = \
         sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
-    matplotlib.use("agg", warn=False, force=True)
+    mpl.use("agg", warn=False, force=True)
+    plt.switch_backend("agg")
 
     return pytest.main(["-p", "__main__", *rest])
 
 
 def pytest_collection_modifyitems(session, config, items):
-    items[:] = [item for item in items if item.nodeid not in {
-        "lib/matplotlib/tests/test_agg.py::test_repeated_save_with_alpha",
-        "lib/matplotlib/tests/test_artist.py::test_cull_markers",
-    }]
+    exclude = {
+        "lib/matplotlib/tests/" + name for name in [
+            "test_agg.py::test_repeated_save_with_alpha",
+            "test_artist.py::test_cull_markers",
+            "test_backend_pdf.py::test_composite_image",
+            "test_backend_pdf.py::test_multipage_keep_empty",
+            "test_backend_pdf.py::test_multipage_pagecount",
+            "test_backend_pdf.py::test_multipage_properfinalize",
+            "test_backend_pdf.py::test_pdf_savefig_when_color_is_none",
+            "test_backend_ps.py::test_savefig_to_stringio[ps]",
+            "test_backend_ps.py::test_savefig_to_stringio[ps with distiller]",
+            "test_backend_ps.py::test_savefig_to_stringio[ps with usetex]",
+            "test_backend_ps.py::test_savefig_to_stringio[eps]",
+            "test_backend_ps.py::test_savefig_to_stringio[eps afm]",
+            "test_backend_ps.py::test_savefig_to_stringio[eps with usetex]",
+        ]
+    }
+    items[:] = [item for item in items if item.nodeid not in exclude]
 
 
 if __name__ == "__main__":

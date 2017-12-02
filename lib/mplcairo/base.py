@@ -222,6 +222,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                 stack.push(stream)
             stream.write(img.tobytes())
 
+    print_raw = print_rgba
+
     def print_png(
             self, path_or_stream, *, metadata=None,
             # These arguments are already taken care of by print_figure().

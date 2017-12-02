@@ -30,8 +30,11 @@ extern surface_set_size_t          cairo_pdf_surface_set_size,
                                    cairo_ps_surface_set_size;
 extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 
-extern cairo_user_data_key_t const
-  FILE_KEY, FT_KEY, MATHTEXT_RECTANGLE, MATHTEXT_TO_BASELINE_KEY, STATE_KEY;
+extern cairo_user_data_key_t const FILE_KEY,
+                                   FT_KEY,
+                                   MATHTEXT_RECTANGLE_KEY,
+                                   MATHTEXT_TO_BASELINE_KEY,
+                                   STATE_KEY;
 extern py::object UNIT_CIRCLE;
 }
 
