@@ -16,5 +16,3 @@ test_backend_pdf.test_pdf_savefig_when_color_is_none
 
 test_backend_ps.savefig_to_stringio[...]
    Some parametrizations test writing to text-mode file, which makes no sense.
-
-.. agg test_marker_with_nan

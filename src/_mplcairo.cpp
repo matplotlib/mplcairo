@@ -38,7 +38,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   auto [r, g, b, a] = gcr_->get_rgba();
   cairo_set_source_rgba(cr, r, g, b, a);
   // Apply delayed additional state.
-  auto& state = gcr_->get_additional_state();
+  auto state = gcr_->get_additional_state();
   // Set antialiasing: if "true", then pick either CAIRO_ANTIALIAS_FAST or
   // CAIRO_ANTIALIAS_BEST, depending on the linewidth.  The threshold of 1/3
   // was determined empirically.
@@ -61,7 +61,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     cairo_save(cr);
     cairo_identity_matrix(cr);
     cairo_new_path(cr);
-    cairo_rectangle(cr, x, gcr->height_ - h - y, w, h);
+    cairo_rectangle(cr, x, state.height - h - y, w, h);
     cairo_restore(cr);
     cairo_clip(cr);
   }
@@ -80,7 +80,7 @@ GraphicsContextRenderer::AdditionalContext::~AdditionalContext()
 
 double GraphicsContextRenderer::pixels_to_points(double pixels)
 {
-  return pixels / (dpi_ / 72);
+  return pixels / (get_additional_state().dpi / 72);
 }
 
 rgba_t GraphicsContextRenderer::get_rgba()
@@ -103,9 +103,6 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   cairo_t* cr, double width, double height, double dpi) :
   // This does *not* incref the cairo_t, but the destructor *will* decref it.
   cr_{cr},
-  width_{width},
-  height_{height},
-  dpi_{dpi},
   mathtext_parser_{
     py::module::import("matplotlib.mathtext").attr("MathTextParser")("cairo")},
   texmanager_{py::none()},
@@ -121,6 +118,9 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   // GraphicsContextBase.__init__.
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
   auto stack = new std::stack<AdditionalState>{{{
+    /* width */           width,
+    /* height */          height,
+    /* dpi */             dpi,
     /* alpha */           {},
     /* antialias */       {true},
     /* clip_rectangle */  {},
@@ -291,9 +291,10 @@ void GraphicsContextRenderer::_finish()
 void GraphicsContextRenderer::_set_size(
   double width, double height, double dpi)
 {
-  width_ = width;
-  height_ = height;
-  dpi_ = dpi;
+  auto& state = get_additional_state();
+  state.width = width;
+  state.height = height;
+  state.dpi = dpi;
   auto surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_PDF:
@@ -353,7 +354,8 @@ void GraphicsContextRenderer::set_clip_path(
     auto [path, transform] =
       transformed_path->attr("get_transformed_path_and_affine")()
       .cast<std::tuple<py::object, py::object>>();
-    auto matrix = matrix_from_transform(transform, height_);
+    auto matrix =
+      matrix_from_transform(transform, get_additional_state().height);
     load_path_exact(cr_, path, &matrix);
     get_additional_state().clip_path =
       {transformed_path, {cairo_copy_path(cr_), cairo_path_destroy}};
@@ -480,7 +482,7 @@ void GraphicsContextRenderer::restore()
 
 double GraphicsContextRenderer::points_to_pixels(double points)
 {
-  return points * dpi_ / 72;
+  return points * get_additional_state().dpi / 72;
 }
 
 void GraphicsContextRenderer::draw_gouraud_triangles(
@@ -493,7 +495,8 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto ac = additional_context();
-  auto matrix = matrix_from_transform(transform, height_);
+  auto matrix =
+    matrix_from_transform(transform, get_additional_state().height);
   auto tri_raw = triangles.unchecked<3>();
   auto col_raw = colors.unchecked<3>();
   auto n = tri_raw.shape(0);
@@ -555,7 +558,8 @@ void GraphicsContextRenderer::draw_image(
   cairo_surface_mark_dirty(surface);
   auto pattern = cairo_pattern_create_for_surface(surface);
   cairo_surface_destroy(surface);
-  auto matrix = cairo_matrix_t{1, 0, 0, -1, -x, -y + height_};
+  auto matrix =
+    cairo_matrix_t{1, 0, 0, -1, -x, -y + get_additional_state().height};
   cairo_pattern_set_matrix(pattern, &matrix);
   cairo_set_source(cr_, pattern);
   cairo_paint(cr_);
@@ -586,7 +590,8 @@ void GraphicsContextRenderer::draw_markers(
   auto n_vertices = vertices.shape(0);
 
   auto marker_matrix = matrix_from_transform(marker_transform);
-  auto matrix = matrix_from_transform(transform, height_);
+  auto matrix =
+    matrix_from_transform(transform, get_additional_state().height);
 
   auto fc_raw =
     fc ? to_rgba(*fc, get_additional_state().alpha) : std::optional<rgba_t>{};
@@ -673,7 +678,7 @@ void GraphicsContextRenderer::draw_markers(
       auto idx =
         int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
       auto pattern = patterns[idx];
-      // Offsetting by height_ is already taken care of by matrix.
+      // Offsetting by height is already taken care of by matrix.
       auto pattern_matrix =
         cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
       cairo_pattern_set_matrix(pattern, &pattern_matrix);
@@ -713,7 +718,8 @@ void GraphicsContextRenderer::draw_path(
   }
   auto ac = additional_context();
   auto path_loaded = false;
-  auto matrix = matrix_from_transform(transform, height_);
+  auto matrix =
+    matrix_from_transform(transform, get_additional_state().height);
   auto load_path = [&]() -> void {
     if (!path_loaded) {
       load_path_exact(cr_, path, &matrix);
@@ -724,7 +730,7 @@ void GraphicsContextRenderer::draw_path(
     path =
       path.attr("cleaned")(
         "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
-    matrix = cairo_matrix_t{1, 0, 0, -1, 0, double(height_)};
+    matrix = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
   }
   if (fc) {
     load_path();
@@ -738,7 +744,7 @@ void GraphicsContextRenderer::draw_path(
         py::cast(this).attr("get_hatch_path")()
         .cast<std::optional<py::object>>()) {
     cairo_save(cr_);
-    auto dpi = int(dpi_);  // Truncating is good enough.
+    auto dpi = int(get_additional_state().dpi);  // Truncating is good enough.
     auto hatch_surface =
       cairo_surface_create_similar(
         cairo_get_target(cr_), CAIRO_CONTENT_COLOR_ALPHA, dpi, dpi);
@@ -830,7 +836,8 @@ void GraphicsContextRenderer::draw_path_collection(
   if (!n_paths || !n_offsets) {
     return;
   }
-  auto master_matrix = matrix_from_transform(master_transform, height_);
+  auto master_matrix =
+    matrix_from_transform(master_transform, get_additional_state().height);
   auto matrices = std::unique_ptr<cairo_matrix_t[]>{
     new cairo_matrix_t[n_transforms ? n_transforms : 1]};
   if (n_transforms) {
@@ -933,7 +940,8 @@ void GraphicsContextRenderer::draw_quad_mesh(
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto ac = additional_context();
-  auto matrix = matrix_from_transform(master_transform, height_);
+  auto matrix =
+    matrix_from_transform(master_transform, get_additional_state().height);
   auto fcs_raw = fcs.unchecked<2>(), ecs_raw = ecs.unchecked<2>();
   if ((coordinates.shape(0) != mesh_height + 1)
       || (coordinates.shape(1) != mesh_width + 1)
@@ -1028,9 +1036,9 @@ void GraphicsContextRenderer::draw_text(
   if (ismath) {
     cairo_translate(cr_, x, y);
     cairo_rotate(cr_, -angle * M_PI / 180);
-    CURRENT_DPI = dpi_;
+    CURRENT_DPI = get_additional_state().dpi;
     auto capsule =  // Keep a reference to it.
-      mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
+      mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
     capsule.release();  // Don't decref it.
     auto depth =
@@ -1097,9 +1105,9 @@ GraphicsContextRenderer::get_text_width_height_descent(
   }
   if (ismath.cast<bool>()) {
     // NOTE: Agg reports nonzero descents for seemingly zero-descent cases.
-    CURRENT_DPI = dpi_;
+    CURRENT_DPI = get_additional_state().dpi;
     auto capsule =  // Keep a reference to the capsule.
-      mathtext_parser_.attr("parse")(s, dpi_, prop).cast<py::capsule>();
+      mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
     capsule.release();  // ... and don't decref it.
     auto to_baseline =
@@ -1142,8 +1150,10 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter()
 {
   restore();
   auto pattern = cairo_pop_group(cr_);
+  auto state = get_additional_state();
   auto raster_surface =
-    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, int(width_), int(height_));
+    cairo_image_surface_create(
+      CAIRO_FORMAT_ARGB32, int(state.width), int(state.height));
   auto raster_cr = cairo_create(raster_surface);
   cairo_set_source(raster_cr, pattern);
   cairo_pattern_destroy(pattern);
@@ -1168,8 +1178,9 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
       x1 = std::ceil(bbox.attr("x1").cast<double>()),
       y0 = std::floor(bbox.attr("y0").cast<double>()),
       y1 = std::ceil(bbox.attr("y1").cast<double>());
-  if (!((0 <= x0) && (x0 <= x1) && (x1 <= width_)
-        && (0 <= y0) && (y0 <= y1) && (y1 <= height_))) {
+  auto state = get_additional_state();
+  if (!((0 <= x0) && (x0 <= x1) && (x1 <= state.width)
+        && (0 <= y0) && (y0 <= y1) && (y1 <= state.height))) {
     throw std::invalid_argument("Invalid bbox");
   }
   auto width = x1 - x0, height = y1 - y0;
@@ -1460,19 +1471,32 @@ PYBIND11_MODULE(_mplcairo, m)
     // Renderer API.
     // Technically unneeded, but exposed by RendererAgg, and useful for
     // stop_filter().
-    .def_readonly("dpi", &GraphicsContextRenderer::dpi_)
+    .def_property_readonly(
+      "dpi",
+      [](GraphicsContextRenderer& gcr) -> double {
+        return gcr.get_additional_state().dpi;
+      })
     // Needed for usetex and patheffects.
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def(
       "get_canvas_width_height",
       [](GraphicsContextRenderer& gcr) -> std::tuple<double, double> {
-        return {gcr.width_, gcr.height_};
+        auto state = gcr.get_additional_state();
+        return {state.width, state.height};
       })
     // FIXME[matplotlib]: Needed for patheffects, which should use
     // get_canvas_width_height().  FIXME: Check rounding rules.
-    .def_readonly("width", &GraphicsContextRenderer::width_)
-    .def_readonly("height", &GraphicsContextRenderer::height_)
+    .def_property_readonly(
+      "width",
+      [](GraphicsContextRenderer& gcr) -> double {
+        return gcr.get_additional_state().width;
+      })
+    .def_property_readonly(
+      "height",
+      [](GraphicsContextRenderer& gcr) -> double {
+        return gcr.get_additional_state().height;
+      })
 
     .def("points_to_pixels", &GraphicsContextRenderer::points_to_pixels)
 

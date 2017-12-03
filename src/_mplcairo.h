@@ -43,9 +43,6 @@ class GraphicsContextRenderer {
 
   public:
   cairo_t* const cr_;
-  // Extents cannot be easily recovered from PDF/SVG surfaces, so record them.
-  double width_, height_;
-  double dpi_;
   py::object mathtext_parser_;
   py::object texmanager_;
   py::object text2path_;

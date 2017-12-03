@@ -128,10 +128,13 @@ void PatternCache::mask(
     : CacheKey{
       path, matrix, draw_func, linewidth, dash,
       cairo_get_line_cap(cr), cairo_get_line_join(cr)};
-  if (!n_subpix_) {
+  auto draw_direct = [&]() {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});
+  };
+  if (!n_subpix_) {
+    draw_direct();
     return;
   }
   // Get the untransformed path bbox with cairo_path_extents(), so that we
@@ -145,6 +148,12 @@ void PatternCache::mask(
     load_path_exact(cr, key.path, &id);
     double x0, y0, x1, y1;
     cairo_path_extents(cr, &x0, &y0, &x1, &y1);
+    // If the pattern is huge, caching it can blow up the memory.
+    if ((x1 - x0) > get_additional_state(cr).width
+        || (y1 - y0) > get_additional_state(cr).height) {
+      draw_direct();
+      return;
+    }
     bool ok;
     std::tie(it_bboxes, ok) =
       bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, x1 - x0, y1 - y0});
