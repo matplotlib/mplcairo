@@ -131,7 +131,10 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     /* sketch */          {},
     /* snap */            true}}};  // Defaults to None, i.e. True for us.
   CAIRO_CHECK(
-    cairo_set_user_data, cr, &detail::STATE_KEY, stack, operator delete);
+    cairo_set_user_data, cr, &detail::STATE_KEY, stack, [](void* data) {
+      // Just calling operator delete would not invoke the destructor.
+      delete static_cast<std::stack<AdditionalState>*>(data);
+    })
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer()
@@ -1040,7 +1043,6 @@ void GraphicsContextRenderer::draw_text(
     auto capsule =  // Keep a reference to it.
       mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
-    capsule.release();  // Don't decref it.
     auto depth =
       *static_cast<double*>(
         cairo_surface_get_user_data(
@@ -1109,7 +1111,6 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto capsule =  // Keep a reference to the capsule.
       mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
     auto record = static_cast<cairo_surface_t*>(capsule);
-    capsule.release();  // ... and don't decref it.
     auto to_baseline =
       *static_cast<double*>(
         cairo_surface_get_user_data(
@@ -1245,7 +1246,7 @@ void MathtextBackend::set_canvas_size(
   CAIRO_CHECK(
     cairo_surface_set_user_data,
     surface, &detail::MATHTEXT_TO_BASELINE_KEY,
-    new double{height}, operator delete);
+    new double{height}, [](void* data) { delete static_cast<double*>(data); });
 }
 
 void MathtextBackend::render_glyph(double ox, double oy, py::object info)
@@ -1293,7 +1294,7 @@ py::capsule MathtextBackend::get_results(
     surface,
     &detail::MATHTEXT_RECTANGLE_KEY,
     new cairo_rectangle_t{xmin_, ymin_, xmax_ - xmin_, ymax_ - ymin_},
-    operator delete);
+    [](void* data) { delete static_cast<cairo_rectangle_t*>(data); });
   cairo_surface_reference(surface);
   cairo_destroy(cr_);
   cr_ = nullptr;
