@@ -36,5 +36,6 @@ test_backend_svg
    test_text_urls
       Not supported by cairo.
 
-
-test_bbox_tight.test_bbox_inches_tight_suptile_legend[png]
+test_bbox_tight
+   test_bbox_inches_tight_suptile_legend
+      Tight bboxes are different.

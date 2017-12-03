@@ -17,11 +17,11 @@ import mplcairo.base
 import pytest
 
 
-def main():
+def main(argv=None):
     parser = ArgumentParser(epilog="Other arguments are forwarded to pytest.")
     parser.add_argument("--infinite-tolerance", action="store_true",
                         help="Set image comparison tolerance to infinity.")
-    args, rest = parser.parse_known_args()
+    args, rest = parser.parse_known_args(argv)
 
     if args.infinite_tolerance:
         sig = inspect.signature(mpl.testing.compare.compare_images)
@@ -62,14 +62,17 @@ def pytest_collection_modifyitems(session, config, items):
             "test_backend_pdf.py::test_pdf_savefig_when_color_is_none",
             "test_backend_pdf.py::test_source_date_epoch",
             "test_backend_ps.py::test_composite_image",
-            "test_backend_ps.py::test_savefig_to_stringio[ps]",
-            "test_backend_ps.py::test_savefig_to_stringio[ps with distiller]",
-            "test_backend_ps.py::test_savefig_to_stringio[ps with usetex]",
-            "test_backend_ps.py::test_savefig_to_stringio[eps]",
             "test_backend_ps.py::test_savefig_to_stringio[eps afm]",
             "test_backend_ps.py::test_savefig_to_stringio[eps with usetex]",
+            "test_backend_ps.py::test_savefig_to_stringio[eps]",
+            "test_backend_ps.py::test_savefig_to_stringio[ps with distiller]",
+            "test_backend_ps.py::test_savefig_to_stringio[ps with usetex]",
+            "test_backend_ps.py::test_savefig_to_stringio[ps]",
             "test_backend_ps.py::test_source_date_epoch",
             "test_backend_svg.py::test_text_urls",
+            "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[pdf]",
+            "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[png]",
+            "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[svg]",
         ]
     }
     filtered = []

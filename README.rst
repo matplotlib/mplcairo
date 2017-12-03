@@ -8,10 +8,6 @@ This is a new, essentially complete implementation of a cairo_ backend for
 Matplotlib_.  It can be used in combination with a Qt5, GTK3, Tk, or wx UI, or
 non-interactively (i.e., to save figure to various file formats).
 
-This implementation "passes" Matplotlib's entire image comparison test suite
--- after accounting for inevitable differences in rasterization, and with a few
-exceptions noted below.
-
 Noteworthy points include:
 
 - Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
