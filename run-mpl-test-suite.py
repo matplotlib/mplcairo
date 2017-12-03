@@ -6,6 +6,7 @@ import inspect
 from pathlib import Path
 import subprocess
 import sys
+import warnings
 
 import matplotlib as mpl
 import matplotlib.backends.backend_agg
@@ -59,15 +60,28 @@ def pytest_collection_modifyitems(session, config, items):
             "test_backend_pdf.py::test_multipage_pagecount",
             "test_backend_pdf.py::test_multipage_properfinalize",
             "test_backend_pdf.py::test_pdf_savefig_when_color_is_none",
+            "test_backend_pdf.py::test_source_date_epoch",
+            "test_backend_ps.py::test_composite_image",
             "test_backend_ps.py::test_savefig_to_stringio[ps]",
             "test_backend_ps.py::test_savefig_to_stringio[ps with distiller]",
             "test_backend_ps.py::test_savefig_to_stringio[ps with usetex]",
             "test_backend_ps.py::test_savefig_to_stringio[eps]",
             "test_backend_ps.py::test_savefig_to_stringio[eps afm]",
             "test_backend_ps.py::test_savefig_to_stringio[eps with usetex]",
+            "test_backend_ps.py::test_source_date_epoch",
+            "test_backend_svg.py::test_text_urls",
         ]
     }
-    items[:] = [item for item in items if item.nodeid not in exclude]
+    filtered = []
+    for item in items:
+        if item.nodeid in exclude:
+            exclude -= {item.nodeid}
+        else:
+            filtered.append(item)
+    if exclude:
+        warnings.warn("Invalid exclusions:\n    {}"
+                      .format("\n    ".join(sorted(exclude))))
+    items[:] = filtered
 
 
 if __name__ == "__main__":

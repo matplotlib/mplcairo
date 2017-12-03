@@ -1400,6 +1400,11 @@ PYBIND11_MODULE(_mplcairo, m)
 
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
     .def("_finish", &GraphicsContextRenderer::_finish)
+    .def(
+      "_has_vector_surface",
+      [](GraphicsContextRenderer& gcr) -> bool {
+        return has_vector_surface(gcr.cr_);
+    })
 
     // Multi-page support
     .def("_set_size", &GraphicsContextRenderer::_set_size)

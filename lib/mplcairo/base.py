@@ -96,7 +96,8 @@ class GraphicsContextRendererCairo(
         return obj
 
     def option_image_nocomposite(self):
-        return True  # Similarly to Agg.
+        return (not rcParams["image.composite_image"]
+                if self._has_vector_surface() else True)
 
     def stop_filter(self, filter_func):
         img = _util.to_unmultiplied_rgba8888(self._stop_filter())
