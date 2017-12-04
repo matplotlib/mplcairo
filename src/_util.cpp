@@ -59,7 +59,7 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0)
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
-  auto py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
+  auto const& py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
   if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
     throw std::invalid_argument(
       "Transformation matrix must have shape (3, 3)");
@@ -71,12 +71,12 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0)
 }
 
 cairo_matrix_t matrix_from_transform(
-  py::object transform, cairo_matrix_t* master_matrix)
+  py::object transform, cairo_matrix_t const* master_matrix)
 {
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
     throw std::invalid_argument("Only affine transforms are handled");
   }
-  auto py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
+  auto const& py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
   if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
     throw std::invalid_argument(
       "Transformation matrix must have shape (3, 3)");
@@ -92,7 +92,7 @@ cairo_matrix_t matrix_from_transform(
 
 bool has_vector_surface(cairo_t* cr)
 {
-  switch (auto type = cairo_surface_get_type(cairo_get_target(cr))) {
+  switch (auto const& type = cairo_surface_get_type(cairo_get_target(cr))) {
     case CAIRO_SURFACE_TYPE_IMAGE:
     case CAIRO_SURFACE_TYPE_XLIB:
       return false;
@@ -113,7 +113,7 @@ bool has_vector_surface(cairo_t* cr)
 // for cairo_t*'s that we may not have initialized.
 AdditionalState& get_additional_state(cairo_t* cr)
 {
-  auto data = cairo_get_user_data(cr, &detail::STATE_KEY);
+  auto const& data = cairo_get_user_data(cr, &detail::STATE_KEY);
   if (!data) {
     throw std::runtime_error("cairo_t* missing additional state");
   }
@@ -163,15 +163,17 @@ class LoadPathContext {
 };
 
 // This overload implements the general case.
-void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
+void load_path_exact(
+  cairo_t* cr, py::object path, cairo_matrix_t const* matrix)
 {
-  auto const min = double(-(1 << 22)), max = double(1 << 22);
-  auto lpc = LoadPathContext{cr};
+  auto const& min = double(-(1 << 22)), max = double(1 << 22);
+  auto const& lpc = LoadPathContext{cr};
 
-  auto vertices_keepref = path.attr("vertices").cast<py::array_t<double>>();
-  auto codes_keepref =
+  auto const& vertices_keepref =
+    path.attr("vertices").cast<py::array_t<double>>();
+  auto const& codes_keepref =
     path.attr("codes").cast<std::optional<py::array_t<int>>>();
-  auto n = vertices_keepref.shape(0);
+  auto const& n = vertices_keepref.shape(0);
   if (vertices_keepref.shape(1) != 2) {
     throw std::invalid_argument("vertices must have shape (n, 2)");
   }
@@ -179,15 +181,15 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
     load_path_exact(cr, vertices_keepref, 0, n, matrix);
     return;
   }
-  auto vertices = vertices_keepref.unchecked<2>();
-  auto codes = codes_keepref->unchecked<1>();
+  auto const& vertices = vertices_keepref.unchecked<2>();
+  auto const& codes = codes_keepref->unchecked<1>();
   if (codes.shape(0) != n) {
     throw std::invalid_argument("Lengths of vertices and codes do not match");
   }
   // Snap control.
-  auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
-  auto lw = cairo_get_line_width(cr);
-  auto snapper =
+  auto const& snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
+  auto const& lw = cairo_get_line_width(cr);
+  auto const& snapper =
     snap
     ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
        ? [](double x) -> double { return std::floor(x) + .5; }
@@ -200,7 +202,7 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
   for (auto i = 0; i < n; ++i) {
     auto x0 = vertices(i, 0), y0 = vertices(i, 1);
     cairo_matrix_transform_point(matrix, &x0, &y0);
-    auto is_finite = std::isfinite(x0) && std::isfinite(y0);
+    auto const& is_finite = std::isfinite(x0) && std::isfinite(y0);
     // Better(?) than nothing.
     x0 = std::clamp(x0, min, max);
     y0 = std::clamp(y0, min, max);
@@ -229,7 +231,7 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
         auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
         cairo_matrix_transform_point(matrix, &x1, &y1);
         i += 1;
-        auto last_finite = std::isfinite(x1) && std::isfinite(y1);
+        auto const& last_finite = std::isfinite(x1) && std::isfinite(y1);
         if (last_finite) {
           x1 = std::clamp(x1, min, max);
           y1 = std::clamp(y1, min, max);
@@ -254,7 +256,7 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
         cairo_matrix_transform_point(matrix, &x1, &y1);
         cairo_matrix_transform_point(matrix, &x2, &y2);
         i += 2;
-        auto last_finite = std::isfinite(x2) && std::isfinite(y2);
+        auto const& last_finite = std::isfinite(x2) && std::isfinite(y2);
         if (last_finite) {
           x1 = std::clamp(x1, min, max);
           y1 = std::clamp(y1, min, max);
@@ -282,13 +284,13 @@ void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix)
 // stop in the signature helps implementing support for agg.path.chunksize.
 void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices_keepref,
-  ssize_t start, ssize_t stop, cairo_matrix_t* matrix)
+  ssize_t start, ssize_t stop, cairo_matrix_t const* matrix)
 {
   auto const min = double(-(1 << 22)), max = double(1 << 22);
-  auto lpc = LoadPathContext{cr};
+  auto const& lpc = LoadPathContext{cr};
 
-  auto vertices = vertices_keepref.unchecked<2>();
-  auto n = vertices.shape(0);
+  auto const& vertices = vertices_keepref.unchecked<2>();
+  auto const& n = vertices.shape(0);
   if (!((0 <= start) && (start <= stop) && (stop <= n))) {
     throw std::invalid_argument("Invalid bounds for sub-path");
   }
@@ -296,7 +298,7 @@ void load_path_exact(
   auto path_data = std::vector<cairo_path_data_t>{};
   path_data.reserve(2 * (stop - start));
   auto const LEFT = 1 << 0, RIGHT = 1 << 1, BOTTOM = 1 << 2, TOP = 1 << 3;
-  auto outcode = [&](double x, double y) -> int {
+  auto const& outcode = [&](double x, double y) -> int {
     auto code = 0;
     if (x < min) {
       code |= LEFT;
@@ -311,9 +313,9 @@ void load_path_exact(
     return code;
   };
   // Snap control.
-  auto snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
-  auto lw = cairo_get_line_width(cr);
-  auto snapper =
+  auto const& snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
+  auto const& lw = cairo_get_line_width(cr);
+  auto const& snapper =
     (lw < 1) || (std::lround(lw) % 2 == 1)
     ? [](double x) -> double { return std::floor(x) + .5; }
     : [](double x) -> double { return std::round(x); };
@@ -414,7 +416,7 @@ void load_path_exact(
       prev = {};
     }
   }
-  auto path =
+  auto const& path =
     cairo_path_t{
       CAIRO_STATUS_SUCCESS, path_data.data(), int(path_data.size())};
   cairo_append_path(cr, &path);
@@ -423,13 +425,13 @@ void load_path_exact(
 // Fill and/or stroke `path` onto `cr` after transformation by `matrix`,
 // ignoring the CTM ("exact").
 void fill_and_stroke_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t* matrix,
+  cairo_t* cr, py::object path, cairo_matrix_t const* matrix,
   std::optional<rgba_t> fill, std::optional<rgba_t> stroke)
 {
   cairo_save(cr);
   auto path_loaded = false;
   if (fill) {
-    auto [r, g, b, a] = *fill;
+    auto const& [r, g, b, a] = *fill;
     cairo_set_source_rgba(cr, r, g, b, a);
     if (path.is(detail::UNIT_CIRCLE)) {
       // Abuse the degenerate-segment handling by cairo to draw circles
@@ -452,7 +454,7 @@ void fill_and_stroke_exact(
     }
   }
   if (stroke) {
-    auto [r, g, b, a] = *stroke;
+    auto const& [r, g, b, a] = *stroke;
     cairo_set_source_rgba(cr, r, g, b, a);
     if (!path_loaded) {
       load_path_exact(cr, path, matrix);
@@ -475,12 +477,12 @@ long get_hinting_flag()
 cairo_font_face_t* font_face_from_path(std::string path)
 {
   FT_Face ft_face;
-  if (auto error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
+  if (auto const& error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error(
       "FT_New_Face(_ft2Library, \"" + path + "\", 0, &ft_face) failed with "
       "error: " + ft_errors.at(error));
   }
-  auto font_face =
+  auto const& font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
   CAIRO_CLEANUP_CHECK(
     { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
@@ -494,7 +496,7 @@ cairo_font_face_t* font_face_from_prop(py::object prop)
   // It is probably not worth implementing an additional layer of caching here
   // as findfont already has its cache and object equality needs would also
   // need to go through Python anyways.
-  auto path =
+  auto const& path =
     py::module::import("matplotlib.font_manager").attr("findfont")(prop)
     .cast<std::string>();
   return font_face_from_path(path);
@@ -503,10 +505,10 @@ cairo_font_face_t* font_face_from_prop(py::object prop)
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
   text_to_glyphs(cairo_t* cr, std::string s)
 {
-  auto scaled_font = cairo_get_scaled_font(cr);
+  auto const& scaled_font = cairo_get_scaled_font(cr);
 #ifdef MPLCAIRO_USE_LIBRAQM
-  auto ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
-  auto rq = raqm_create();
+  auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
+  auto const& rq = raqm_create();
   if (!(rq
         && raqm_set_text_utf8(rq, s.c_str(), s.size())
         && raqm_set_freetype_face(rq, ft_face)
@@ -516,11 +518,11 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
     throw std::runtime_error("Failed to compute text layout");
   }
   auto count = size_t{};
-  auto rq_glyphs = raqm_get_glyphs(rq, &count);
-  auto glyphs = cairo_glyph_allocate(count);
+  auto const& rq_glyphs = raqm_get_glyphs(rq, &count);
+  auto const& glyphs = cairo_glyph_allocate(count);
   auto x = 0., y = 0.;
   for (auto i = 0u; i < count; ++i) {
-    auto rq_glyph = rq_glyphs[i];
+    auto const& rq_glyph = rq_glyphs[i];
     glyphs[i].index = rq_glyph.index;
     glyphs[i].x = x + rq_glyph.x_offset / 64.;
     x += rq_glyph.x_advance / 64.;

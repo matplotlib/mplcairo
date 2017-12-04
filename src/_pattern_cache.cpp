@@ -7,8 +7,8 @@ namespace mplcairo {
 
 dash_t convert_dash(cairo_t* cr)
 {
-  auto dash_count = cairo_get_dash_count(cr);
-  auto dashes = std::unique_ptr<double[]>{new double[dash_count]};
+  auto const& dash_count = cairo_get_dash_count(cr);
+  auto const& dashes = std::unique_ptr<double[]>{new double[dash_count]};
   double offset;
   cairo_get_dash(cr, dashes.get(), &offset);
   return {
@@ -20,7 +20,7 @@ dash_t convert_dash(cairo_t* cr)
 
 void set_dashes(cairo_t* cr, dash_t dash)
 {
-  auto [offset, buf] = dash;
+  auto& [offset, buf] = dash;
   cairo_set_dash(
     cr,
     reinterpret_cast<double*>(buf.data()),
@@ -31,7 +31,7 @@ void set_dashes(cairo_t* cr, dash_t dash)
 void PatternCache::CacheKey::draw(
   cairo_t* cr, double x, double y, rgba_t color)
 {
-  auto m = cairo_matrix_t{
+  auto const& m = cairo_matrix_t{
     matrix.xx, matrix.yx,
     matrix.xy, matrix.yy,
     matrix.x0 + x, matrix.y0 + y};
@@ -101,7 +101,7 @@ PatternCache::PatternCache(double threshold) : threshold_{threshold}
 
 PatternCache::~PatternCache()
 {
-  for (auto& [key, entry]: patterns_) {
+  for (auto const& [key, entry]: patterns_) {
     (void)key;
     for (size_t i = 0; i < n_subpix_ * n_subpix_; ++i) {
       cairo_pattern_destroy(entry.patterns[i]);
@@ -128,7 +128,7 @@ void PatternCache::mask(
     : CacheKey{
       path, matrix, draw_func, linewidth, dash,
       cairo_get_line_cap(cr), cairo_get_line_join(cr)};
-  auto draw_direct = [&]() {
+  auto const& draw_direct = [&]() {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});
@@ -144,7 +144,7 @@ void PatternCache::mask(
   // Importantly, cairo_*_extents() ignores surface dimensions and clipping.
   auto it_bboxes = bboxes_.find(key.path);
   if (it_bboxes == bboxes_.end()) {
-    auto id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
+    auto const& id = cairo_matrix_t{1, 0, 0, 1, 0, 0};
     load_path_exact(cr, key.path, &id);
     double x0, y0, x1, y1;
     cairo_path_extents(cr, &x0, &y0, &x1, &y1);
@@ -167,23 +167,23 @@ void PatternCache::mask(
   // If the entire object is within the threshold of the origin in either
   // direction, then draw it directly, as doing otherwise would be highly
   // inaccurate (see e.g. test_mplot3d.test_quiver3d).
-  auto& bbox = it_bboxes->second;
-  auto x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
-       y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
+  auto const& bbox = it_bboxes->second;
+  auto const& x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
+            & y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
   if ((x_max < threshold_) || (y_max < threshold_)) {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});
     return;
   }
-  auto eps = threshold_ / 3,
-       x_q = eps / x_max, y_q = eps / y_max,
-       xx_q = std::round(key.matrix.xx / x_q) * x_q,
-       yx_q = std::round(key.matrix.yx / x_q) * x_q,
-       xy_q = std::round(key.matrix.xy / y_q) * y_q,
-       yy_q = std::round(key.matrix.yy / y_q) * y_q,
-       x0_q = std::round(key.matrix.x0 / eps) * eps,
-       y0_q = std::round(key.matrix.y0 / eps) * eps;
+  auto const& eps = threshold_ / 3,
+            & x_q = eps / x_max, y_q = eps / y_max,
+            & xx_q = std::round(key.matrix.xx / x_q) * x_q,
+            & yx_q = std::round(key.matrix.yx / x_q) * x_q,
+            & xy_q = std::round(key.matrix.xy / y_q) * y_q,
+            & yy_q = std::round(key.matrix.yy / y_q) * y_q,
+            & x0_q = std::round(key.matrix.x0 / eps) * eps,
+            & y0_q = std::round(key.matrix.y0 / eps) * eps;
   key.matrix = {xx_q, yx_q, xy_q, yy_q, x0_q, y0_q};
   // Get the patterns.
   auto it_patterns = patterns_.find(key);
@@ -215,19 +215,23 @@ void PatternCache::mask(
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
   }
-  auto& entry = it_patterns->second;  // Reference, as we have a unique_ptr.
-  auto target_x = x + entry.x, target_y = y + entry.y;
-  auto i_target_x = std::floor(target_x), i_target_y = std::floor(target_y);
-  auto f_target_x = target_x - i_target_x, f_target_y = target_y - i_target_y;
-  auto i = int(n_subpix_ * f_target_x), j = int(n_subpix_ * f_target_y);
-  auto idx = i * n_subpix_ + j;
+  auto const& entry = it_patterns->second;  // Reference, as we have a unique_ptr.
+  auto const& target_x = x + entry.x,
+            & target_y = y + entry.y;
+  auto const& i_target_x = std::floor(target_x),
+            & i_target_y = std::floor(target_y);
+  auto const& f_target_x = target_x - i_target_x,
+            & f_target_y = target_y - i_target_y;
+  auto const& i = int(n_subpix_ * f_target_x),
+            & j = int(n_subpix_ * f_target_y);
+  auto const& idx = i * n_subpix_ + j;
   auto& pattern = entry.patterns[idx];
   if (!pattern) {
-    auto width = std::ceil(entry.width + 1),
-         height = std::ceil(entry.height + 1);
-    auto raster_surface =
+    auto const& width = std::ceil(entry.width + 1),
+              & height = std::ceil(entry.height + 1);
+    auto const& raster_surface =
       cairo_image_surface_create(CAIRO_FORMAT_A8, width, height);
-    auto raster_gcr =
+    auto const& raster_gcr =
       GraphicsContextRenderer::make_pattern_gcr(raster_surface);
     key.draw(
       raster_gcr.cr_,
@@ -236,7 +240,8 @@ void PatternCache::mask(
     cairo_pattern_set_filter(pattern, CAIRO_FILTER_NEAREST);
   }
   // Draw using the pattern.
-  auto pattern_matrix = cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
+  auto const& pattern_matrix =
+    cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
   cairo_pattern_set_matrix(pattern, &pattern_matrix);
   cairo_mask(cr, pattern);
 }

@@ -65,15 +65,16 @@ py::object rc_param(std::string key);
 rgba_t to_rgba(py::object color, std::optional<double> alpha = {});
 cairo_matrix_t matrix_from_transform(py::object transform, double y0 = 0);
 cairo_matrix_t matrix_from_transform(
-  py::object transform, cairo_matrix_t* master_matrix);
+  py::object transform, cairo_matrix_t const* master_matrix);
 bool has_vector_surface(cairo_t* cr);
 AdditionalState& get_additional_state(cairo_t* cr);
-void load_path_exact(cairo_t* cr, py::object path, cairo_matrix_t* matrix);
+void load_path_exact(
+  cairo_t* cr, py::object path, cairo_matrix_t const* matrix);
 void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices, ssize_t start, ssize_t stop,
-  cairo_matrix_t* matrix);
+  cairo_matrix_t const* matrix);
 void fill_and_stroke_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t* matrix,
+  cairo_t* cr, py::object path, cairo_matrix_t const* matrix,
   std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
 long get_hinting_flag();
 cairo_font_face_t* font_face_from_path(std::string path);
