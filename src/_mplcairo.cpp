@@ -139,6 +139,29 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 
 GraphicsContextRenderer::~GraphicsContextRenderer()
 {
+  auto surface = cairo_get_target(cr_);
+  if (cairo_surface_get_reference_count(surface) == 2) {
+    try {
+      cairo_surface_finish(surface);
+    } catch (py::error_already_set const& e) {
+      // Exceptions would cause a fatal abort from the destructor if _finish
+      // is not called on e.g. a SVG surface before the GCR gets GC'd.
+      // e.g. comment out this catch, _finish() in base.py, and run
+      //
+      // import gc
+      // from matplotlib import pyplot as plt
+      //
+      // fig = plt.gcf()
+      // file = open("/dev/null", "wb")
+      // fig.savefig(file, format="svg")
+      // file.close()
+      // plt.close("all")
+      // del fig
+      // gc.collect()
+      // print("ok")
+      std::cerr << "Exception ignored in destructor: " << e.what() << "\n";
+    }
+  }
   cairo_destroy(cr_);
 }
 
