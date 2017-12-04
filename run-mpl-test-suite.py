@@ -73,6 +73,7 @@ def pytest_collection_modifyitems(session, config, items):
             "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[pdf]",
             "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[png]",
             "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[svg]",
+            "test_simplification.py::test_throw_rendering_complexity_exceeded",
         ]
     }
     filtered = []

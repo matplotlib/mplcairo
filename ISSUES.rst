@@ -1,3 +1,15 @@
+Needs fix
+=========
+
+test_image
+   test_jpeg_alpha
+      Not respecting savefig.facecolor...
+
+test_pickle
+   test_renderer
+      Need to make renderers picklable.
+
+
 Known test failures
 ===================
 
@@ -39,3 +51,7 @@ test_backend_svg
 test_bbox_tight
    test_bbox_inches_tight_suptile_legend
       Tight bboxes are different.
+
+test_simplification
+   test_throw_rendering_complexity_exceeded
+      cairo does not have the same limitation.
