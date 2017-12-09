@@ -87,7 +87,7 @@ Building
 In order to build mplcairo yourself, the following additional dependencies are
 required:
 
-- a C++ compiler with C++17 support, e.g. GCC≥7.1 or clang≥5.0.
+- a C++ compiler with C++17 support, e.g. GCC≥7.1 or Clang≥5.0.
 - cairo and FreeType headers, and pkg-config information to locate them.
 
 If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
@@ -116,6 +116,11 @@ Dependencies are available on conda-forge.
 
 On a related note, the manylinux wheel is built using
 ``tools/build-manylinux.sh``.
+
+**NOTE**: On Linux, compiling with Clang requires special care.  See
+`HACKING.rst`_.
+
+.. _HACKING.rst: HACKING.rst
 
 OSX
 ---
@@ -328,6 +333,9 @@ Known issues
 
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
+
+- The ``pdf.use14corefonts`` rcparam has no effect as cairo does not implement
+  special handling for these fonts.
 
 Possible optimizations
 ======================

@@ -9,7 +9,6 @@ test_pickle
    test_renderer
       Need to make renderers picklable.
 
-
 Known test failures
 ===================
 
@@ -55,3 +54,8 @@ test_bbox_tight
 test_simplification
    test_throw_rendering_complexity_exceeded
       cairo does not have the same limitation.
+
+Relevant Matplotlib issues
+==========================
+
+#9963
