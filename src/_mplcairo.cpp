@@ -1392,6 +1392,13 @@ PYBIND11_MODULE(_mplcairo, m)
       PYBIND11_VERSION_MAJOR,
       PYBIND11_VERSION_MINOR,
       PYBIND11_VERSION_PATCH);
+  m.attr("__raqm__") =
+#ifdef MPLCAIRO_USE_LIBRAQM
+    true
+#else
+    false
+#endif
+    ;
 
   py::enum_<cairo_antialias_t>(m, "antialias_t")
     .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
