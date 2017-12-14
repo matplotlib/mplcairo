@@ -5,12 +5,21 @@ from pathlib import Path
 
 import setuptools
 from setuptools import Extension, find_packages
+from setuptools.command.build_ext import build_ext
 from setuptools.command.develop import develop
 from setuptools.command.install_lib import install_lib
 
 
-__all__ = ["setup", "get_pybind_include",
-           "Extension", "find_packages"]
+__all__ = ["Extension", "build_ext", "find_packages", "setup"]
+
+
+class build_ext(build_ext):
+    def build_extensions(self):
+        try:
+            self.compiler.compiler_so.remove("-Wstrict-prototypes")
+        except ValueError:
+            pass
+        super().build_extensions()
 
 
 class setup:
@@ -60,18 +69,3 @@ class setup:
             raise SyntaxError(
                 "register_pth_hook should define a single function")
         cls._pth_hooks[fname] = func.__name__, source
-
-
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path.
-
-    The purpose of this class is to postpone importing pybind11 until it is
-    actually installed, so that the ``get_include()`` method can be invoked.
-    """
-
-    def __init__(self, user=False):
-        self.user = user
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include(self.user)

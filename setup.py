@@ -11,8 +11,7 @@ if sys.platform == "darwin":
     # *link* such extensions...
     os.environ.setdefault("CXX", "clang")
 
-from setupext import Extension, find_packages, get_pybind_include, setup
-from setuptools.command.build_ext import build_ext
+from setupext import Extension, build_ext, find_packages, setup
 
 
 def get_pkg_config(info, lib):
@@ -25,97 +24,98 @@ def get_pkg_config(info, lib):
                                                universal_newlines=True))
 
 
-EXTENSION = Extension(
-    "mplcairo._mplcairo",
-    ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"],
-    depends=
-        ["setup.py", "src/_macros.h",
-         "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"],
-    language=
-        "c++",
-    include_dirs=
-        [get_pybind_include(), get_pybind_include(user=True)],
-)
+class build_ext(build_ext):
+    def finalize_options(self):
+        import pybind11
 
+        ext, = self.distribution.ext_modules
 
-if sys.platform == "linux":
-    EXTENSION.extra_compile_args += (
-        ["-std=c++17", "-fvisibility=hidden", "-flto", "-Wextra", "-Wpedantic"]
-        + get_pkg_config("--cflags", "py3cairo"))
-    EXTENSION.extra_link_args += (
-        ["-flto"])
-    if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
-        EXTENSION.define_macros = (
-            [("MPLCAIRO_USE_LIBRAQM", "1")])
-        try:
-            EXTENSION.extra_compile_args += (
-                get_pkg_config("--cflags", "raqm"))
-            EXTENSION.extra_link_args += (
-                get_pkg_config("--libs", "raqm"))
-        except subprocess.CalledProcessError:
-            if Path("build/raqm-prefix").is_dir():
-                EXTENSION.include_dirs += (
-                    ["build/raqm-prefix/include"])
-                EXTENSION.extra_objects += (
-                    ["build/raqm-prefix/lib/libraqm.a"])
-            else:
-                sys.exit("""
+        ext.sources = (
+            ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"])
+        ext.depends = (
+            ["setup.py", "src/_macros.h",
+             "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"])
+        ext.language = "c++"
+        ext.include_dirs = (
+            [pybind11.get_include(), pybind11.get_include(user=True)])
+
+        if sys.platform == "linux":
+            ext.extra_compile_args += (
+                ["-std=c++17", "-fvisibility=hidden", "-flto",
+                 "-Wextra", "-Wpedantic"]
+                + get_pkg_config("--cflags", "py3cairo"))
+            ext.extra_link_args += (
+                ["-flto"])
+            if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
+                ext.define_macros = (
+                    [("MPLCAIRO_USE_LIBRAQM", "1")])
+                try:
+                    ext.extra_compile_args += (
+                        get_pkg_config("--cflags", "raqm"))
+                    ext.extra_link_args += (
+                        get_pkg_config("--libs", "raqm"))
+                except subprocess.CalledProcessError:
+                    if Path("build/raqm-prefix").is_dir():
+                        ext.include_dirs += (
+                            ["build/raqm-prefix/include"])
+                        ext.extra_objects += (
+                            ["build/raqm-prefix/lib/libraqm.a"])
+                    else:
+                        sys.exit("""
 Raqm is not installed system-wide.  If your system package manager does not
 provide it,
 
 1. Install the FriBiDi and HarfBuzz headers (e.g., 'libfribidi-dev' and
-  'libharfbuzz-dev') using your system package manager.
+   'libharfbuzz-dev') using your system package manager.
 2. Run 'tools/build-raqm.sh' *outside of any conda environment*.
 3. Build and install mplcairo normally.
 """)
-    if os.environ.get("MANYLINUX"):
-        EXTENSION.extra_link_args += (
-            ["-static-libgcc", "-static-libstdc++"])
-    else:
-        EXTENSION.extra_compile_args += (
-            ["-march=native"])
+            if os.environ.get("MANYLINUX"):
+                ext.extra_link_args += (
+                    ["-static-libgcc", "-static-libstdc++"])
+            else:
+                ext.extra_compile_args += (
+                    ["-march=native"])
 
-elif sys.platform == "darwin":
-    EXTENSION.extra_compile_args += (
-        # version-min=10.9 avoids deprecation warning wrt. libstdc++.
-        ["-std=c++17", "-fvisibility=hidden", "-flto",
-         "-mmacosx-version-min=10.9"]
-        + get_pkg_config("--cflags", "py3cairo"))
-    EXTENSION.extra_link_args += (
-        # version-min needs to be repeated to avoid a warning.
-        ["-flto", "-mmacosx-version-min=10.9"])
-    if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
-        EXTENSION.define_macros += (
-            [("MPLCAIRO_USE_LIBRAQM", "1")])
-        EXTENSION.extra_compile_args += (
-            get_pkg_config("--cflags", "raqm"))
-        EXTENSION.extra_link_args += (
-            get_pkg_config("--libs", "raqm"))
+        elif sys.platform == "darwin":
+            ext.extra_compile_args += (
+                # version-min=10.9 avoids deprecation warning wrt. libstdc++.
+                ["-std=c++17", "-fvisibility=hidden", "-flto",
+                "-mmacosx-version-min=10.9"]
+                + get_pkg_config("--cflags", "py3cairo"))
+            ext.extra_link_args += (
+                # version-min needs to be repeated to avoid a warning.
+                ["-flto", "-mmacosx-version-min=10.9"])
+            if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
+                ext.define_macros += (
+                    [("MPLCAIRO_USE_LIBRAQM", "1")])
+                ext.extra_compile_args += (
+                    get_pkg_config("--cflags", "raqm"))
+                ext.extra_link_args += (
+                    get_pkg_config("--libs", "raqm"))
 
-elif sys.platform == "win32":
-    EXTENSION.extra_compile_args += (
-        ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
-         # Windows conda paths.
-         "-I{}".format(Path(sys.prefix, "Library/include")),
-         "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
-         "-I{}".format(Path(sys.prefix, "include/pycairo"))])
+        elif sys.platform == "win32":
+            ext.extra_compile_args += (
+                ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
+                # Windows conda paths.
+                "-I{}".format(Path(sys.prefix, "Library/include")),
+                "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
+                "-I{}".format(Path(sys.prefix, "include/pycairo"))])
 
+        super().finalize_options()
 
-class build_ext(build_ext):
     def build_extensions(self):
-        try:
-            self.compiler.compiler_so.remove("-Wstrict-prototypes")
-        except ValueError:
-            pass
+        ext, = self.extensions
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
         # libstdc++ + std::variant = compilation error).
         if (subprocess.check_output([self.compiler.compiler[0], "--version"],
                                     universal_newlines=True)
                 .startswith("clang")):
-            EXTENSION.extra_compile_args += ["-stdlib=libc++"]
+            ext.extra_compile_args += ["-stdlib=libc++"]
             # Explicitly linking to libc++ is required to avoid picking up the
             # system C++ library (libstdc++ or an outdated libc++).
-            EXTENSION.extra_link_args += ["-lc++"]
+            ext.extra_link_args += ["-lc++"]
+
         super().build_extensions()
 
 
@@ -162,7 +162,7 @@ setup(
     cmdclass={"build_ext": build_ext},
     packages=find_packages("lib"),
     package_dir={"": "lib"},
-    ext_modules=[EXTENSION],
+    ext_modules = [Extension("mplcairo._mplcairo", [])],
     python_requires=">=3.4",
     setup_requires=["setuptools_scm"],
     use_scm_version={  # xref __init__.py
