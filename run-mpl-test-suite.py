@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 import os
 import inspect
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import warnings
@@ -32,11 +33,6 @@ def main(argv=None):
         compare_images.__wrapped__ = mpl.testing.compare.compare_images
         mpl.testing.compare.compare_images = compare_images
 
-    matplotlib_srcdir = subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=Path(matplotlib.__file__).parent)[:-1]
-    os.chdir(matplotlib_srcdir)
-
     mplcairo.base.get_hinting_flag = mpl.backends.backend_agg.get_hinting_flag
     mplcairo.base.FigureCanvasAgg = \
         mplcairo.base.FigureCanvasCairo
@@ -47,7 +43,19 @@ def main(argv=None):
     mpl.use("agg", warn=False, force=True)
     plt.switch_backend("agg")
 
-    return pytest.main(["-p", "__main__", *rest])
+    cwd = os.getcwd()
+    matplotlib_srcdir = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=Path(matplotlib.__file__).parent)[:-1]
+
+    os.chdir(matplotlib_srcdir)
+    rv = pytest.main(["-p", "__main__", *rest])
+    os.chdir(cwd)
+    try:
+        shutil.move(Path(matplotlib_srcdir, "result_images"), cwd)
+    except FileNotFoundError:
+        pass
+    return rv
 
 
 def pytest_collection_modifyitems(session, config, items):

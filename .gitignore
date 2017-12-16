@@ -1,7 +1,7 @@
-**/.ipynb_checkpoints/
 *.egg-info/
 .cache/
-.eggs
+.eggs/
+.ipynb_checkpoints/
 build/
 dist/
 doc/_build/
@@ -9,6 +9,7 @@ doc/_static/
 doc/_templates/
 htmlcov/
 oprofile_data/
+result_images/
 .*.swp
 *.o
 *.pyc

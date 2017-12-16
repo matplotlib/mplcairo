@@ -334,8 +334,11 @@ Known issues
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
 
-- The ``pdf.use14corefonts`` rcparam has no effect as cairo does not implement
-  special handling for these fonts.
+- The following font-related rcparams have no effect as they are not
+  implemented by cairo: ``pdf.fonttype``, ``pdf.use14corefonts``,
+  ``ps.fonttype``, ``svg.fonttype``.
+
+- The following deprecated rcparam is not implemented: ``svg.image_noscale``.
 
 Possible optimizations
 ======================
