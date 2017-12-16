@@ -5,10 +5,6 @@ test_image
    test_jpeg_alpha
       Not respecting savefig.facecolor...
 
-test_pickle
-   test_renderer
-      Need to make renderers picklable.
-
 Known test failures
 ===================
 
@@ -32,10 +28,6 @@ test_backend_pdf
       Not supported by cairo.
 
 test_backend_ps
-   test_composite_image
-      cairo uses a different representation for images (but compositing is
-      correct, see e.g. svg test.
-
    test_savefig_to_stringio
       Some parametrizations test writing to text-mode file, which makes no
       sense.
@@ -50,6 +42,15 @@ test_backend_svg
 test_bbox_tight
    test_bbox_inches_tight_suptile_legend
       Tight bboxes are different.
+
+test_compare_image
+   ... testing Matplotlib's own test interface, which we subvert via
+   --infinite-tolerance.
+
+test_image
+   test_composite_image[..., ps, ...]
+      cairo uses a different representation for images (but compositing is
+      correct, see e.g. svg test).
 
 test_simplification
    test_throw_rendering_complexity_exceeded

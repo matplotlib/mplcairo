@@ -84,6 +84,7 @@ class GraphicsContextRenderer {
   void set_linewidth(double lw);
   void set_snap(std::optional<bool> snap);
 
+  AdditionalState const& get_additional_state() const;
   AdditionalState& get_additional_state();
   double get_linewidth();
   rgb_t get_rgb();

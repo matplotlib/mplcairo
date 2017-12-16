@@ -51,7 +51,10 @@ def main(argv=None):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    exclude = {
+    excluded_modules = {
+        "matplotlib.tests.test_compare_images",
+    }
+    excluded_nodeids = {
         "lib/matplotlib/tests/" + name for name in [
             "test_agg.py::test_repeated_save_with_alpha",
             "test_artist.py::test_cull_markers",
@@ -61,7 +64,6 @@ def pytest_collection_modifyitems(session, config, items):
             "test_backend_pdf.py::test_multipage_properfinalize",
             "test_backend_pdf.py::test_pdf_savefig_when_color_is_none",
             "test_backend_pdf.py::test_source_date_epoch",
-            "test_backend_ps.py::test_composite_image",
             "test_backend_ps.py::test_savefig_to_stringio[eps afm]",
             "test_backend_ps.py::test_savefig_to_stringio[eps with usetex]",
             "test_backend_ps.py::test_savefig_to_stringio[eps]",
@@ -73,18 +75,22 @@ def pytest_collection_modifyitems(session, config, items):
             "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[pdf]",
             "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[png]",
             "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[svg]",
+            "test_image.py::test_composite[True-1-ps- colorimage]",
+            "test_image.py::test_composite[False-2-ps- colorimage]",
             "test_simplification.py::test_throw_rendering_complexity_exceeded",
         ]
     }
     filtered = []
     for item in items:
-        if item.nodeid in exclude:
-            exclude -= {item.nodeid}
+        if item.module.__name__ in excluded_modules:
+            pass
+        elif item.nodeid in excluded_nodeids:
+            excluded_nodeids -= {item.nodeid}
         else:
             filtered.append(item)
-    if exclude:
-        warnings.warn("Invalid exclusions:\n    {}"
-                      .format("\n    ".join(sorted(exclude))))
+    if excluded_nodeids:
+        warnings.warn("Unused exclusions:\n    {}"
+                      .format("\n    ".join(sorted(excluded_nodeids))))
     items[:] = filtered
 
 

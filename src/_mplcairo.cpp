@@ -140,30 +140,26 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 
 GraphicsContextRenderer::~GraphicsContextRenderer()
 {
-  auto const& surface = cairo_get_target(cr_);
-  if (cairo_surface_get_reference_count(surface) == 2) {
-    try {
-      cairo_surface_finish(surface);
-    } catch (py::error_already_set const& e) {
-      // Exceptions would cause a fatal abort from the destructor if _finish
-      // is not called on e.g. a SVG surface before the GCR gets GC'd.
-      // e.g. comment out this catch, _finish() in base.py, and run
-      //
-      // import gc
-      // from matplotlib import pyplot as plt
-      //
-      // fig = plt.gcf()
-      // file = open("/dev/null", "wb")
-      // fig.savefig(file, format="svg")
-      // file.close()
-      // plt.close("all")
-      // del fig
-      // gc.collect()
-      // print("ok")
-      std::cerr << "Exception ignored in destructor: " << e.what() << "\n";
-    }
+  try {
+    cairo_destroy(cr_);
+  } catch (std::exception const& e) {
+    // Exceptions would cause a fatal abort from the destructor if _finish is
+    // not called on e.g. a SVG surface before the GCR gets GC'd. e.g. comment
+    // out this catch, _finish() in base.py, and run
+    //
+    // import gc
+    // from matplotlib import pyplot as plt
+    //
+    // fig = plt.gcf()
+    // file = open("/dev/null", "wb")
+    // fig.savefig(file, format="svg")
+    // file.close()
+    // plt.close("all")
+    // del fig
+    // gc.collect()
+    // print("ok")
+    std::cerr << "Exception ignored in destructor: " << e.what() << "\n";
   }
-  cairo_destroy(cr_);
 }
 
 cairo_t* GraphicsContextRenderer::cr_from_image_args(int width, int height)
@@ -457,6 +453,13 @@ void GraphicsContextRenderer::set_snap(std::optional<bool> snap)
   // NOTE: It appears that even when rcParams["path.snap"] is False, this is
   // sometimes set to True.
   get_additional_state().snap = snap.value_or(true);
+}
+
+AdditionalState const& GraphicsContextRenderer::get_additional_state() const
+{
+  return
+    static_cast<std::stack<AdditionalState>*>(
+      cairo_get_user_data(cr_, &detail::STATE_KEY))->top();
 }
 
 AdditionalState& GraphicsContextRenderer::get_additional_state()
@@ -1430,6 +1433,23 @@ PYBIND11_MODULE(_mplcairo, m)
     .def(py::init<double, double, double>())
     .def(py::init<py::object, double>())
     .def(py::init<StreamSurfaceType, py::object, double, double, double>())
+    .def(
+      py::pickle(
+        [](GraphicsContextRenderer const& gcr) -> py::tuple {
+          if (cairo_surface_get_type(cairo_get_target(gcr.cr_))
+              != CAIRO_SURFACE_TYPE_IMAGE) {
+            throw std::runtime_error(
+              "Only renderers to image surfaces are picklable");
+          }
+          auto const& state = gcr.get_additional_state();
+          return py::make_tuple(state.width, state.height, state.dpi);
+        },
+        [](py::tuple t) -> GraphicsContextRenderer* {
+          auto width = t[0].cast<double>(),
+               height = t[1].cast<double>(),
+               dpi = t[2].cast<double>();
+          return new GraphicsContextRenderer{width, height, dpi};
+        }))
 
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
     .def("_finish", &GraphicsContextRenderer::_finish)
