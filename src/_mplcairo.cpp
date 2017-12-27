@@ -118,6 +118,15 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   // JOIN_ROUND (cairo defaults to JOIN_MITER) and CAP_BUTT (cairo too).  See
   // GraphicsContextBase.__init__.
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+  // May already have been set by cr_from_fileformat_args.
+  if (!cairo_get_user_data(cr, &detail::REFS_KEY)) {
+    CAIRO_CHECK(
+      cairo_set_user_data, cr, &detail::REFS_KEY,
+      new std::vector<py::object>{},
+      [](void* data) -> void {
+        delete static_cast<std::vector<py::object>*>(data);
+      });
+  }
   auto const& stack = new std::stack<AdditionalState>{{{
     /* width */           width,
     /* height */          height,
@@ -132,10 +141,11 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     /* sketch */          {},
     /* snap */            true}}};  // Defaults to None, i.e. True for us.
   CAIRO_CHECK(
-    cairo_set_user_data, cr, &detail::STATE_KEY, stack, [](void* data) {
+    cairo_set_user_data, cr, &detail::STATE_KEY,
+    stack, [](void* data) -> void {
       // Just calling operator delete would not invoke the destructor.
       delete static_cast<std::stack<AdditionalState>*>(data);
-    })
+    });
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer()
@@ -145,7 +155,7 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
   } catch (std::exception const& e) {
     // Exceptions would cause a fatal abort from the destructor if _finish is
     // not called on e.g. a SVG surface before the GCR gets GC'd. e.g. comment
-    // out this catch, _finish() in base.py, and run
+    // out this catch, and _finish() in base.py, and run
     //
     // import gc
     // from matplotlib import pyplot as plt
@@ -202,62 +212,61 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   StreamSurfaceType type, py::object file,
   double width, double height, double dpi)
 {
-  auto const& cb = [](void* closure, unsigned char const* data, unsigned int length)
-            -> cairo_status_t {
-    auto const& write =
-      py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
-    // FIXME[pybind11]: Work around lack of const buffers in pybind11.
-    auto const& buf_info = py::buffer_info{
-      const_cast<unsigned char*>(data),
-      sizeof(char), py::format_descriptor<char>::format(),
-      1, {length}, {sizeof(char)}};
-    return
-      write(py::memoryview{buf_info}).cast<unsigned int>()
-      == length
-      // NOTE: This does not appear to affect the context status.
-      ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
-  };
-  auto const& write = file.attr("write").cast<py::handle>().inc_ref().ptr();
-  auto const& dec_ref = [](void* write) -> void {
-    py::handle{static_cast<PyObject*>(write)}.dec_ref();
-  };
+  auto surface_create_for_stream =
+    [&]() -> detail::surface_create_for_stream_t {
+      switch (type) {
+        case StreamSurfaceType::PDF:
+          return detail::cairo_pdf_surface_create_for_stream;
+        case StreamSurfaceType::PS:
+        case StreamSurfaceType::EPS:
+          return detail::cairo_ps_surface_create_for_stream;
+        case StreamSurfaceType::SVG:
+          return detail::cairo_svg_surface_create_for_stream;
+        case StreamSurfaceType::Script:
+          return
+            [](cairo_write_func_t write, void* closure,
+              double width, double height) -> cairo_surface_t* {
+              auto const& script =
+                cairo_script_create_for_stream(write, closure);
+              auto const& surface =
+                cairo_script_surface_create(
+                  script, CAIRO_CONTENT_COLOR_ALPHA, width, height);
+              cairo_device_destroy(script);
+              return surface;
+            };
+        default:
+          throw std::runtime_error(
+            "cairo was built without support for the requested file format");
+      }
+    }();
+  auto const& cb =
+    [](void* closure, unsigned char const* data, unsigned int length)
+       -> cairo_status_t {
+      auto const& write =
+        py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
+      // FIXME[pybind11]: Work around lack of const buffers in pybind11.
+      auto const& buf_info = py::buffer_info{
+        const_cast<unsigned char*>(data),
+        sizeof(char), py::format_descriptor<char>::format(),
+        1, {length}, {sizeof(char)}};
+      return
+        write(py::memoryview{buf_info}).cast<unsigned int>() == length
+        // NOTE: This does not appear to affect the context status.
+        ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
+    };
+  auto const& write = file.attr("write");
 
-  detail::surface_create_for_stream_t surface_create_for_stream{};
-  switch (type) {
-    case StreamSurfaceType::PDF:
-      surface_create_for_stream = detail::cairo_pdf_surface_create_for_stream;
-      break;
-    case StreamSurfaceType::PS:
-    case StreamSurfaceType::EPS:
-      surface_create_for_stream = detail::cairo_ps_surface_create_for_stream;
-      break;
-    case StreamSurfaceType::SVG:
-      surface_create_for_stream = detail::cairo_svg_surface_create_for_stream;
-      break;
-    case StreamSurfaceType::Script:
-      surface_create_for_stream =
-        [](cairo_write_func_t write, void* closure,
-           double width, double height) -> cairo_surface_t* {
-          auto const& script = cairo_script_create_for_stream(write, closure);
-          auto const& surface =
-            cairo_script_surface_create(
-              script, CAIRO_CONTENT_COLOR_ALPHA, width, height);
-          cairo_device_destroy(script);
-          return surface;
-        };
-      break;
-    default: ;
-  }
-  if (!surface_create_for_stream) {
-    throw std::runtime_error(
-      "cairo was built without support for the requested file format");
-  }
-
-  auto const& surface = surface_create_for_stream(cb, write, width, height);
+  auto const& surface =
+    surface_create_for_stream(cb, write.ptr(), width, height);
   cairo_surface_set_fallback_resolution(surface, dpi, dpi);
   auto const& cr = cairo_create(surface);
   cairo_surface_destroy(surface);
-  CAIRO_CHECK(cairo_set_user_data, cr, &detail::FILE_KEY, write, dec_ref);
+  CAIRO_CHECK(
+    cairo_set_user_data, cr, &detail::REFS_KEY,
+    new std::vector<py::object>{{write}},
+    [](void* data) -> void {
+      delete static_cast<std::vector<py::object>*>(data);
+    });
   if (type == StreamSurfaceType::EPS) {
     // If cairo was built without PS support, we'd already have errored above.
     detail::cairo_ps_surface_set_eps(surface, true);
@@ -567,6 +576,8 @@ void GraphicsContextRenderer::draw_image(
   if (im_raw.shape(2) != 4) {
     throw std::invalid_argument("RGBA array must have shape (m, n, 4)");
   }
+  // Let cairo manage the surface memory; as some backends only write the image
+  // at flush time.
   auto const& surface =
     cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
   auto const& data = cairo_image_surface_get_data(surface);
@@ -1067,8 +1078,12 @@ void GraphicsContextRenderer::draw_text(
     cairo_translate(cr_, x, y);
     cairo_rotate(cr_, -angle * M_PI / 180);
     CURRENT_DPI = get_additional_state().dpi;
-    auto const& capsule =  // Keep a reference to it.
+    auto const& capsule =
       mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
+    // The capsule must be kept until the context is finished.
+    static_cast<std::vector<py::object>*>(
+      cairo_get_user_data(cr_, &detail::REFS_KEY))
+      ->push_back(capsule);
     auto const& record = static_cast<cairo_surface_t*>(capsule);
     auto const& depth =
       *static_cast<double*>(

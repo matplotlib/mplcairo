@@ -300,6 +300,9 @@ one to save figures (with ``savefig``) in the ``.cairoscript`` format, which is
 a "native script that matches the cairo drawing model".  This may be helpful
 for troubleshooting purposes.
 
+Note that this will crash the process after the file is written, due to cairo
+bug #104410.
+
 Markers at Bézier control points
 --------------------------------
 

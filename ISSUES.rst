@@ -1,3 +1,13 @@
+Crashes
+=======
+
+::
+   gca().set_axis_off(); text(.5, .5, "$f$"); savefig("/tmp/test.cairoscript")
+
+Seems to be due to cairo trying to call ``write`` during shutdown when the
+interpreter state is seriously messed up (even though ``_finish`` has been
+correctly called first).  See cairo bug #104410.
+
 Fix needed
 ==========
 
