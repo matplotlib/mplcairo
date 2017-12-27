@@ -433,9 +433,12 @@ void fill_and_stroke_exact(
   if (fill) {
     auto const& [r, g, b, a] = *fill;
     cairo_set_source_rgba(cr, r, g, b, a);
-    if (path.is(detail::UNIT_CIRCLE)) {
-      // Abuse the degenerate-segment handling by cairo to draw circles
-      // efficiently.
+    if (path.is(detail::UNIT_CIRCLE) && !has_vector_surface(cr)) {
+      // Abuse the degenerate-segment handling by cairo to rasterize
+      // circles efficiently.  Don't do this on vector backends both
+      // because the user may technically want the actual path, and because
+      // Inkscape does not render circle markers on zero-sized paths
+      // (FIXME[inkscape] https://bugs.launchpad.net/inkscape/+bug/689562).
       cairo_save(cr);
       cairo_new_path(cr);
       cairo_move_to(cr, matrix->x0, matrix->y0);

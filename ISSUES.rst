@@ -93,12 +93,6 @@ Ghostscript misrenders consecutive dashed lines (Matplotlib #10036). ::
 Issues with Inkscape
 --------------------
 
-Inkscape does not render circle markers on zero-sized paths.  See
-https://bugs.launchpad.net/inkscape/+bug/689562 and linked issues.  Does not
-affect Chromium or Firefox. ::
-
-   test_axes::test_marker_edges,test_markevery_linear_scales,etc.[svg]
-
 Matplotlib's SVG backend writes fills as hex (``#bf8040``) whereas cairo writes
 them using ``rgb`` (``rgb(75%,50%,25%)``).  The latter seems rendered less
 precisely when combined with transparency. ::
