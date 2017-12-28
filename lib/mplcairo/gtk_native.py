@@ -3,7 +3,7 @@ from matplotlib.backends.backend_gtk3 import _BackendGTK3, FigureCanvasGTK3
 from .base import FigureCanvasCairo, GraphicsContextRendererCairo
 
 
-class FigureCanvasGTK3Cairo(FigureCanvasCairo, FigureCanvasGTK3):
+class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
     def _renderer_init(self):
         pass
 
@@ -15,5 +15,5 @@ class FigureCanvasGTK3Cairo(FigureCanvasCairo, FigureCanvasGTK3):
 
 
 @_BackendGTK3.export
-class _BackendGTK3Cairo(_BackendGTK3):
-    FigureCanvas = FigureCanvasGTK3Cairo
+class _BackendGTKCairo(_BackendGTK3):
+    FigureCanvas = FigureCanvasGTKCairo

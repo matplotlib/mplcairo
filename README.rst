@@ -149,17 +149,18 @@ Use
 The backend can be selected by setting the ``MPLBACKEND`` environment variable
 to one of
 
+- ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
+  SVGZ using cairo's implementation, rather than Matplotlib's),
+- ``module://mplcairo.gtk`` (GTK3 widget, copying data from a cairo image
+  surface),
+- ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
+  native surface),
 - ``module://mplcairo.qt`` (Qt5 widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
-  surface),
-- ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
-  native surface),
-- ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
-  SVGZ using cairo's implementation, rather than Matplotlib's).  This backend
-  can be used with Matplotlib 2.1.
+  surface).
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
@@ -315,12 +316,11 @@ Known issues
 
 - Blitting-based animations to image-base backends (e.g., ``mplcairo.qt``)
   leaves small artefacts at the edges of the blitted region.  This does not
-  affect Xlib-based backends (e.g., ``mplcairo.gtk_native``).
+  affect Xlib-based backends (i.e., ``mplcairo.gtk_native``).
 
-- SVG and Xlib (i.e, GTK3) currently need to rasterize mathtext before
-  rendering it (this is mostly an issue for SVG, altough it affects vertical
-  hinting for Xlib), as otherwise replaying a recording surface appears to have
-  no effect.  This needs to be investigated.
+- SVG and Xlib (i.e., ``mplcairo.gtk_native``) currently need to rasterize
+  mathtext before rendering it (this is mostly an issue for SVG, altough it
+  affects vertical hinting for Xlib), due to cairo bug #104042.
 
   Meanwhile, a workaround is to generate files in PS format and convert them to
   SVG e.g. using
@@ -329,9 +329,9 @@ Known issues
 
       inkscape --without-gui input.ps --export-plain-svg output.svg
 
-  Rendering of hinted mathtext is *extremely* slow on Xlib (GTK3).  This may
-  be partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or
-  by implementing a rasterization cache (but it would be preferable to fix the
+  Rendering of hinted mathtext is *extremely* slow on Xlib.  This may be
+  partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or by
+  implementing a rasterization cache (but it would be preferable to fix the
   general issue with recording surfaces first).
 
 - SVG output does not set URLs on any element, as cairo provides no support for
