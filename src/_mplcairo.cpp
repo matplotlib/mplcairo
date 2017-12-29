@@ -303,6 +303,7 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
     throw std::runtime_error("_get_buffer only supports image surfaces");
   }
   cairo_surface_reference(surface);
+  cairo_surface_flush(surface);
   return
     py::array_t<uint8_t>{
       {cairo_image_surface_get_height(surface),
@@ -1217,11 +1218,13 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter()
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
 {
   // Use ints to avoid a bunch of warnings below.
-  auto const& x0 = int(std::floor(bbox.attr("x0").cast<double>())),
-            & x1 = int(std::ceil(bbox.attr("x1").cast<double>())),
-            & y0 = int(std::floor(bbox.attr("y0").cast<double>())),
-            & y1 = int(std::ceil(bbox.attr("y1").cast<double>()));
   auto const& state = get_additional_state();
+  auto const
+    & x0 = int(std::floor(bbox.attr("x0").cast<double>())),
+    & x1 = int(std::ceil(bbox.attr("x1").cast<double>())),
+    // Invert y-axis.
+    & y0 = int(std::floor(state.height - bbox.attr("y1").cast<double>())),
+    & y1 = int(std::ceil(state.height - bbox.attr("y0").cast<double>()));
   if (!((0 <= x0) && (x0 <= x1) && (x1 <= state.width)
         && (0 <= y0) && (y0 <= y1) && (y1 <= state.height))) {
     throw std::invalid_argument("Invalid bbox");
@@ -1239,7 +1242,9 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
     std::memcpy(
       buf.get() + (y - y0) * 4 * width, raw + y * stride + 4 * x0, 4 * width);
   }
-  return {{x0, y0, width, height}, std::move(buf)};
+  return
+    {{x0, y0, width, height},  // Inverted y, directly usable when restoring.
+     std::move(buf)};
 }
 
 void GraphicsContextRenderer::restore_region(Region& region)
@@ -1255,7 +1260,7 @@ void GraphicsContextRenderer::restore_region(Region& region)
   auto const& stride = cairo_image_surface_get_stride(surface);
   cairo_surface_flush(surface);
   // 4 bytes per pixel!
-  for (int y = y0; y < y1; ++y) {
+  for (auto y = y0; y < y1; ++y) {
     std::memcpy(
       raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width, 4 * width);
   }

@@ -26,6 +26,10 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         self._draw_rect_callback(painter)
         painter.end()
 
+    def blit(self, bbox=None):
+        # See above: we always repaint the full canvas.
+        self.repaint(self.rect())
+
 
 @_BackendQT5.export
 class _BackendQT5Cairo(_BackendQT5):

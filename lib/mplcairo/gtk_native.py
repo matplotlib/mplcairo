@@ -4,6 +4,8 @@ from .base import FigureCanvasCairo, GraphicsContextRendererCairo
 
 
 class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
+    supports_blit = False
+
     def _renderer_init(self):
         pass
 

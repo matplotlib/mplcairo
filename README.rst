@@ -154,7 +154,7 @@ to one of
 - ``module://mplcairo.gtk`` (GTK3 widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
-  native surface),
+  native surface; does not and cannot support blitting),
 - ``module://mplcairo.qt`` (Qt5 widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
@@ -313,10 +313,6 @@ at straight or Bézier segment ends.
 
 Known issues
 ============
-
-- Blitting-based animations to image-base backends (e.g., ``mplcairo.qt``)
-  leaves small artefacts at the edges of the blitted region.  This does not
-  affect Xlib-based backends (i.e., ``mplcairo.gtk_native``).
 
 - SVG and Xlib (i.e., ``mplcairo.gtk_native``) currently need to rasterize
   mathtext before rendering it (this is mostly an issue for SVG, altough it
