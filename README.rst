@@ -314,21 +314,8 @@ at straight or Bézier segment ends.
 Known issues
 ============
 
-- SVG and Xlib (i.e., ``mplcairo.gtk_native``) currently need to rasterize
-  mathtext before rendering it (this is mostly an issue for SVG, altough it
-  affects vertical hinting for Xlib), due to cairo bug #104042.
-
-  Meanwhile, a workaround is to generate files in PS format and convert them to
-  SVG e.g. using
-
-  .. code-block:: sh
-
-      inkscape --without-gui input.ps --export-plain-svg output.svg
-
-  Rendering of hinted mathtext is *extremely* slow on Xlib.  This may be
-  partially fixed by setting the ``text.hinting`` rcparam to ``"none"``, or by
-  implementing a rasterization cache (but it would be preferable to fix the
-  general issue with recording surfaces first).
+- Some mathtext glyphs regularly disappear for SVG and Xlib (i.e.,
+  ``mplcairo.gtk_native``) output.
 
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.

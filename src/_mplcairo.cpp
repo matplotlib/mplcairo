@@ -1090,30 +1090,11 @@ void GraphicsContextRenderer::draw_text(
       *static_cast<double*>(
         cairo_surface_get_user_data(
           record, &detail::MATHTEXT_TO_BASELINE_KEY));
-    // FIXME[cairo]: On Xlib and SVG surfaces, replaying the recording surface
-    // seems to have no effect.  Work around this by drawing it on an image
-    // first.
-    switch (cairo_surface_get_type(cairo_get_target(cr_))) {
-      case CAIRO_SURFACE_TYPE_XLIB:
-      case CAIRO_SURFACE_TYPE_SVG: {
-        double x0, y0, width, height;
-        cairo_recording_surface_ink_extents(record, &x0, &y0, &width, &height);
-        auto const& image =
-          cairo_image_surface_create(
-            CAIRO_FORMAT_ARGB32,
-            int(std::ceil(x0 + width)), int(std::ceil(y0 + height)));
-        auto const& cr = cairo_create(image);
-        cairo_set_source_surface(cr, record, 0, 0);
-        cairo_paint(cr);
-        cairo_destroy(cr);
-        cairo_set_source_surface(cr_, image, 0, -depth);
-        cairo_surface_destroy(image);
-        break;
-      }
-      default:
-        cairo_set_source_surface(cr_, record, 0, -depth);
-    }
-    cairo_paint(cr_);
+    auto const& pattern = cairo_pattern_create_for_surface(record);
+    auto const& matrix = cairo_matrix_t{1, 0, 0, 1, 0, depth};
+    cairo_pattern_set_matrix(pattern, &matrix);
+    cairo_mask(cr_, pattern);
+    cairo_pattern_destroy(pattern);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
     // regardless of cairo_translate).
@@ -1122,14 +1103,12 @@ void GraphicsContextRenderer::draw_text(
     cairo_move_to(cr_, 0, 0);
     auto const& font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
+    cairo_font_face_destroy(font_face);
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
-
     auto const& [glyphs, count] = text_to_glyphs(cr_, s);
     cairo_show_glyphs(cr_, glyphs.get(), count);
-
-    cairo_font_face_destroy(font_face);
   }
 }
 
@@ -1170,15 +1149,13 @@ GraphicsContextRenderer::get_text_width_height_descent(
     cairo_save(cr_);
     auto const& font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
+    cairo_font_face_destroy(font_face);
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
     cairo_text_extents_t extents;
-
     auto const& [glyphs, count] = text_to_glyphs(cr_, s);
     cairo_glyph_extents(cr_, glyphs.get(), count, &extents);
-
-    cairo_font_face_destroy(font_face);
     cairo_restore(cr_);
     return {extents.width, extents.height, extents.height + extents.y_bearing};
   }
@@ -1309,6 +1286,7 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
   auto const& font_face =
     font_face_from_path(info.attr("font").attr("fname").cast<std::string>());
   cairo_set_font_face(cr_, font_face);
+  cairo_font_face_destroy(font_face);
   cairo_set_font_size(
     cr_, info.attr("fontsize").cast<double>() * CURRENT_DPI / 72);
   auto const& index =
@@ -1318,7 +1296,6 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
       info.attr("num").cast<unsigned long>());
   auto const& glyph = cairo_glyph_t{index, ox, oy};
   cairo_show_glyphs(cr_, &glyph, 1);
-  cairo_font_face_destroy(font_face);
 }
 
 void MathtextBackend::render_rect_filled(
