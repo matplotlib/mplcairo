@@ -25,15 +25,9 @@ from ._mplcairo import _StreamSurfaceType
 
 
 _log = logging.getLogger()
-MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
-
-
 # FreeType2 is thread-unsafe (as we rely on Matplotlib's unique FT_Library).
-# Moreover, because mathtext methods globally set the dpi (see _mplcairo.cpp
-# for rationale), _mplcairo is also thread-unsafe.  Additionally, features such
-# as start/stop_filter() are fundamentally also single-threaded.  Thus, we do
-# not attempt to use fine-grained locks.
 _LOCK = RLock()
+MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
 
 
 def _get_drawn_subarray_and_bounds(img):

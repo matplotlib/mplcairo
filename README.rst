@@ -314,16 +314,11 @@ at straight or Bézier segment ends.
 Known issues
 ============
 
-- Some mathtext glyphs regularly disappear for SVG and Xlib (i.e.,
-  ``mplcairo.gtk_native``) output.
-
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
-
 - The following font-related rcparams have no effect as they are not
   implemented by cairo: ``pdf.fonttype``, ``pdf.use14corefonts``,
   ``ps.fonttype``, ``svg.fonttype``.
-
 - The following deprecated rcparam is not implemented: ``svg.image_noscale``.
 
 Possible optimizations
@@ -332,10 +327,9 @@ Possible optimizations
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
 - Path simplification (although cairo appears to use vertex reduction and
   Douglas-Peucker internally?).
-- mathtext rendering currently reloads a ``FT_Face`` for each glyph, as
-  artefacts appear when reusing the instance in ``FT2Font``.  This needs to be
-  investigated; as a workaround, one could also cache the newly constructed
-  ``FT_Face``\s.
+- mathtext should probably hold onto a vector of ``FT_Glyph``\s instead of
+  reloading a ``FT_Face`` for each glyph, but that'll likely wait for the ft2
+  rewrite in Matplotlib itself.
 - Use QtOpenGLWidget and the cairo-gl backend.
 - ``hexbin`` currently falls back on the slow implementation due to its use of
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's

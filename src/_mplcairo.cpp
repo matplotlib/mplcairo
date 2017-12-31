@@ -14,15 +14,6 @@ namespace mplcairo {
 
 using namespace pybind11::literals;
 
-namespace {
-// NOTE: The current dpi setting is needed by MathtextBackend to set the
-// correct font size (specifically, to convert points to pixels; apparently,
-// cairo does not retrieve the face size from the FT_Face object as FreeType
-// does not provide a way to read it).  So, we update this global variable
-// every time before mathtext parsing.
-double CURRENT_DPI{72};
-}
-
 Region::Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf) :
   bbox{bbox}, buf{std::move(buf)}
 {}
@@ -1078,23 +1069,8 @@ void GraphicsContextRenderer::draw_text(
   if (ismath) {
     cairo_translate(cr_, x, y);
     cairo_rotate(cr_, -angle * M_PI / 180);
-    CURRENT_DPI = get_additional_state().dpi;
-    auto const& capsule =
-      mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
-    // The capsule must be kept until the context is finished.
-    static_cast<std::vector<py::object>*>(
-      cairo_get_user_data(cr_, &detail::REFS_KEY))
-      ->push_back(capsule);
-    auto const& record = static_cast<cairo_surface_t*>(capsule);
-    auto const& depth =
-      *static_cast<double*>(
-        cairo_surface_get_user_data(
-          record, &detail::MATHTEXT_TO_BASELINE_KEY));
-    auto const& pattern = cairo_pattern_create_for_surface(record);
-    auto const& matrix = cairo_matrix_t{1, 0, 0, 1, 0, depth};
-    cairo_pattern_set_matrix(pattern, &matrix);
-    cairo_mask(cr_, pattern);
-    cairo_pattern_destroy(pattern);
+    mathtext_parser_.attr("parse")(s, get_additional_state().dpi, prop)
+      .cast<MathtextBackend>().draw_text(cr_);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
     // regardless of cairo_translate).
@@ -1129,22 +1105,9 @@ GraphicsContextRenderer::get_text_width_height_descent(
   }
   if (ismath.cast<bool>()) {
     // NOTE: Agg reports nonzero descents for seemingly zero-descent cases.
-    CURRENT_DPI = get_additional_state().dpi;
-    auto const& capsule =  // Keep a reference to the capsule.
-      mathtext_parser_.attr("parse")(s, CURRENT_DPI, prop).cast<py::capsule>();
-    auto const& record = static_cast<cairo_surface_t*>(capsule);
-    auto const& to_baseline =
-      *static_cast<double*>(
-        cairo_surface_get_user_data(
-          record, &detail::MATHTEXT_TO_BASELINE_KEY));
-    // We can't rely on cairo_recording_surface_ink_extents as it is limited to
-    // full-pixel resolution, which is insufficient.
-    auto const& extents =
-      *static_cast<cairo_rectangle_t*>(
-        cairo_surface_get_user_data(record, &detail::MATHTEXT_RECTANGLE_KEY));
     return
-      {extents.width, extents.height,
-       extents.y + extents.height - to_baseline};
+      mathtext_parser_.attr("parse")(s, get_additional_state().dpi, prop)
+      .cast<MathtextBackend>().get_text_width_height_descent();
   } else {
     cairo_save(cr_);
     auto const& font_face = font_face_from_prop(prop);
@@ -1244,8 +1207,13 @@ void GraphicsContextRenderer::restore_region(Region& region)
   cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
 }
 
+MathtextBackend::Glyph::Glyph(
+  std::string path, double fontsize, unsigned long index, double x, double y) :
+  path{path}, fontsize{fontsize}, index{index}, x{x}, y{y}
+{}
+
 MathtextBackend::MathtextBackend() :
-  cr_{}, xmin_{}, ymin_{}, xmax_{}, ymax_{}
+  glyphs_{}, rectangles_{}, bearing_y_{}, xmin_{}, ymin_{}, xmax_{}, ymax_{}
 {}
 
 void MathtextBackend::set_canvas_size(
@@ -1254,24 +1222,7 @@ void MathtextBackend::set_canvas_size(
   // "height" does *not* include "descent", and "descent" is (normally)
   // positive (see MathtextBackendAgg.set_canvas_size()).  This is a different
   // convention from get_text_width_height_descent()!
-  cairo_destroy(cr_);
-  // - It would make sense to use {0, depth, width, -(height+depth)} as extents
-  //   ("upper" character regions correspond to negative y's), but negative
-  //   extents are buggy as of cairo 1.14.  Moreover, render_glyph() and
-  //   render_rect_filled() use coordinates relative to the upper left corner,
-  //   so that doesn't help anyways.
-  // - It would alternatively make sense to use {0, 0, width, -(height+depth)}
-  //   as extents but the required size is actually underestimated by
-  //   Matplotlib (possibly due to differing FreeType options?), leading to
-  //   extraneous clipping.
-  auto const& surface =
-    cairo_recording_surface_create(CAIRO_CONTENT_ALPHA, nullptr);
-  cr_ = cairo_create(surface);
-  cairo_surface_destroy(surface);
-  CAIRO_CHECK(
-    cairo_surface_set_user_data,
-    surface, &detail::MATHTEXT_TO_BASELINE_KEY,
-    new double{height}, [](void* data) { delete static_cast<double*>(data); });
+  bearing_y_ = height;
 }
 
 void MathtextBackend::render_glyph(double ox, double oy, py::object info)
@@ -1283,19 +1234,11 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
   // cairo_glyph_extents (which ignores whitespace) in non-mathtext mode.
   xmax_ = std::max(xmax_, ox + metrics.attr("xmax").cast<double>());
   ymax_ = std::max(ymax_, oy - metrics.attr("ymax").cast<double>());
-  auto const& font_face =
-    font_face_from_path(info.attr("font").attr("fname").cast<std::string>());
-  cairo_set_font_face(cr_, font_face);
-  cairo_font_face_destroy(font_face);
-  cairo_set_font_size(
-    cr_, info.attr("fontsize").cast<double>() * CURRENT_DPI / 72);
-  auto const& index =
-    FT_Get_Char_Index(
-      static_cast<FT_Face>(
-        cairo_font_face_get_user_data(font_face, &detail::FT_KEY)),
-      info.attr("num").cast<unsigned long>());
-  auto const& glyph = cairo_glyph_t{index, ox, oy};
-  cairo_show_glyphs(cr_, &glyph, 1);
+  glyphs_.emplace_back(
+    info.attr("font").attr("fname").cast<std::string>(),
+    info.attr("fontsize").cast<double>(),
+    info.attr("num").cast<unsigned long>(),
+    ox, oy);
 }
 
 void MathtextBackend::render_rect_filled(
@@ -1305,29 +1248,43 @@ void MathtextBackend::render_rect_filled(
   ymin_ = std::min(ymin_, y1);
   xmax_ = std::max(xmax_, x2);
   ymax_ = std::max(ymax_, y2);
-  cairo_rectangle(cr_, x1, y1, x2 - x1, y2 - y1);
-  cairo_fill(cr_);
+  rectangles_.emplace_back(x1, y1, x2 - x1, y2 - y1);
 }
 
-py::capsule MathtextBackend::get_results(
+MathtextBackend& MathtextBackend::get_results(
   py::object box, py::object /* used_characters */)
 {
   py::module::import("matplotlib.mathtext").attr("ship")(0, 0, box);
-  auto const& surface = cairo_get_target(cr_);
-  CAIRO_CHECK(  // Set data before incref'ing the surface, in case this fails.
-    cairo_surface_set_user_data,
-    surface,
-    &detail::MATHTEXT_RECTANGLE_KEY,
-    new cairo_rectangle_t{xmin_, ymin_, xmax_ - xmin_, ymax_ - ymin_},
-    [](void* data) { delete static_cast<cairo_rectangle_t*>(data); });
-  cairo_surface_reference(surface);
-  cairo_destroy(cr_);
-  cr_ = nullptr;
-  // We could set the name for additional safety if people start passing in
-  // arbitrary capsules, but that wouldn't really help either...
-  return py::capsule(surface, [](void* surface) -> void {
-    cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
-  });
+  return *this;
+}
+
+void MathtextBackend::draw_text(cairo_t* cr) const
+{
+  auto const& dpi = get_additional_state(cr).dpi;
+  cairo_translate(cr, 0, -bearing_y_);
+  for (auto const& glyph: glyphs_) {
+    auto const& font_face = font_face_from_path(glyph.path);
+    cairo_set_font_face(cr, font_face);
+    cairo_font_face_destroy(font_face);
+    cairo_set_font_size(cr, glyph.fontsize * dpi / 72);
+    auto const& index =
+      FT_Get_Char_Index(
+        static_cast<FT_Face>(
+          cairo_font_face_get_user_data(font_face, &detail::FT_KEY)),
+        glyph.index);
+    auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};
+    cairo_show_glyphs(cr, &raw_glyph, 1);
+  }
+  for (auto const& [x, y, w, h]: rectangles_) {
+    cairo_rectangle(cr, x, y, w, h);
+    cairo_fill(cr);
+  }
+}
+
+std::tuple<double, double, double>
+MathtextBackend::get_text_width_height_descent() const
+{
+  return {xmax_ - xmin_, ymax_ - ymin_, ymax_ - bearing_y_};
 }
 
 PYBIND11_MODULE(_mplcairo, m)
@@ -1581,14 +1538,7 @@ PYBIND11_MODULE(_mplcairo, m)
     .def("restore_region", &GraphicsContextRenderer::restore_region);
 
   py::class_<MathtextBackend>(m, "MathtextBackendCairo", R"__doc__(
-Backend rendering mathtext to a cairo recording surface, returned as a capsule.
-
-.. warning::
-
-   As it is not possible to retrieve the current dpi value from a `FT2Font`
-   object, this class relies on `GraphicsContextRendererCairo` to properly set
-   the dpi value (as a global variable, defaulting to 72) whenever `draw_text`
-   or `get_text_width_height_descent` is called.
+Backend rendering mathtext to a cairo recording surface.
 )__doc__")
     .def(py::init<>())
     .def("set_canvas_size", &MathtextBackend::set_canvas_size)

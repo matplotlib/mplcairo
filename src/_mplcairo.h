@@ -155,7 +155,22 @@ class GraphicsContextRenderer {
 };
 
 class MathtextBackend {
-  cairo_t* cr_;
+  struct Glyph {
+    // NOTE: It may be more efficient to hold onto an array of FT_Glyphs but
+    // that will wait for the ft2 rewrite in Matplotlib itself.
+    std::string path;
+    double fontsize;
+    unsigned long index;
+    double x, y;
+
+    Glyph(
+      std::string path, double fontsize, unsigned long index,
+      double x, double y);
+  };
+
+  std::vector<Glyph> glyphs_;
+  std::vector<rectangle_t> rectangles_;
+  double bearing_y_;
   double xmin_, ymin_, xmax_, ymax_;
 
   public:
@@ -164,7 +179,10 @@ class MathtextBackend {
   void render_glyph(double ox, double oy, py::object info);
   void render_rect_filled(double x1, double y1, double x2, double y2);
   // FIXME[matplotlib]: The base class fails to document the second argument.
-  py::capsule get_results(py::object box, py::object used_characters);
+  MathtextBackend& get_results(py::object box, py::object used_characters);
+
+  void draw_text(cairo_t* cr) const;
+  std::tuple<double, double, double> get_text_width_height_descent() const;
 };
 
 }
