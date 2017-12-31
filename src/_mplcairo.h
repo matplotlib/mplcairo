@@ -64,10 +64,11 @@ class GraphicsContextRenderer {
 
   static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
 
-  py::array_t<uint8_t> _get_buffer();
-  void _finish();
+  void _set_metadata(std::optional<py::dict> metadata);
   void _set_size(double width, double height, double dpi);
   void _show_page();
+  py::array_t<uint8_t> _get_buffer();
+  void _finish();
 
   void set_alpha(std::optional<double> alpha);
   void set_antialiased(std::variant<cairo_antialias_t, bool> aa);

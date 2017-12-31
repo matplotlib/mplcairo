@@ -38,7 +38,7 @@ Dependencies:
   * with Matplotlib PR#9202 for Qt5 or wx,
   * (with a yet un-PR'd Matplotlib patch for Tk).
 
-- pycairo≥1.12 [#]_,
+- cairo≥1.11.4 (but preferably ≥1.15.4) [#]_ and pycairo [#]_,
 - pybind11≥2.2, automatically installed [#]_.
 
 All code examples below assume that the appropriate conda environment is active
@@ -62,16 +62,17 @@ All code examples below assume that the appropriate conda environment is active
    # Download the wheel from Github releases -- pick either Linux or OSX.
    pip install /path/to/mplcairo-*.whl
 
+.. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh``).
+
+   cairo 1.15.4 added support for PDF metadata.
+
 .. [#] We do not actually rely on pycairo's Python bindings.  Rather,
    specifying a dependency on pycairo is a convenient way to specify a
    dependency on cairo itself, and allows us to load cairo at runtime
    instead of linking to it (which is problematic for a manylinux wheel).
 
-   cairo 1.12 brings in mesh gradient support, which is used by
-   ``draw_quad_mesh``.
-
-.. [#] pybind11 is technically only a build-time requirement, but I'd rather
-   not use ``setup_requires``.
+.. [#] pybind11 is technically only a build-time requirement, but doesn't play
+   well with ``setup_requires``.
 
 **NOTE**: Matplotlib builds with the "local FreeType" option set (i.e.,
 with the ``MPLLOCALFREETYPE`` environment variable set, or with the

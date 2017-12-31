@@ -160,10 +160,6 @@ class FigureCanvasCairo(FigureCanvasBase):
             # These arguments are already taken care of by print_figure().
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
-        # NOTE: we do not write the metadata (this is only possible for some
-        # cairo backends).
-        if metadata:
-            _log.warning("mplcairo does not support saving metadata.")
         self.figure.set_dpi(72)
         stream, was_path = cbook.to_filehandle(
             path_or_stream, "wb", return_opened=True)
@@ -172,6 +168,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 stack.push(stream)
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
+            renderer._set_metadata(metadata)
             with _LOCK:
                 self.figure.draw(renderer)
             # _finish() corresponds finalize() in Matplotlib's PDF and SVG

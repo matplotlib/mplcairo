@@ -226,10 +226,13 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
               return surface;
             };
         default:
-          throw std::runtime_error(
-            "cairo was built without support for the requested file format");
+          return nullptr;
       }
     }();
+  if (!surface_create_for_stream) {
+    throw std::runtime_error(
+      "cairo was built without support for the requested file format");
+  }
   auto const& cb =
     [](void* closure, unsigned char const* data, unsigned int length)
        -> cairo_status_t {
@@ -287,6 +290,95 @@ GraphicsContextRenderer GraphicsContextRenderer::make_pattern_gcr(
   return gcr;
 }
 
+void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
+{
+  if (!metadata) {
+    return;
+  }
+  auto const& surface = cairo_get_target(cr_);
+  switch (cairo_surface_get_type(surface)) {
+    case CAIRO_SURFACE_TYPE_PDF:
+      if (auto const& source_date_epoch = std::getenv("SOURCE_DATE_EPOCH")) {
+        metadata->attr("setdefault")(
+          "CreationDate",
+          py::module::import("datetime").attr("datetime")
+          .attr("utcfromtimestamp")(std::atol(source_date_epoch)));
+      }
+      for (auto const& it: *metadata) {
+        if (it.second.is_none()) {
+          continue;
+        }
+        if (!detail::cairo_pdf_surface_set_metadata) {
+          py::module::import("warnings").attr("warn")(
+            "cairo_pdf_surface_set_metadata requires cairo>=1.15.4");
+        }
+        auto const& key = it.first.cast<std::string>();
+        if (key == "Title") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_TITLE,
+            it.second.cast<std::string>().c_str());
+        } else if (key == "Author") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_AUTHOR,
+            it.second.cast<std::string>().c_str());
+        } else if (key == "Subject") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_SUBJECT,
+            it.second.cast<std::string>().c_str());
+        } else if (key == "Keywords") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_KEYWORDS,
+            it.second.cast<std::string>().c_str());
+        } else if (key == "Creator") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_CREATOR,
+            it.second.cast<std::string>().c_str());
+        } else if (key == "CreationDate") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_CREATE_DATE,
+            it.second.attr("isoformat")().cast<std::string>().c_str());
+        } else if (key == "ModDate") {
+          detail::cairo_pdf_surface_set_metadata(
+            surface, detail::CAIRO_PDF_METADATA_MOD_DATE,
+            it.second.attr("isoformat")().cast<std::string>().c_str());
+        } else {
+          py::module::import("warnings").attr("warn")(
+            "Unknown PDF metadata entry: " + key);
+        }
+      }
+      break;
+    default:
+      py::module::import("warnings").attr("warn")(
+        "Metadata support is not implemented for the current surface type");
+  }
+}
+
+void GraphicsContextRenderer::_set_size(
+  double width, double height, double dpi)
+{
+  auto& state = get_additional_state();
+  state.width = width;
+  state.height = height;
+  state.dpi = dpi;
+  auto const& surface = cairo_get_target(cr_);
+  switch (cairo_surface_get_type(surface)) {
+    case CAIRO_SURFACE_TYPE_PDF:
+      detail::cairo_pdf_surface_set_size(surface, width, height);
+      break;
+    case CAIRO_SURFACE_TYPE_PS:
+      detail::cairo_ps_surface_set_size(surface, width, height);
+      break;
+    default:
+      throw std::invalid_argument(
+        "_set_size only supports PDF and PS surfaces");
+  }
+}
+
+void GraphicsContextRenderer::_show_page()
+{
+  cairo_show_page(cr_);
+}
+
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
 {
   auto const& surface = cairo_get_target(cr_);
@@ -310,30 +402,6 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
 void GraphicsContextRenderer::_finish()
 {
   cairo_surface_finish(cairo_get_target(cr_));
-}
-
-void GraphicsContextRenderer::_set_size(
-  double width, double height, double dpi)
-{
-  auto& state = get_additional_state();
-  state.width = width;
-  state.height = height;
-  state.dpi = dpi;
-  auto const& surface = cairo_get_target(cr_);
-  switch (cairo_surface_get_type(surface)) {
-    case CAIRO_SURFACE_TYPE_PDF:
-      detail::cairo_pdf_surface_set_size(surface, width, height);
-      break;
-    case CAIRO_SURFACE_TYPE_PS:
-      detail::cairo_ps_surface_set_size(surface, width, height);
-      break;
-    default: ;
-  }
-}
-
-void GraphicsContextRenderer::_show_page()
-{
-  cairo_show_page(cr_);
 }
 
 void GraphicsContextRenderer::set_alpha(std::optional<double> alpha)
@@ -1301,47 +1369,29 @@ PYBIND11_MODULE(_mplcairo, m)
 
   import_cairo();
 
-  // This is basically a cross-platform dlopen.
-  // scope can't be an empty dict (pybind11#1091).
-  auto const& scope = py::module::import("mplcairo").attr("__dict__");
-  py::exec(
-    R"__py__(
-      def _load_addresses():
-          from ctypes import CDLL, c_void_p, cast
-          from cairo import _cairo
-          dll = CDLL(_cairo.__file__)
-          return {name: cast(getattr(dll, name, 0), c_void_p).value or 0
-                  for name in ["cairo_pdf_surface_create_for_stream",
-                               "cairo_ps_surface_create_for_stream",
-                               "cairo_svg_surface_create_for_stream",
-                               "cairo_pdf_surface_set_size",
-                               "cairo_ps_surface_set_size",
-                               "cairo_ps_surface_set_eps"]}
-      _addresses = _load_addresses()
-    )__py__",
-    scope);
-  auto const& addresses = scope["_addresses"];
-  detail::cairo_pdf_surface_create_for_stream =
-    reinterpret_cast<detail::surface_create_for_stream_t>(
-      addresses["cairo_pdf_surface_create_for_stream"].cast<uintptr_t>());
-  detail::cairo_ps_surface_create_for_stream =
-    reinterpret_cast<detail::surface_create_for_stream_t>(
-      addresses["cairo_ps_surface_create_for_stream"].cast<uintptr_t>());
-  detail::cairo_svg_surface_create_for_stream =
-    reinterpret_cast<detail::surface_create_for_stream_t>(
-      addresses["cairo_svg_surface_create_for_stream"].cast<uintptr_t>());
-  detail::cairo_pdf_surface_set_size =
-    reinterpret_cast<detail::surface_set_size_t>(
-      addresses["cairo_pdf_surface_set_size"].cast<uintptr_t>());
-  detail::cairo_ps_surface_set_size =
-    reinterpret_cast<detail::surface_set_size_t>(
-      addresses["cairo_ps_surface_set_size"].cast<uintptr_t>());
-  detail::cairo_ps_surface_set_eps =
-    reinterpret_cast<detail::ps_surface_set_eps_t>(
-      addresses["cairo_ps_surface_set_eps"].cast<uintptr_t>());
+  {
+    auto const& ctypes = py::module::import("ctypes"),
+              & _cairo = py::module::import("cairo._cairo");
+    auto const& dll = ctypes.attr("CDLL")(_cairo.attr("__file__"));
+    auto const& load_ptr = [&](char const* name) -> uintptr_t {
+      return
+        ctypes.attr("cast")(py::getattr(dll, name, 0), ctypes.attr("c_void_p"))
+        .attr("value").cast<std::optional<uintptr_t>>().value_or(0);
+    };
+#define LOAD_PTR(name) \
+    detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name))
+    LOAD_PTR(cairo_pdf_surface_create_for_stream);
+    LOAD_PTR(cairo_ps_surface_create_for_stream);
+    LOAD_PTR(cairo_svg_surface_create_for_stream);
+    LOAD_PTR(cairo_pdf_surface_set_size);
+    LOAD_PTR(cairo_ps_surface_set_size);
+    LOAD_PTR(cairo_pdf_surface_set_metadata);
+    LOAD_PTR(cairo_ps_surface_set_eps);
+#undef LOAD_PTR
 
-  detail::UNIT_CIRCLE =
-    py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+    detail::UNIT_CIRCLE =
+      py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+  }
 
   // Export symbols.
 
@@ -1406,17 +1456,17 @@ PYBIND11_MODULE(_mplcairo, m)
           return new GraphicsContextRenderer{width, height, dpi};
         }))
 
-    .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
-    .def("_finish", &GraphicsContextRenderer::_finish)
+    // Internal APIs.
     .def(
       "_has_vector_surface",
       [](GraphicsContextRenderer& gcr) -> bool {
         return has_vector_surface(gcr.cr_);
     })
-
-    // Multi-page support
+    .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
+    .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
+    .def("_finish", &GraphicsContextRenderer::_finish)
 
     // GraphicsContext API.
     .def("set_alpha", &GraphicsContextRenderer::set_alpha)

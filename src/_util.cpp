@@ -32,6 +32,7 @@ surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                             cairo_svg_surface_create_for_stream;
 surface_set_size_t          cairo_pdf_surface_set_size,
                             cairo_ps_surface_set_size;
+pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};

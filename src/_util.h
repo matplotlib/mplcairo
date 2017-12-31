@@ -17,10 +17,23 @@ namespace py = pybind11;
 
 namespace detail {
 
+// Copy-pasted from cairo-pdf.h because not yet exposed by pycairo.
+typedef enum _cairo_pdf_metadata {
+    CAIRO_PDF_METADATA_TITLE,
+    CAIRO_PDF_METADATA_AUTHOR,
+    CAIRO_PDF_METADATA_SUBJECT,
+    CAIRO_PDF_METADATA_KEYWORDS,
+    CAIRO_PDF_METADATA_CREATOR,
+    CAIRO_PDF_METADATA_CREATE_DATE,
+    CAIRO_PDF_METADATA_MOD_DATE,
+} cairo_pdf_metadata_t;
+// Dynamically loaded functions.
 using surface_create_for_stream_t =
   cairo_surface_t* (*)(cairo_write_func_t, void*, double, double);
 using surface_set_size_t =
   void (*)(cairo_surface_t*, double, double);
+using pdf_surface_set_metadata_t =
+  void (*)(cairo_surface_t*, cairo_pdf_metadata_t, char const*);
 using ps_surface_set_eps_t =
   void (*)(cairo_surface_t*, cairo_bool_t);
 extern surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
@@ -28,8 +41,10 @@ extern surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                                    cairo_svg_surface_create_for_stream;
 extern surface_set_size_t          cairo_pdf_surface_set_size,
                                    cairo_ps_surface_set_size;
+extern pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 
+// Other useful values.
 extern cairo_user_data_key_t const
   REFS_KEY,  // cairo_t -> kept alive Python objects.
   STATE_KEY, // cairo_t -> additional state.
