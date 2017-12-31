@@ -1228,6 +1228,7 @@ void MathtextBackend::set_canvas_size(
 void MathtextBackend::render_glyph(double ox, double oy, py::object info)
 {
   auto const& metrics = info.attr("metrics");
+  oy -= info.attr("offset").cast<double>();
   xmin_ = std::min(xmin_, ox + metrics.attr("xmin").cast<double>());
   ymin_ = std::min(ymin_, oy - metrics.attr("ymin").cast<double>());
   // TODO: Perhaps use advance here instead?  Keep consistent with

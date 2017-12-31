@@ -23,9 +23,6 @@ test_image
       Not respecting dpi in vector output.
 
 test_text
-   test_antialiasing
-      Bad mathtext rendering.
-
    test_multiline
       Bad multiline rendering.
 
