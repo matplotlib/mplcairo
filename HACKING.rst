@@ -47,7 +47,6 @@ C++17 support
 The following C++17 features are missing from MSVC to compile mplcairo (see
 http://en.cppreference.com/w/cpp/compiler_support#C.2B.2B17_features):
 
-- guaranteed copy elision.
 - template argument deduction for class templates.
 
 cairo

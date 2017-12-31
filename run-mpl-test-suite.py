@@ -44,17 +44,18 @@ def main(argv=None):
     plt.switch_backend("agg")
 
     cwd = os.getcwd()
-    matplotlib_srcdir = subprocess.check_output(
+    matplotlib_srcdir = os.fsdecode(subprocess.check_output(
         ["git", "rev-parse", "--show-toplevel"],
-        cwd=Path(matplotlib.__file__).parent)[:-1]
+        cwd=Path(matplotlib.__file__).parent)[:-1])
 
     os.chdir(matplotlib_srcdir)
     rv = pytest.main(["-p", "__main__", *rest])
     os.chdir(cwd)
-    try:
-        shutil.move(Path(matplotlib_srcdir, "result_images"), cwd)
-    except FileNotFoundError:
-        pass
+    result_images = Path(matplotlib_srcdir, "result_images")
+    if result_images.exists():
+        dest = Path(cwd, "result_images")
+        shutil.rmtree(str(dest), ignore_errors=True)
+        result_images.replace(dest)
     return rv
 
 
