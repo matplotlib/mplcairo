@@ -35,7 +35,7 @@ exceptions thrown from libc++; thus, exception thrown from mplcairo will
 
 The workaround is to force the use of libc++ throughout by setting the
 ``LD_PRELOAD`` environment variable to ``/path/to/libc++.so``.  A better fix
-may be possible but I hope instead that Clang will improve its compatibilty
+may be possible but I hope instead that Clang will improve its compatibility
 with libstdc++.
 
 Windows notes

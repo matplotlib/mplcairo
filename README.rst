@@ -88,7 +88,7 @@ Building
 In order to build mplcairo yourself, the following additional dependencies are
 required:
 
-- a C++ compiler with C++17 support, e.g. GCC≥7.1 or Clang≥5.0.
+- a C++ compiler with C++17 support, e.g. GCC≥7.2 or Clang≥5.0.
 - cairo and FreeType headers, and pkg-config information to locate them.
 
 If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
@@ -100,23 +100,22 @@ A suitably patched Matplotlib should first be installed as documented above.
 Linux
 -----
 
-Dependencies are available on conda-forge.
+conda's compilers (``gxx_linux-64`` on the ``anaconda`` channel) currently
+interact poorly with installing cairo and pkg-config from conda-forge, so you
+are on your own to install a recent compiler (e.g., using your distribution's
+package manager).  Other dependencies are available on conda-forge.
 
 .. code-block:: sh
 
    # cairo and pkg-config from the anaconda channel will *not* work.
    conda install -y -c conda-forge cairo pkg-config
-   conda install -y -c anaconda gxx_linux-64\>=7.1
-
-   # The environment needs to be reactivated for the compiler paths to be set.
-   source activate "$CONDA_DEFAULT_ENV"
 
    git clone https://github.com/anntzer/mplcairo.git
    (cd mplcairo
     pip install -e .)
 
 On a related note, the manylinux wheel is built using
-``tools/build-manylinux.sh``.
+``tools/build-manylinux.sh``.  It does not include Raqm.
 
 **NOTE**: On Linux, compiling with Clang requires special care.  See
 `HACKING.rst`_.
@@ -133,6 +132,7 @@ available on conda-forge.
 
 .. code-block:: sh
 
+   # cairo and pkg-config from the anaconda channel will *not* work.
    conda install -y -c conda-forge cairo pkg-config
 
    git clone https://github.com/anntzer/mplcairo.git
@@ -140,7 +140,7 @@ available on conda-forge.
     pip install -e .)
 
 The OSX wheel is then built using delocate-wheel_ (to package a recent version
-of libc++).
+of libc++).  It does not include Raqm.
 
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
 
