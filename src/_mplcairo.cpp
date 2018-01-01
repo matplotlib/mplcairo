@@ -62,10 +62,17 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     cairo_append_path(cr, clip_path.get());
     cairo_clip(cr);
   }
+  if (auto const& url = state.url; url && detail::cairo_tag_begin) {
+    detail::cairo_tag_begin(
+      cr, CAIRO_TAG_LINK, ("uri='" + *url + "'").c_str());
+  }
 }
 
 GraphicsContextRenderer::AdditionalContext::~AdditionalContext()
 {
+  if (gcr_->get_additional_state().url && detail::cairo_tag_end) {
+    detail::cairo_tag_end(gcr_->cr_, CAIRO_TAG_LINK);
+  }
   cairo_restore(gcr_->cr_);
 }
 
@@ -130,7 +137,9 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     /* hatch_color */     to_rgba(rc_param("hatch.color")),
     /* hatch_linewidth */ rc_param("hatch.linewidth").cast<double>(),
     /* sketch */          {},
-    /* snap */            true}}};  // Defaults to None, i.e. True for us.
+    /* snap */            true,  // Defaults to None, i.e. True for us.
+    /* url */             {}
+  }}};
   CAIRO_CHECK(
     cairo_set_user_data, cr, &detail::STATE_KEY,
     stack, [](void* data) -> void {
@@ -522,6 +531,11 @@ void GraphicsContextRenderer::set_snap(std::optional<bool> snap)
   // NOTE: It appears that even when rcParams["path.snap"] is False, this is
   // sometimes set to True.
   get_additional_state().snap = snap.value_or(true);
+}
+
+void GraphicsContextRenderer::set_url(std::optional<std::string> url)
+{
+  get_additional_state().url = url;
 }
 
 AdditionalState const& GraphicsContextRenderer::get_additional_state() const
@@ -1380,6 +1394,8 @@ PYBIND11_MODULE(_mplcairo, m)
     };
 #define LOAD_PTR(name) \
     detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name))
+    LOAD_PTR(cairo_tag_begin);
+    LOAD_PTR(cairo_tag_end);
     LOAD_PTR(cairo_pdf_surface_create_for_stream);
     LOAD_PTR(cairo_ps_surface_create_for_stream);
     LOAD_PTR(cairo_svg_surface_create_for_stream);
@@ -1482,6 +1498,7 @@ PYBIND11_MODULE(_mplcairo, m)
     .def("set_joinstyle", &GraphicsContextRenderer::set_joinstyle)
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
     .def("set_snap", &GraphicsContextRenderer::set_snap)
+    .def("set_url", &GraphicsContextRenderer::set_url)
 
     .def(
       "get_clip_rectangle",

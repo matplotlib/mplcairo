@@ -27,6 +27,8 @@ std::unordered_map<FT_Error, std::string> ft_errors =
 
 namespace detail {
 
+tag_begin_t                 cairo_tag_begin;
+tag_end_t                   cairo_tag_end;
 surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                             cairo_ps_surface_create_for_stream,
                             cairo_svg_surface_create_for_stream;

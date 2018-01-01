@@ -12,10 +12,12 @@ Noteworthy points include:
 
 - Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
   circular markers of variable colors).
-- Vector backends (PDF, PS, SVG) support a wider variety of font formats, such
-  as otf and pfb.
+- Support for a wider variety of font formats, such as otf and pfb, for vector
+  (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
 - Optional support for complex text layout (right-to-left languages, etc.)
   using Raqm_.
+- Support for embedding URLs in PDF (but not SVG) output (requires
+  cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
   multi-page PDF).
 
@@ -64,7 +66,7 @@ All code examples below assume that the appropriate conda environment is active
 
 .. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh``).
 
-   cairo 1.15.4 added support for PDF metadata.
+   cairo 1.15.4 added support for PDF metadata and links.
 
 .. [#] We do not actually rely on pycairo's Python bindings.  Rather,
    specifying a dependency on pycairo is a convenient way to specify a

@@ -17,7 +17,17 @@ namespace py = pybind11;
 
 namespace detail {
 
-// Copy-pasted from cairo-pdf.h because not yet exposed by pycairo.
+// Optional parts of cairo, backported from 1.15.
+// Copy-pasted from cairo.h.
+#define CAIRO_TAG_DEST "cairo.dest"
+#define CAIRO_TAG_LINK "Link"
+using tag_begin_t = void (*)(cairo_t*, char const*, char const*);
+using tag_end_t = void (*)(cairo_t*, char const*);
+extern tag_begin_t cairo_tag_begin;
+extern tag_end_t   cairo_tag_end;
+
+// Optional parts of cairo.
+// Copy-pasted from cairo-pdf.h.
 typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_TITLE,
     CAIRO_PDF_METADATA_AUTHOR,
@@ -73,6 +83,7 @@ struct AdditionalState {
   double hatch_linewidth;
   std::optional<py::object> sketch;
   bool snap;
+  std::optional<std::string> url;
 };
 
 py::object rc_param(std::string key);

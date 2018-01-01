@@ -84,6 +84,7 @@ class GraphicsContextRenderer {
   void set_joinstyle(std::string js);
   void set_linewidth(double lw);
   void set_snap(std::optional<bool> snap);
+  void set_url(std::optional<std::string> url);
 
   AdditionalState const& get_additional_state() const;
   AdditionalState& get_additional_state();
