@@ -20,7 +20,7 @@ namespace {
 #define FT_ERROR_START_LIST     {
 #define FT_ERROR_END_LIST       };
 
-std::unordered_map<FT_Error, std::string> ft_errors =
+std::unordered_map<FT_Error, std::string> ft_errors
 
 #include FT_ERRORS_H
 }
