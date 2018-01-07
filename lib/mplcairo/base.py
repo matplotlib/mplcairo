@@ -193,6 +193,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
             renderer._set_metadata(metadata)
+            renderer._set_orientation(orientation)
             with _LOCK:
                 self.figure.draw(renderer)
             # _finish() corresponds finalize() in Matplotlib's PDF and SVG

@@ -317,12 +317,23 @@ at straight or Bézier segment ends.
 Known issues
 ============
 
+Missing implementation
+----------------------
+
+- The following rcparams are not yet implemented: ``ps.distiller.res``,
+  ``ps.papersize`` (and the corresponding kwarg to savefig),
+  ``ps.usedistiller``, ``svg.image_inline``.
+- The following deprecated rcparam is not implemented: ``svg.image_noscale``.
+
+Missing support from cairo
+--------------------------
+
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
-- The following font-related rcparams have no effect as they are not
-  implemented by cairo: ``pdf.fonttype``, ``pdf.use14corefonts``,
-  ``ps.fonttype``, ``svg.fonttype``.
-- The following deprecated rcparam is not implemented: ``svg.image_noscale``.
+- PS output does not respect SOURCE_DATE_EPOCH.
+- The following rcparams have no effect: ``pdf.fonttype``,
+  ``pdf.use14corefonts``, ``ps.fonttype``, ``ps.useafm``, ``svg.fonttype``,
+  ``svg.hashsalt``.
 
 Possible optimizations
 ======================

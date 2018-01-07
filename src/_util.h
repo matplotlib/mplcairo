@@ -46,6 +46,8 @@ using pdf_surface_set_metadata_t =
   void (*)(cairo_surface_t*, cairo_pdf_metadata_t, char const*);
 using ps_surface_set_eps_t =
   void (*)(cairo_surface_t*, cairo_bool_t);
+using ps_surface_dsc_comment_t =
+  void (*)(cairo_surface_t*, char const*);
 extern surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                                    cairo_ps_surface_create_for_stream,
                                    cairo_svg_surface_create_for_stream;
@@ -53,6 +55,7 @@ extern surface_set_size_t          cairo_pdf_surface_set_size,
                                    cairo_ps_surface_set_size;
 extern pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
+extern ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
 
 // Other useful values.
 extern cairo_user_data_key_t const

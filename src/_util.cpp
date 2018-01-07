@@ -36,6 +36,7 @@ surface_set_size_t          cairo_pdf_surface_set_size,
                             cairo_ps_surface_set_size;
 pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 ps_surface_set_eps_t        cairo_ps_surface_set_eps;
+ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
 
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{};

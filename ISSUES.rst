@@ -72,9 +72,8 @@ cairo does not cull out-of-bounds markers. ::
 
    test_artist::test_cull_markers
 
-cairo does not support SOURCE_DATE_EPOCH. ::
+cairo PS does not support SOURCE_DATE_EPOCH. ::
 
-   test_backend_pdf::test_source_date_epoch
    test_backend_ps::test_source_date_epoch
 
 cairo does not support URLs in SVG output. ::

@@ -362,6 +362,19 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
   }
 }
 
+void GraphicsContextRenderer::_set_orientation(std::string orientation)
+{
+  auto const& surface = cairo_get_target(cr_);
+  switch (cairo_surface_get_type(surface)) {
+    case CAIRO_SURFACE_TYPE_PS:
+      detail::cairo_ps_surface_dsc_comment(
+        surface, (std::string{"%%Orientation: "} + orientation).data());
+      break;
+    default:
+      ;
+  }
+}
+
 void GraphicsContextRenderer::_set_size(
   double width, double height, double dpi)
 {
@@ -1412,6 +1425,7 @@ PYBIND11_MODULE(_mplcairo, m)
     LOAD_PTR(cairo_ps_surface_set_size);
     LOAD_PTR(cairo_pdf_surface_set_metadata);
     LOAD_PTR(cairo_ps_surface_set_eps);
+    LOAD_PTR(cairo_ps_surface_dsc_comment);
 #undef LOAD_PTR
 
     detail::UNIT_CIRCLE =
@@ -1488,6 +1502,7 @@ PYBIND11_MODULE(_mplcairo, m)
         return has_vector_surface(gcr.cr_);
     })
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
+    .def("_set_orientation", &GraphicsContextRenderer::_set_orientation)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
