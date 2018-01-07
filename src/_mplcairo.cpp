@@ -1149,10 +1149,8 @@ void GraphicsContextRenderer::draw_text(
   }
   auto const& ac = additional_context();
   if (ismath) {
-    cairo_translate(cr_, x, y);
-    cairo_rotate(cr_, -angle * M_PI / 180);
     mathtext_parser_.attr("parse")(s, get_additional_state().dpi, prop)
-      .cast<MathtextBackend>().draw_text(cr_);
+      .cast<MathtextBackend>()._draw(*this, x, y, angle);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
     // regardless of cairo_translate).
@@ -1290,8 +1288,8 @@ void GraphicsContextRenderer::restore_region(Region& region)
 }
 
 MathtextBackend::Glyph::Glyph(
-  std::string path, double fontsize, unsigned long index, double x, double y) :
-  path{path}, fontsize{fontsize}, index{index}, x{x}, y{y}
+  std::string path, double size, unsigned long index, double x, double y) :
+  path{path}, size{size}, index{index}, x{x}, y{y}
 {}
 
 MathtextBackend::MathtextBackend() :
@@ -1324,6 +1322,13 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
     ox, oy);
 }
 
+void MathtextBackend::_render_usetex_glyph(
+  double ox, double oy, std::string filename, double size,
+  unsigned long index)
+{
+  glyphs_.emplace_back(filename, size, index, ox, oy);
+}
+
 void MathtextBackend::render_rect_filled(
   double x1, double y1, double x2, double y2)
 {
@@ -1341,15 +1346,19 @@ MathtextBackend& MathtextBackend::get_results(
   return *this;
 }
 
-void MathtextBackend::draw_text(cairo_t* cr) const
+void MathtextBackend::_draw(
+  GraphicsContextRenderer& gcr, double x, double y, double angle) const
 {
+  auto const& cr = gcr.cr_;
   auto const& dpi = get_additional_state(cr).dpi;
+  cairo_translate(cr, x, y);
+  cairo_rotate(cr, -angle * M_PI / 180);
   cairo_translate(cr, 0, -bearing_y_);
   for (auto const& glyph: glyphs_) {
     auto const& font_face = font_face_from_path(glyph.path);
     cairo_set_font_face(cr, font_face);
     cairo_font_face_destroy(font_face);
-    cairo_set_font_size(cr, glyph.fontsize * dpi / 72);
+    cairo_set_font_size(cr, glyph.size * dpi / 72);
     auto const& index =
       FT_Get_Char_Index(
         static_cast<FT_Face>(
@@ -1549,14 +1558,14 @@ PYBIND11_MODULE(_mplcairo, m)
     .def("restore", &GraphicsContextRenderer::restore)
 
     // Renderer API.
-    // Technically unneeded, but exposed by RendererAgg, and useful for
-    // stop_filter().
+    // Technically unneeded, but exposed by RendererAgg, and useful for us too.
     .def_property_readonly(
       "dpi",
       [](GraphicsContextRenderer& gcr) -> double {
         return gcr.get_additional_state().dpi;
       })
     // Needed for usetex and patheffects.
+    .def_readwrite("_texmanager", &GraphicsContextRenderer::texmanager_)
     .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
 
     .def(
@@ -1611,8 +1620,10 @@ Backend rendering mathtext to a cairo recording surface.
     .def(py::init<>())
     .def("set_canvas_size", &MathtextBackend::set_canvas_size)
     .def("render_glyph", &MathtextBackend::render_glyph)
+    .def("_render_usetex_glyph", &MathtextBackend::_render_usetex_glyph)
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)
+    .def("_draw", &MathtextBackend::_draw)
     .def("get_hinting_type", [](MathtextBackend& /* mb */) -> long {
       return get_hinting_flag();
     });

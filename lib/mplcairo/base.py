@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from contextlib import ExitStack
-from functools import partialmethod
+from functools import lru_cache, partialmethod
 from gzip import GzipFile
 import logging
 import os
@@ -14,10 +14,11 @@ except ImportError:
     Image = None
 
 import matplotlib
-from matplotlib import _png, cbook, colors, rcParams
+from matplotlib import _png, cbook, colors, dviread, rcParams
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
+from matplotlib.font_manager import FontProperties
 from matplotlib.mathtext import MathTextParser
 
 from . import _mplcairo, _util
@@ -28,6 +29,11 @@ _log = logging.getLogger()
 # FreeType2 is thread-unsafe (as we rely on Matplotlib's unique FT_Library).
 _LOCK = RLock()
 MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
+
+
+@lru_cache(1)
+def _get_tex_font_map():
+    return dviread.PsfontsMap(dviread.find_tex_file("pdftex.map"))
 
 
 def _get_drawn_subarray_and_bounds(img):
@@ -55,7 +61,8 @@ class GraphicsContextRendererCairo(
 
     def __init__(self, width, height, dpi):
         # Hide the overloaded constructor, provided by from_pycairo_ctx.
-        super().__init__(width, height, dpi)
+        _mplcairo.GraphicsContextRendererCairo.__init__(
+            self, width, height, dpi)
 
     @classmethod
     def from_pycairo_ctx(cls, ctx, dpi):
@@ -92,6 +99,23 @@ class GraphicsContextRendererCairo(
     def option_image_nocomposite(self):
         return (not rcParams["image.composite_image"]
                 if self._has_vector_surface() else True)
+
+    # Based on the backend_pdf implementation.
+    def draw_tex(self, gc, x, y, s, prop, angle, ismath="TeX!", mtext=None):
+        texmanager = self.get_texmanager()
+        fontsize = prop.get_size_in_points()
+        dvifile = texmanager.make_dvi(s, fontsize)
+        with dviread.Dvi(dvifile, self.dpi) as dvi:
+            page = next(iter(dvi))
+        mb = _mplcairo.MathtextBackendCairo()
+        for x1, y1, dvifont, glyph, width in page.text:
+            mb._render_usetex_glyph(
+                x1, -y1,
+                _get_tex_font_map()[dvifont.texname].filename, dvifont.size,
+                glyph)
+        for x1, y1, h, w in page.boxes:
+            mb.render_rect_filled(x1, -y1, x1 + w, -(y1 + h))
+        mb._draw(self, x, y, angle)
 
     def stop_filter(self, filter_func):
         img = _util.to_unmultiplied_rgba8888(self._stop_filter())

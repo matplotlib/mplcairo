@@ -317,7 +317,6 @@ at straight or Bézier segment ends.
 Known issues
 ============
 
-- ``usetex`` is not implemented (it falls to the ``draw_tex``) codepath.
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
 - The following font-related rcparams have no effect as they are not
