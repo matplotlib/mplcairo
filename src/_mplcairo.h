@@ -65,7 +65,6 @@ class GraphicsContextRenderer {
   static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
 
   void _set_metadata(std::optional<py::dict> metadata);
-  void _set_orientation(std::string orientation);
   void _set_size(double width, double height, double dpi);
   void _show_page();
   py::array_t<uint8_t> _get_buffer();

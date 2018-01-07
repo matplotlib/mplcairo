@@ -320,9 +320,7 @@ Known issues
 Missing implementation
 ----------------------
 
-- The following rcparams are not yet implemented: ``ps.distiller.res``,
-  ``ps.papersize`` (and the corresponding kwarg to savefig),
-  ``ps.usedistiller``, ``svg.image_inline``.
+- The following rcparam is not yet implemented: ``svg.image_inline``.
 - The following deprecated rcparam is not implemented: ``svg.image_noscale``.
 
 Missing support from cairo

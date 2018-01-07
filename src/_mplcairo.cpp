@@ -356,22 +356,23 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
         }
       }
       break;
+    case CAIRO_SURFACE_TYPE_PS:
+      for (auto const& it: *metadata) {
+        auto const& key = it.first.cast<std::string>();
+        if (key == "_dsc_comments") {
+          for (auto const& comment:
+               it.second.cast<std::vector<std::string>>()) {
+            detail::cairo_ps_surface_dsc_comment(surface, comment.c_str());
+          }
+        } else {
+          py::module::import("warnings").attr("warn")(
+            "Unknown PS metadata entry: " + key);
+        }
+      }
+      break;
     default:
       py::module::import("warnings").attr("warn")(
         "Metadata support is not implemented for the current surface type");
-  }
-}
-
-void GraphicsContextRenderer::_set_orientation(std::string orientation)
-{
-  auto const& surface = cairo_get_target(cr_);
-  switch (cairo_surface_get_type(surface)) {
-    case CAIRO_SURFACE_TYPE_PS:
-      detail::cairo_ps_surface_dsc_comment(
-        surface, (std::string{"%%Orientation: "} + orientation).data());
-      break;
-    default:
-      ;
   }
 }
 
@@ -1502,7 +1503,6 @@ PYBIND11_MODULE(_mplcairo, m)
         return has_vector_surface(gcr.cr_);
     })
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
-    .def("_set_orientation", &GraphicsContextRenderer::_set_orientation)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)

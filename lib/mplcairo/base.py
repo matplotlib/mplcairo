@@ -1,10 +1,13 @@
 from collections import OrderedDict
 from contextlib import ExitStack
-from functools import lru_cache, partialmethod
+from functools import lru_cache, partial, partialmethod
 from gzip import GzipFile
 import logging
 import os
+from pathlib import Path
+import shutil
 import sys
+from tempfile import TemporaryDirectory
 from threading import RLock
 
 import numpy as np
@@ -18,6 +21,7 @@ from matplotlib import _png, cbook, colors, dviread, rcParams
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
+from matplotlib.backends import backend_ps
 from matplotlib.font_manager import FontProperties
 from matplotlib.mathtext import MathTextParser
 
@@ -193,19 +197,14 @@ class FigureCanvasCairo(FigureCanvasBase):
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
             renderer._set_metadata(metadata)
-            renderer._set_orientation(orientation)
             with _LOCK:
                 self.figure.draw(renderer)
             # _finish() corresponds finalize() in Matplotlib's PDF and SVG
             # backends; it is inlined in Matplotlib's PS backend.
             renderer._finish()
 
-    print_eps = partialmethod(
-        _print_method, GraphicsContextRendererCairo._for_eps_output)
     print_pdf = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_pdf_output)
-    print_ps = partialmethod(
-        _print_method, GraphicsContextRendererCairo._for_ps_output)
     print_svg = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_svg_output)
     print_svgz = partialmethod(
@@ -213,6 +212,49 @@ class FigureCanvasCairo(FigureCanvasBase):
     if os.environ.get("MPLCAIRO_DEBUG"):
         print_cairoscript = partialmethod(
             _print_method, GraphicsContextRendererCairo._for_script_output)
+
+    def _print_ps_impl(self, is_eps, path_or_stream,
+                       orientation="portrait", papertype=None, **kwargs):
+        if papertype is None:
+            papertype = rcParams["ps.papersize"]
+        if orientation == "portrait":
+            if papertype == "auto":
+                width, height = self.figure.get_size_inches()
+                papertype = backend_ps._get_papertype(height, width)
+        elif orientation == "landscape":
+            if papertype == "auto":
+                width, height = self.figure.get_size_inches()
+                papertype = backend_ps._get_papertype(width, height)
+        else:
+            raise ValueError("Invalid orientation ({!r})".format(orientation))
+        dsc_comments = kwargs.setdefault("metadata", {})["_dsc_comments"] = [
+            "%%Orientation: {}".format(orientation)]
+        if not is_eps:
+            dsc_comments.append("%%DocumentPaperSizes: {}".format(papertype))
+        print_method = partial(self._print_method,
+                               GraphicsContextRendererCairo._for_eps_output
+                               if is_eps else
+                               GraphicsContextRendererCairo._for_ps_output)
+        if rcParams["ps.usedistiller"]:
+            with TemporaryDirectory() as tmp_dirname:
+                tmp_name = str(Path(tmp_dirname, "tmp"))
+                print_method(tmp_name, **kwargs)
+                # Assume we can get away without passing the bbox.
+                {"ghostscript": backend_ps.gs_distill,
+                 "xpdf": backend_ps.xpdf_distill}[
+                     rcParams["ps.usedistiller"]](
+                         tmp_name, False, ptype=papertype)
+                stream, was_path = cbook.to_filehandle(
+                    path_or_stream, "wb", return_opened=True)
+                with open(tmp_name, "rb") as tmp_file, ExitStack() as stack:
+                    if was_path:
+                        stack.push(stream)
+                    shutil.copyfileobj(tmp_file, stream)
+        else:
+            print_method(path_or_stream, **kwargs)
+
+    print_ps = partialmethod(_print_ps_impl, False)
+    print_eps = partialmethod(_print_ps_impl, True)
 
     def _get_fresh_unmultiplied_rgba8888(self):
         # Swap out the cache, as savefig may be playing with the background
