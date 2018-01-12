@@ -1,3 +1,6 @@
+#define XSTR(s) STR(s)
+#define STR(s) #s
+
 #define CAIRO_CHECK(func, ...) { \
   if (auto status_ = func(__VA_ARGS__); status_ != CAIRO_STATUS_SUCCESS) { \
     throw \

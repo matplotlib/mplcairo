@@ -1436,10 +1436,9 @@ PYBIND11_MODULE(_mplcairo, m)
   // Export symbols.
 
   m.attr("__pybind11_version__") =
-    py::make_tuple(
-      PYBIND11_VERSION_MAJOR,
-      PYBIND11_VERSION_MINOR,
-      PYBIND11_VERSION_PATCH);
+    XSTR(PYBIND11_VERSION_MAJOR) "."
+    XSTR(PYBIND11_VERSION_MINOR) "."
+    XSTR(PYBIND11_VERSION_PATCH);
   m.attr("__raqm__") =
 #ifdef MPLCAIRO_USE_LIBRAQM
     true
