@@ -71,7 +71,6 @@ def pytest_collection_modifyitems(session, config, items):
             "test_backend_pdf.py::test_multipage_keep_empty",
             "test_backend_pdf.py::test_multipage_pagecount",
             "test_backend_pdf.py::test_multipage_properfinalize",
-            "test_backend_pdf.py::test_pdf_savefig_when_color_is_none",
             "test_backend_ps.py::test_savefig_to_stringio[eps afm]",
             "test_backend_ps.py::test_savefig_to_stringio[eps with usetex]",
             "test_backend_ps.py::test_savefig_to_stringio[eps]",

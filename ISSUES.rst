@@ -52,10 +52,6 @@ Matplotlib's PDFPages is coupled too tightly with the PDF backend (#9114). ::
 
    test_backend_pdf::test_composite_image, test_multipage_*
 
-Matplotlib's `_get_rgba_face` does not always return an RGBA color (#9911). ::
-
-   test_backend_pdf::test_pdf_savefig_when_color_is_none
-
 Matplotlib's software alpha compositor is incorrect (#8847). ::
 
    test_image::test_image_composite_alpha[pdf,svg]
