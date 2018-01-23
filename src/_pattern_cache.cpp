@@ -168,8 +168,11 @@ void PatternCache::mask(
   // direction, then draw it directly, as doing otherwise would be highly
   // inaccurate (see e.g. test_mplot3d.test_quiver3d).
   auto const& bbox = it_bboxes->second;
-  auto const& x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
-            & y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
+  // Here, gcc 7.2 (not cairo) fails to extend the lifetime of the temporaries
+  // whose references are bound to constant *references* (various issues on
+  // bugzilla; see also gotw#88); so bind values instead.
+  auto const x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
+             y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
   if ((x_max < threshold_) || (y_max < threshold_)) {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);

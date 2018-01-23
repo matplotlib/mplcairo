@@ -11,10 +11,6 @@ correctly called first).  See cairo bug #104410.
 Fix needed
 ==========
 
-test_axes
-   test_acorr
-      PatternCache bug.
-
 test_image
    test_jpeg_alpha
       Not respecting savefig.facecolor.
@@ -135,4 +131,4 @@ cairo does not have an explicit rendering complexity limit. ::
 Other relevant Matplotlib issues
 ================================
 
-#9963
+#9963 (behavior with fontsize < 1pt)
