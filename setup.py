@@ -43,7 +43,7 @@ class build_ext(build_ext):
             ext.extra_compile_args += (
                 ["-std=c++17", "-fvisibility=hidden", "-flto",
                  "-Wextra", "-Wpedantic"]
-                + get_pkg_config("--cflags", "py3cairo"))
+                + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 ["-flto"])
             self._add_raqm_flags(ext)
@@ -59,7 +59,7 @@ class build_ext(build_ext):
                 # version-min=10.9 avoids deprecation warning wrt. libstdc++.
                 ["-std=c++17", "-fvisibility=hidden", "-flto",
                 "-mmacosx-version-min=10.9"]
-                + get_pkg_config("--cflags", "py3cairo"))
+                + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 # version-min needs to be repeated to avoid a warning.
                 ["-flto", "-mmacosx-version-min=10.9"])
