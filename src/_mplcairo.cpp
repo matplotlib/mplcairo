@@ -3,7 +3,7 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
-#include <pycairo/py3cairo.h>
+#include <py3cairo.h>
 #include <cairo/cairo-script.h>
 
 #include <stack>

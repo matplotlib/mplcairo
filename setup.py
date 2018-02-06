@@ -18,14 +18,14 @@ def get_pkg_config(info, lib):
     if os.environ.get("MANYLINUX") and info == "--cflags":
         return ["-static-libgcc", "-static-libstdc++",
                 "-I/usr/include/cairo",
-                "-I/usr/include/freetype2",
-                "-I/usr/include/pycairo"]
+                "-I/usr/include/freetype2"]
     return shlex.split(subprocess.check_output(["pkg-config", info, lib],
                                                universal_newlines=True))
 
 
 class build_ext(build_ext):
     def finalize_options(self):
+        import cairo
         import pybind11
 
         ext, = self.distribution.ext_modules
@@ -37,7 +37,8 @@ class build_ext(build_ext):
              "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"])
         ext.language = "c++"
         ext.include_dirs = (
-            [pybind11.get_include(), pybind11.get_include(user=True)])
+            [cairo.get_include(),
+             pybind11.get_include(), pybind11.get_include(user=True)])
 
         if sys.platform == "linux":
             ext.extra_compile_args += (
@@ -70,8 +71,7 @@ class build_ext(build_ext):
                 ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
                 # Windows conda paths.
                 "-I{}".format(Path(sys.prefix, "Library/include")),
-                "-I{}".format(Path(sys.prefix, "Library/include/cairo")),
-                "-I{}".format(Path(sys.prefix, "include/pycairo"))])
+                "-I{}".format(Path(sys.prefix, "Library/include/cairo"))])
 
         super().finalize_options()
 
@@ -168,5 +168,5 @@ setup(
         "local_scheme": "node-and-date",
         "write_to": "lib/mplcairo/_version.py",
     },
-    install_requires=["pybind11>=2.2", "pycairo>=1.12.0", "setuptools_scm"],
+    install_requires=["pybind11>=2.2", "pycairo>=1.16.0", "setuptools_scm"],
 )
