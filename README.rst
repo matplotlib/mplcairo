@@ -37,8 +37,8 @@ Dependencies:
 - Matplotlib:
 
   * ≥2.1.0rc1 for GTK3 or non-interactive backends,
-  * with Matplotlib PR#9202 for Qt5 or wx,
-  * (with a yet un-PR'd Matplotlib patch for Tk).
+  * ≥2.2.0rc1 Qt5 or wx,
+  * with Matplotlib PR#10436 for Tk.
 
 - cairo≥1.11.4 (but preferably ≥1.15.4) [#]_ and pycairo≥1.16.0 [#]_,
 - pybind11≥2.2, automatically installed [#]_.
@@ -55,11 +55,9 @@ All code examples below assume that the appropriate conda environment is active
    # backend.
    conda install -y -c conda-forge pycairo numpy pyqt
 
+   # Right now installing from Matplotlib master is the "simplest".
    git clone https://github.com/matplotlib/matplotlib.git
-   (cd matplotlib
-    git fetch origin pull/9202/head:pr/9202
-    git checkout pr/9202
-    pip install -e .)
+   (cd matplotlib && pip install -e .)
 
    # Download the wheel from Github releases -- pick either Linux or OSX.
    pip install /path/to/mplcairo-*.whl
@@ -99,8 +97,6 @@ If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
 uses Raqm to perform complex text layout (right-to-left scripts, etc.).  An
 installation of Raqm is required; run ``setup.py`` for instructions.
 
-A suitably patched Matplotlib should first be installed as documented above.
-
 Linux
 -----
 
@@ -115,8 +111,7 @@ package manager).  Other dependencies are available on conda-forge.
    conda install -y -c conda-forge cairo pkg-config
 
    git clone https://github.com/anntzer/mplcairo.git
-   (cd mplcairo
-    pip install -e .)
+   (cd mplcairo && pip install -e .)
 
 On a related note, the manylinux wheel is built using
 ``tools/build-manylinux.sh``.  It does not include Raqm.
@@ -140,8 +135,7 @@ available on conda-forge.
    conda install -y -c conda-forge cairo pkg-config
 
    git clone https://github.com/anntzer/mplcairo.git
-   (cd mplcairo
-    pip install -e .)
+   (cd mplcairo && pip install -e .)
 
 The OSX wheel is then built using delocate-wheel_ (to package a recent version
 of libc++).  It does not include Raqm.
@@ -322,8 +316,11 @@ Known issues
 Missing implementation
 ----------------------
 
-- The following rcparam is not yet implemented: ``svg.image_inline``.
-- The following deprecated rcparam is not implemented: ``svg.image_noscale``.
+Support for the following features is missing:
+
+- artist rasterization (for vector output).
+- the ``svg.image_inline`` rcparam.
+- the deprecated ``svg.image_noscale`` rcparam.
 
 Missing support from cairo
 --------------------------
