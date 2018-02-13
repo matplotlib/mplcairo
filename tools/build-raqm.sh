@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
+ver=0.4.0
 toplevel="$(git rev-parse --show-toplevel)"
-ver=0.3.0
+mkdir -p "$toplevel/build"
 cd "$toplevel/build"
 rm -rf "raqm-$ver"
 rm -rf "raqm-prefix"
@@ -32,7 +33,7 @@ diff --git a/configure.ac b/configure.ac
 index e28e57f..02dfd1d 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -34,8 +34,6 @@ CFLAGS="$_save_cflags"
+@@ -45,8 +45,6 @@ CFLAGS="$_save_cflags"
  
  AM_CONDITIONAL(HAVE_GLIB, $have_glib)
  
@@ -41,7 +42,7 @@ index e28e57f..02dfd1d 100644
  case $build_os in
      mingw*)
          AX_APPEND_FLAG([-D__USE_MINGW_ANSI_STDIO=1])
-@@ -47,8 +45,6 @@ AC_CONFIG_FILES([
+@@ -58,8 +56,6 @@ AC_CONFIG_FILES([
      raqm.pc
      src/Makefile
      tests/Makefile

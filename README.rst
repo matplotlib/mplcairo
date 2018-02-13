@@ -15,7 +15,8 @@ Noteworthy points include:
 - Support for a wider variety of font formats, such as otf and pfb, for vector
   (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
 - Optional support for complex text layout (right-to-left languages, etc.)
-  using Raqm_.
+  using Raqm_.  **Note** that Raqm depends on Fribidi, which is licensed under
+  the LGPLv2.1+.
 - Support for embedding URLs in PDF (but not SVG) output (requires
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
@@ -121,6 +122,15 @@ On a related note, the manylinux wheel is built using
 
 .. _HACKING.rst: HACKING.rst
 
+**NOTE**: On Arch Linux, the python-pillow 5.0.0-1 (Arch) package includes an
+invalid version ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not
+be installed while building a Raqm-enabled version of mplcairo using the system
+Python, even in a virtualenv (it can be installed when *using* mplcairo without
+causing any problems).  One solution is to temporarily uninstall the package;
+another one is to package it yourself using e.g. pypi2pkgbuild_.
+
+.. _pypi2pkgbuild: https://github.com/anntzer/pypi2pkgbuild
+
 OSX
 ---
 
@@ -163,7 +173,7 @@ to one of
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
-throughout Matplotlib.  However, this approach is *much* less efficient, due to
+throughout Matplotlib.  However, this approach is *much* less efficient (due to
 the need of copies and conversions between various formats); additionally, it
 does not work with wx due to the non-standard signature of the wx canvas class.
 
