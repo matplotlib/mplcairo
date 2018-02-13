@@ -1224,7 +1224,7 @@ void GraphicsContextRenderer::start_filter()
   new_gc();
 }
 
-py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter()
+py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter_get_buffer()
 {
   restore();
   auto const& pattern = cairo_pop_group(cr_);
@@ -1622,7 +1622,8 @@ PYBIND11_MODULE(_mplcairo, m)
          "s"_a, "prop"_a, "ismath"_a)
 
     .def("start_filter", &GraphicsContextRenderer::start_filter)
-    .def("_stop_filter", &GraphicsContextRenderer::_stop_filter)
+    .def("_stop_filter_get_buffer",
+         &GraphicsContextRenderer::_stop_filter_get_buffer)
 
     // Canvas API.
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)

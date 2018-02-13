@@ -122,13 +122,16 @@ class GraphicsContextRendererCairo(
         mb._draw(self, x, y, angle)
 
     def stop_filter(self, filter_func):
-        img = _util.to_unmultiplied_rgba8888(self._stop_filter())
+        img = _util.to_unmultiplied_rgba8888(self._stop_filter_get_buffer())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         img, dx, dy = filter_func(img[::-1] / 255, self.dpi)
         if img.dtype.kind == "f":
             img = np.asarray(img * 255, np.uint8)
         width, height = self.get_canvas_width_height()
         self.draw_image(self, l + dx, height - b - h + dy, img)
+
+    start_rasterizing = _mplcairo.GraphicsContextRendererCairo.start_filter
+    stop_rasterizing = partialmethod(stop_filter, lambda img, dpi: (img, 0, 0))
 
     def tostring_rgba_minimized(self):  # NOTE: Needed by MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(

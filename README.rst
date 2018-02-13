@@ -318,7 +318,6 @@ Missing implementation
 
 Support for the following features is missing:
 
-- artist rasterization (for vector output).
 - the ``svg.image_inline`` rcparam.
 - the deprecated ``svg.image_noscale`` rcparam.
 

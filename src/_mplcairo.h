@@ -150,7 +150,7 @@ class GraphicsContextRenderer {
     std::string s, py::object prop, py::object ismath);
 
   void start_filter();
-  py::array_t<uint8_t> _stop_filter();
+  py::array_t<uint8_t> _stop_filter_get_buffer();
 
   Region copy_from_bbox(py::object bbox);
   void restore_region(Region& region);
