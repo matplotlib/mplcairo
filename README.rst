@@ -233,8 +233,9 @@ rcparam validation, using, e.g.
 
    dict.__setitem__(plt.rcParams, "lines.antialiased", antialias_t.FAST)
 
-(Support for ``text.antialiased`` is not implemented yet, mostly because we
-need to decide on whether to map ``True`` to ``GRAY`` or ``SUBPIXEL``.)
+The ``text.antialiased`` rcparam can likewise be set to any
+``cairo_antialias_t`` enum value, or ``True`` (the default, which maps to
+``GRAY`` due to cairo bug #99021) or ``False`` (which maps to ``NONE``).
 
 Fast drawing
 ------------

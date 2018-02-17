@@ -1177,6 +1177,8 @@ void GraphicsContextRenderer::draw_text(
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
+    auto const& options = get_font_options();
+    cairo_set_font_options(cr_, options.get());
     auto const& [glyphs, count] = text_to_glyphs(cr_, s);
     cairo_show_glyphs(cr_, glyphs.get(), count);
   }
@@ -1373,6 +1375,8 @@ void MathtextBackend::_draw(
     cairo_set_font_face(cr, font_face);
     cairo_font_face_destroy(font_face);
     cairo_set_font_size(cr, glyph.size * dpi / 72);
+    auto const& options = get_font_options();
+    cairo_set_font_options(cr, options.get());
     auto const& index =
       FT_Get_Char_Index(
         static_cast<FT_Face>(

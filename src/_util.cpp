@@ -469,14 +469,6 @@ void fill_and_stroke_exact(
   cairo_restore(cr);
 }
 
-long get_hinting_flag()
-{
-  // FIXME[matplotlib]: Should be moved out of backend_agg.
-  return
-    py::module::import("matplotlib.backends.backend_agg")
-    .attr("get_hinting_flag")().cast<long>();
-}
-
 cairo_font_face_t* font_face_from_path(std::string path)
 {
   FT_Face ft_face;
@@ -503,6 +495,31 @@ cairo_font_face_t* font_face_from_prop(py::object prop)
     py::module::import("matplotlib.font_manager").attr("findfont")(prop)
     .cast<std::string>();
   return font_face_from_path(path);
+}
+
+long get_hinting_flag()
+{
+  // FIXME[matplotlib]: Should be moved out of backend_agg.
+  return
+    py::module::import("matplotlib.backends.backend_agg")
+    .attr("get_hinting_flag")().cast<long>();
+}
+
+std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
+  get_font_options()
+{
+  auto const& options = cairo_font_options_create();
+  cairo_font_options_set_antialias(
+    options,
+    []() -> cairo_antialias_t {
+      auto aa = rc_param("text.antialiased");
+      try {
+        return aa.cast<cairo_antialias_t>();
+      } catch (py::cast_error&) {
+        return aa.cast<bool>() ? CAIRO_ANTIALIAS_GRAY : CAIRO_ANTIALIAS_NONE;
+      }
+    }());
+  return {options, cairo_font_options_destroy};
 }
 
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
