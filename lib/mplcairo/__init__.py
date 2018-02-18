@@ -11,16 +11,18 @@ except LookupError:
 
 
 def _load_symbols():
-    # dlopen() the ft2font extension module with RTLD_GLOBAL to make
-    # _ft2Library available to _mplcairo.
     # dlopen() pycairo's extension module with RTLD_GLOBAL to dynamically load
     # cairo.
+    # dlopen() the ft2font extension module with RTLD_GLOBAL to make
+    # _ft2Library available to _mplcairo.
+    # cairo must come first to cover the case of local_freetype Matplotlib
+    # builds (for not totally clear reasons of symbol resolution...).
     import ctypes.util
     from ctypes import CDLL, RTLD_GLOBAL
-    from matplotlib import ft2font
     from cairo import _cairo
-    CDLL(ft2font.__file__, RTLD_GLOBAL)
+    from matplotlib import ft2font
     CDLL(_cairo.__file__, RTLD_GLOBAL)
+    CDLL(ft2font.__file__, RTLD_GLOBAL)
 
     # Only needed if we statically linked Raqm, but doesn't hurt otherwise as
     # we allow these libraries to be missing.

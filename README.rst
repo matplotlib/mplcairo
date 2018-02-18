@@ -77,14 +77,6 @@ All code examples below assume that the appropriate conda environment is active
 .. [#] pybind11 is technically only a build-time requirement, but doesn't play
    well with ``setup_requires``.
 
-**NOTE**: Matplotlib builds with the "local FreeType" option set (i.e.,
-with the ``MPLLOCALFREETYPE`` environment variable set, or with the
-``local_freetype`` entry set in ``setup.cfg``) are **not** supported.  This
-option will statically link to a fixed version of FreeType, which may be
-different from the version of FreeType that cairo is built against, causing
-binary incompatibilites.  In particular, PyPI wheels are built with this
-option, and are thus (unfortunately) **not** supported.
-
 Building
 ========
 

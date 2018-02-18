@@ -1401,11 +1401,6 @@ PYBIND11_MODULE(_mplcairo, m)
 {
   m.doc() = "A cairo backend for matplotlib.";
 
-  if (py::module::import("matplotlib.ft2font").attr("__freetype_build_type__")
-      .cast<std::string>() == "local") {
-    throw std::runtime_error("Local FreeType builds are not supported");
-  }
-
   // Setup global values.
 
   import_cairo();
@@ -1439,6 +1434,13 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Export symbols.
 
+  m.attr("__cairo_version__") = cairo_version_string();
+  auto ft_major = 0, ft_minor = 0, ft_patch = 0;
+  FT_Library_Version(_ft2Library, &ft_major, &ft_minor, &ft_patch);
+  m.attr("__freetype_version__") =
+    std::to_string(ft_major) + "."
+    + std::to_string(ft_minor) + "."
+    + std::to_string(ft_patch);
   m.attr("__pybind11_version__") =
     XSTR(PYBIND11_VERSION_MAJOR) "."
     XSTR(PYBIND11_VERSION_MINOR) "."
