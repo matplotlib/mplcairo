@@ -168,5 +168,9 @@ setup(
         "local_scheme": "node-and-date",
         "write_to": "lib/mplcairo/_version.py",
     },
-    install_requires=["pybind11>=2.2", "pycairo>=1.16.0", "setuptools_scm"],
+    install_requires=[
+        "matplotlib>=2.2",
+        "pybind11>=2.2",
+        "pycairo>=1.16.0",
+    ],
 )
