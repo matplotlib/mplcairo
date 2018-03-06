@@ -175,7 +175,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             GraphicsContextRendererCairo,
             *(np.array([self.figure.bbox.width, self.figure.bbox.height])
               * getattr(self, "_dpi_ratio", 1)),
-            self.figure.dpi, _draw_if_new=_draw_if_new)
+            # Py3.4 support: use kwarg for dpi.
+            dpi=self.figure.dpi, _draw_if_new=_draw_if_new)
 
     renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
 
