@@ -1,4 +1,3 @@
-from collections import ChainMap
 import os
 from pathlib import Path
 import shlex
@@ -24,7 +23,34 @@ def get_pkg_config(info, lib):
 
 
 class build_ext(build_ext):
-    def finalize_options(self):
+    def _add_raqm_flags(self, ext):
+        if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
+            ext.define_macros = (
+                [("MPLCAIRO_USE_LIBRAQM", "1")])
+            try:
+                ext.extra_compile_args += (
+                    get_pkg_config("--cflags", "raqm"))
+                ext.extra_link_args += (
+                    get_pkg_config("--libs", "raqm"))
+            except subprocess.CalledProcessError:
+                if Path("build/raqm-prefix").is_dir():
+                    ext.include_dirs += (
+                        ["build/raqm-prefix/include"])
+                    ext.extra_objects += (
+                        ["build/raqm-prefix/lib/libraqm.a"])
+                else:
+                    sys.exit("""
+Raqm is not installed system-wide (but you requested it by setting the
+MPLCAIRO_USE_LIBRAQM environment variable).  If your system package manager
+does not provide it,
+
+1. Install the FriBiDi and HarfBuzz headers (e.g., 'libfribidi-dev' and
+   'libharfbuzz-dev') using your system package manager.
+2. Run 'tools/build-raqm.sh' *outside of any conda environment*.
+3. Build and install mplcairo normally.
+""")
+
+    def build_extensions(self):
         import cairo
         import pybind11
 
@@ -73,37 +99,6 @@ class build_ext(build_ext):
                 "-I{}".format(Path(sys.prefix, "Library/include")),
                 "-I{}".format(Path(sys.prefix, "Library/include/cairo"))])
 
-        super().finalize_options()
-
-    def _add_raqm_flags(self, ext):
-        if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
-            ext.define_macros = (
-                [("MPLCAIRO_USE_LIBRAQM", "1")])
-            try:
-                ext.extra_compile_args += (
-                    get_pkg_config("--cflags", "raqm"))
-                ext.extra_link_args += (
-                    get_pkg_config("--libs", "raqm"))
-            except subprocess.CalledProcessError:
-                if Path("build/raqm-prefix").is_dir():
-                    ext.include_dirs += (
-                        ["build/raqm-prefix/include"])
-                    ext.extra_objects += (
-                        ["build/raqm-prefix/lib/libraqm.a"])
-                else:
-                    sys.exit("""
-Raqm is not installed system-wide (but you requested it by setting the
-MPLCAIRO_USE_LIBRAQM environment variable).  If your system package manager
-does not provide it,
-
-1. Install the FriBiDi and HarfBuzz headers (e.g., 'libfribidi-dev' and
-   'libharfbuzz-dev') using your system package manager.
-2. Run 'tools/build-raqm.sh' *outside of any conda environment*.
-3. Build and install mplcairo normally.
-""")
-
-    def build_extensions(self):
-        ext, = self.extensions
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
         # libstdc++ + std::variant = compilation error).
         if (subprocess.check_output([self.compiler.compiler[0], "--version"],
