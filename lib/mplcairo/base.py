@@ -131,7 +131,14 @@ class GraphicsContextRendererCairo(
         self.draw_image(self, l + dx, height - b - h + dy, img)
 
     start_rasterizing = _mplcairo.GraphicsContextRendererCairo.start_filter
-    stop_rasterizing = partialmethod(stop_filter, lambda img, dpi: (img, 0, 0))
+
+    # While we could just write
+    #   stop_rasterizing = partialmethod(stop_filter,
+    #                                    lambda img, dpi: (img, 0, 0))
+    # this crashes inspect.signature on Py3.6
+    # (https://bugs.python.org/issue33009).
+    def stop_rasterizing(self):
+        return self.stop_filter(lambda img, dpi: (img, 0, 0))
 
     def tostring_rgba_minimized(self):  # NOTE: Needed by MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(
