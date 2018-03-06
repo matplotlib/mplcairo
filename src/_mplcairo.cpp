@@ -1411,7 +1411,8 @@ PYBIND11_MODULE(_mplcairo, m)
     auto const& dll = ctypes.attr("CDLL")(_cairo.attr("__file__"));
     auto const& load_ptr = [&](char const* name) -> uintptr_t {
       return
-        ctypes.attr("cast")(py::getattr(dll, name, 0), ctypes.attr("c_void_p"))
+        ctypes.attr("cast")(
+          py::getattr(dll, name, py::int_(0)), ctypes.attr("c_void_p"))
         .attr("value").cast<std::optional<uintptr_t>>().value_or(0);
     };
 #define LOAD_PTR(name) \
