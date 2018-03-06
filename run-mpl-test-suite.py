@@ -6,6 +6,7 @@ import inspect
 from pathlib import Path
 import shutil
 import subprocess
+from subprocess import CalledProcessError
 import sys
 import warnings
 
@@ -19,7 +20,12 @@ import pytest
 
 
 def main(argv=None):
-    parser = ArgumentParser(epilog="Other arguments are forwarded to pytest.")
+    parser = ArgumentParser(
+        description="""\
+Run the Matplotlib test suite, using the mplcairo backend to patch out
+Matplotlib's agg backend.
+""",
+        epilog="Other arguments are forwarded to pytest.")
     parser.add_argument("--infinite-tolerance", action="store_true",
                         help="Set image comparison tolerance to infinity.")
     args, rest = parser.parse_known_args(argv)
@@ -44,9 +50,13 @@ def main(argv=None):
     plt.switch_backend("agg")
 
     cwd = os.getcwd()
-    matplotlib_srcdir = os.fsdecode(subprocess.check_output(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=Path(matplotlib.__file__).parent)[:-1])
+    try:
+        matplotlib_srcdir = os.fsdecode(subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=Path(matplotlib.__file__).parent)[:-1])
+    except CalledProcessError:
+        sys.exit("This script must be run in an environment where Matplotlib "
+                 "is installed as an editable install.")
 
     os.chdir(matplotlib_srcdir)
     rv = pytest.main(["-p", "__main__", *rest])
