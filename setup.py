@@ -68,7 +68,7 @@ does not provide it,
 
         if sys.platform == "linux":
             ext.extra_compile_args += (
-                ["-std=c++17", "-fvisibility=hidden", "-flto",
+                ["-std=c++1z", "-fvisibility=hidden", "-flto",
                  "-Wextra", "-Wpedantic"]
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
@@ -84,8 +84,8 @@ does not provide it,
         elif sys.platform == "darwin":
             ext.extra_compile_args += (
                 # version-min=10.9 avoids deprecation warning wrt. libstdc++.
-                ["-std=c++17", "-fvisibility=hidden", "-flto",
-                "-mmacosx-version-min=10.9"]
+                ["-std=c++1z", "-fvisibility=hidden", "-flto",
+                 "-mmacosx-version-min=10.9"]
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 # version-min needs to be repeated to avoid a warning.
@@ -94,10 +94,10 @@ does not provide it,
 
         elif sys.platform == "win32":
             ext.extra_compile_args += (
-                ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
-                # Windows conda paths.
-                "-I{}".format(Path(sys.prefix, "Library/include")),
-                "-I{}".format(Path(sys.prefix, "Library/include/cairo"))])
+                ["/std:c++1z", "/EHsc", "/D_USE_MATH_DEFINES",
+                 # Windows conda paths.
+                 "-I{}".format(Path(sys.prefix, "Library/include")),
+                 "-I{}".format(Path(sys.prefix, "Library/include/cairo"))])
 
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
         # libstdc++ + std::variant = compilation error).
