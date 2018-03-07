@@ -1595,17 +1595,23 @@ PYBIND11_MODULE(_mplcairo, m)
         auto const& state = gcr.get_additional_state();
         return {state.width, state.height};
       })
-    // FIXME[matplotlib]: Needed for patheffects, which should use
-    // get_canvas_width_height().  FIXME: Check rounding rules.
+    // FIXME[matplotlib]: Needed for patheffects and webagg_core, which should
+    // use get_canvas_width_height().  Moreover webagg_core wants integers.
     .def_property_readonly(
       "width",
-      [](GraphicsContextRenderer& gcr) -> double {
-        return gcr.get_additional_state().width;
+      [](GraphicsContextRenderer& gcr) -> py::object {
+        return
+          has_vector_surface(gcr.cr_)
+          ? py::cast(gcr.get_additional_state().width)
+          : py::cast(int(gcr.get_additional_state().width));
       })
     .def_property_readonly(
       "height",
-      [](GraphicsContextRenderer& gcr) -> double {
-        return gcr.get_additional_state().height;
+      [](GraphicsContextRenderer& gcr) -> py::object {
+        return
+          has_vector_surface(gcr.cr_)
+          ? py::cast(gcr.get_additional_state().height)
+          : py::cast(int(gcr.get_additional_state().height));
       })
 
     .def("points_to_pixels", &GraphicsContextRenderer::points_to_pixels)
@@ -1631,6 +1637,17 @@ PYBIND11_MODULE(_mplcairo, m)
     .def("start_filter", &GraphicsContextRenderer::start_filter)
     .def("_stop_filter_get_buffer",
          &GraphicsContextRenderer::_stop_filter_get_buffer)
+
+    // FIXME[matplotlib]: Needed for webagg_core.
+    .def(
+      "clear",
+      [](GraphicsContextRenderer& gcr) -> void {
+        auto const& cr = gcr.cr_;
+        cairo_save(cr);
+        cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+        cairo_paint(cr);
+        cairo_restore(cr);
+      })
 
     // Canvas API.
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)

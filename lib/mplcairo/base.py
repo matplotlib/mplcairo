@@ -141,13 +141,18 @@ class GraphicsContextRendererCairo(
     def stop_rasterizing(self):
         return self.stop_filter(lambda img, dpi: (img, 0, 0))
 
-    def tostring_rgba_minimized(self):  # NOTE: Needed by MixedModeRenderer.
+    # "Undocumented" APIs needed to patch Agg.
+
+    _renderer = property(lambda self: self._get_buffer())  # Needed for tkagg.
+    lock = _LOCK  # Needed for webagg_core; fixed by matplotlib#10708.
+
+    def buffer_rgba(self):  # Needed for webagg_core.
+        return _util.to_unmultiplied_rgba8888(self._get_buffer())
+
+    def tostring_rgba_minimized(self):  # Needed for MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(
             _util.to_unmultiplied_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
-
-    # Needed when patching FigureCanvasAgg (for tkagg).
-    _renderer = property(lambda self: self._get_buffer())
 
 
 @functools.lru_cache(1)
@@ -192,7 +197,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                     self.figure.draw(renderer)
             return renderer
 
-    # NOTE: Not documented, but needed for tight_layout()... and we use it too.
+    # NOTE: Needed for tight_layout() (and we use it too).
     def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
@@ -201,7 +206,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             # Py3.4 support: use kwarg for dpi.
             dpi=self.figure.dpi, _draw_if_new=_draw_if_new)
 
-    renderer = property(get_renderer)  # Needed when patching FigureCanvasAgg.
+    renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
     def draw(self):
         with _LOCK:

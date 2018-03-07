@@ -163,10 +163,12 @@ To use cairo rendering in Jupyter's ``inline`` mode, patch
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
-throughout Matplotlib.  However, this approach is less efficient (due to the
-need of copies and conversions between various formats); additionally, it does
-not work with wx and OSX due to peculiarities of the corresponding canvas
-classes.
+throughout Matplotlib.  However, this approach is inefficient (due to the need
+of copies and conversions between premultiplied ARGB32 and non-premultiplied
+RGBA8888 buffers); additionally, it does not work with wx and OSX due to
+peculiarities of the corresponding canvas classes.  On the other hand, this
+is currently the only way in which the webagg-based backends (e.g., Jupyter's
+inline widget) are supported.
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:
