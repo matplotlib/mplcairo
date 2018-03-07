@@ -5,8 +5,8 @@ A (new) cairo backend for Matplotlib
 .. contents:: :local:
 
 This is a new, essentially complete implementation of a cairo_ backend for
-Matplotlib_.  It can be used in combination with a Qt5, GTK3, Tk, or wx UI, or
-non-interactively (i.e., to save figure to various file formats).
+Matplotlib_.  It can be used in combination with a Qt5, GTK3, Tk, wx, or macOS
+UI, or non-interactively (i.e., to save figure to various file formats).
 
 Noteworthy points include:
 
@@ -150,6 +150,8 @@ to one of
 - ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
+  surface),
+- ``module://mplcairo.macosx`` (macOS widget, copying data from a cairo image
   surface).
 
 To use cairo rendering in Jupyter's ``inline`` mode, patch
@@ -161,9 +163,10 @@ To use cairo rendering in Jupyter's ``inline`` mode, patch
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
-throughout Matplotlib.  However, this approach is *much* less efficient (due to
-the need of copies and conversions between various formats); additionally, it
-does not work with wx due to the non-standard signature of the wx canvas class.
+throughout Matplotlib.  However, this approach is less efficient (due to the
+need of copies and conversions between various formats); additionally, it does
+not work with wx and OSX due to peculiarities of the corresponding canvas
+classes.
 
 The ``examples`` folder contains a few cases where the output of this renderer
 is arguably more accurate than the one of the default renderer, Agg:

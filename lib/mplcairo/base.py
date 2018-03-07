@@ -163,6 +163,7 @@ def _fix_ipython_backend2gui():
             "module://mplcairo.qt": "qt",
             "module://mplcairo.tk": "tk",
             "module://mplcairo.wx": "wx",
+            "module://mplcairo.macosx": "osx",
         })
         sys.modules["IPython"].get_ipython().enable_matplotlib()
 
