@@ -9,10 +9,6 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-// Matplotlib's own FT_Library, which we load at runtime by dlopen()ing the
-// ft2font extension module with RTLD_GLOBAL.
-extern FT_Library _ft2Library;
-
 namespace mplcairo {
 
 namespace py = pybind11;
@@ -58,6 +54,9 @@ extern surface_set_size_t          cairo_pdf_surface_set_size,
 extern pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 extern ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
+
+extern std::unordered_map<FT_Error, std::string> ft_errors;
+extern FT_Library ft_library;
 
 // Other useful values.
 extern cairo_user_data_key_t const

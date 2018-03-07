@@ -10,7 +10,8 @@
 
 namespace mplcairo {
 
-namespace {
+namespace detail {
+
 // Load FreeType error codes.  This approach (modified to use
 // std::unordered_map) is documented in fterror.h.
 // NOTE: If we require FreeType>=2.6.3 then the macro can be replaced by
@@ -18,14 +19,12 @@ namespace {
 #undef __FTERRORS_H__
 #define FT_ERRORDEF( e, v, s )  { e, s },
 #define FT_ERROR_START_LIST     {
-#define FT_ERROR_END_LIST       };
+#define FT_ERROR_END_LIST       }
 
-std::unordered_map<FT_Error, std::string> ft_errors
-
+std::unordered_map<FT_Error, std::string> ft_errors =
 #include FT_ERRORS_H
-}
-
-namespace detail {
+;
+FT_Library ft_library{};
 
 tag_begin_t                 cairo_tag_begin;
 tag_end_t                   cairo_tag_end;
@@ -472,10 +471,11 @@ void fill_and_stroke_exact(
 cairo_font_face_t* font_face_from_path(std::string path)
 {
   FT_Face ft_face;
-  if (auto const& error = FT_New_Face(_ft2Library, path.c_str(), 0, &ft_face)) {
+  if (auto const& error =
+        FT_New_Face(detail::ft_library, path.c_str(), 0, &ft_face)) {
     throw std::runtime_error(
-      "FT_New_Face(_ft2Library, \"" + path + "\", 0, &ft_face) failed with "
-      "error: " + ft_errors.at(error));
+      "FT_New_Face(ft_library, \"" + path + "\", 0, &ft_face) failed with "
+      "error: " + detail::ft_errors.at(error));
   }
   auto const& font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());

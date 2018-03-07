@@ -1433,11 +1433,23 @@ PYBIND11_MODULE(_mplcairo, m)
       py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
   }
 
+  if (auto const& error = FT_Init_FreeType(&detail::ft_library)) {
+    throw std::runtime_error(
+      "FT_Init_FreeType(&ft_library) failed with error: "
+      + detail::ft_errors.at(error));
+  }
+  auto ft_cleanup = py::cpp_function{
+    [&](py::handle /* weakref */) -> void {
+      FT_Done_FreeType(detail::ft_library);
+    }
+  };
+  py::weakref(m, ft_cleanup).release();
+
   // Export symbols.
 
   m.attr("__cairo_version__") = cairo_version_string();
   auto ft_major = 0, ft_minor = 0, ft_patch = 0;
-  FT_Library_Version(_ft2Library, &ft_major, &ft_minor, &ft_patch);
+  FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
   m.attr("__freetype_version__") =
     std::to_string(ft_major) + "."
     + std::to_string(ft_minor) + "."
