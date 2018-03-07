@@ -132,6 +132,13 @@ to one of
 - ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
   surface).
 
+To use cairo rendering in Jupyter's ``inline`` mode, patch
+
+.. code-block:: python
+
+   ipykernel.pylab.backnd_inline.new_figure_manager = \
+       mplcairo.base.new_figure_manager
+
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
 throughout Matplotlib.  However, this approach is *much* less efficient (due to

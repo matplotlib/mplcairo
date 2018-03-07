@@ -2,7 +2,7 @@ from matplotlib.backends.backend_wx import (
     _BackendWx, _FigureCanvasWxBase, FigureFrameWx, NavigationToolbar2Wx)
 import wx
 
-from . import _util
+from . import _util, base
 from .base import FigureCanvasCairo
 
 
@@ -22,10 +22,10 @@ _to_native_bitmap = (
 
 class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
     def __init__(self, parent, id, figure):
-        # _FigureCanvasWxBase should be fixed to have the same signature as
-        # every other FigureCanvas and use cooperative inheritance, but in the
-        # meantime we'll just inline the call to FigureCanvasCairo.__init__.
-        self._last_renderer_call = None, None
+        # Inline the call to FigureCanvasCairo.__init__ as _FigureCanvasWxBase
+        # has a different signature and thus we cannot use cooperative
+        # inheritance.
+        base._fix_ipython_backend2gui()
         _FigureCanvasWxBase.__init__(self, parent, id, figure)
 
     def draw(self, drawDC=None):
