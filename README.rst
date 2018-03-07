@@ -56,6 +56,19 @@ and install using pip, as usual.
 .. [#] pybind11 is technically only a build-time requirement, but doesn't play
    well with ``setup_requires``.
 
+.. _local-freetype:
+
+**NOTE**: Matplotlib builds with the "local FreeType" option set (i.e.,
+with the ``MPLLOCALFREETYPE`` environment variable set, or with the
+``local_freetype`` entry set in ``setup.cfg``) are **not supported on OSX**.
+This option causes static linking to a fixed version of FreeType, which will
+usually be different from the version of FreeType that cairo is built against,
+causing binary incompatibilites.
+
+In particular, Matplotlib's PyPI wheels are built with this option, and are
+thus (unfortunately) **not supported on OSX**.  The Matplotlib conda package,
+on the other hand, do not suffer from this issue.
+
 Building
 ========
 
@@ -104,12 +117,19 @@ another one is to package it yourself using e.g. pypi2pkgbuild_.
 OSX
 ---
 
-Clang≥5.0 can be installed with Homebrew (``brew install llvm``).  Note that
-the llvm formula is keg-only, i.e. it requires manual modifications to the PATH
-and LDFLAGS (as documented by ``brew info llvm``).
+See important note `above <local-freetype_>`_ regarding "local FreeType"
+Matplotlib builds (TLDR: do not use PyPI; use conda or build Matplotlib
+yourself).
 
-The OSX wheel is built using delocate-wheel_ (to package a recent version of
-libc++).  It does not include Raqm.
+Clang≥5.0 can be installed from ``conda``'s ``anaconda`` channel (``conda
+install -c anaconda clangxx_osx-64``), or can also be installed with Homebrew
+(``brew install llvm``).  Note that Homebrew's llvm formula is keg-only, i.e.
+it requires manual modifications to the PATH and LDFLAGS (as documented by
+``brew info llvm``).
+
+The OSX wheel is built using delocate-wheel_ (to vendor a recent version of
+libc++).  Currently, it can only be built from a Homebrew-clang wheel, not a
+conda-clang wheel (due to some path intricacies...).  It does not include Raqm.
 
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
 
