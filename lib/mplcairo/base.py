@@ -161,16 +161,21 @@ def _fix_ipython_backend2gui():
     # --auto`).  This cannot be done at import time due to ordering issues (so
     # we do it when creating a canvas) and should only be done once (hence the
     # `lru_cache(1)`).
-    if "IPython" in sys.modules:
-        from IPython.core import pylabtools as pt
-        pt.backend2gui.update({
-            "module://mplcairo.gtk": "gtk3",
-            "module://mplcairo.qt": "qt",
-            "module://mplcairo.tk": "tk",
-            "module://mplcairo.wx": "wx",
-            "module://mplcairo.macosx": "osx",
-        })
-        sys.modules["IPython"].get_ipython().enable_matplotlib()
+    if "IPython" not in sys.modules:
+        return
+    import IPython
+    ip = IPython.get_ipython()
+    if not ip:
+        return
+    from IPython.core import pylabtools as pt
+    pt.backend2gui.update({
+        "module://mplcairo.gtk": "gtk3",
+        "module://mplcairo.qt": "qt",
+        "module://mplcairo.tk": "tk",
+        "module://mplcairo.wx": "wx",
+        "module://mplcairo.macosx": "osx",
+    })
+    ip.enable_matplotlib()
 
 
 class FigureCanvasCairo(FigureCanvasBase):
