@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Python.h>
+
 #include <cairo.h>
 #include <cairo-ft.h>
 

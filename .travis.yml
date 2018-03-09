@@ -1,0 +1,53 @@
+cache:
+  - pip
+  - ccache
+
+matrix:
+  include:
+
+    - dist: trusty
+      sudo: false
+      language: python
+      python: "3.6"
+
+    - os: osx
+      language: generic
+      env:
+        - PATH="/usr/local/opt/python/libexec/bin:$PATH"  # Py3.
+        - PIP_CACHE_DIR="$HOME/.cache/pip"
+
+install: |
+  # begin-syntax: sh
+  case "$TRAVIS_OS_NAME" in
+  linux)
+    sudo tools/build-manylinux.sh
+    echo 'manylinux1_compatible = True' >_manylinux.py
+    pip install dist/*-manylinux*.whl
+    ;;
+  osx)
+    brew update >/dev/null &&
+      brew upgrade python &&
+      brew install ccache llvm &&
+      brew install cairo &&
+      pip install delocate
+    (
+      export PATH="/usr/local/opt/llvm/bin:$PATH"
+      export CPPFLAGS=-L/usr/local/opt/llvm/include
+      export LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib'
+      export CC='ccache clang'
+      export CXX='ccache clang'  # Needed due to weird manipulations by distutils.
+      pip install . &&
+        pip uninstall -y mplcairo &&  # Just get the dependencies.
+        python setup.py bdist_wheel &&
+        delocate-wheel -v dist/*
+    )
+    pip install dist/*.whl
+    ;;
+  esac
+  # end-syntax: sh
+
+script: |
+  # begin-syntax: sh
+  MPLBACKEND=module://mplcairo.base python -c \
+    'import os; from pylab import *; gca(); savefig(os.devnull, format="png")'
+  # end-syntax: sh

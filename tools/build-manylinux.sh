@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eo pipefail
+set -x
 
 if [[ ! "$MANYLINUX" ]]; then
     toplevel="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -8,12 +9,12 @@ if [[ ! "$MANYLINUX" ]]; then
     echo "$tmpdir"
     trap 'rm -rf "$tmpdir"' EXIT INT TERM
     git clone "$toplevel" "$tmpdir/mplcairo"
-
+    # Apparently realpath --relative-to is too recent for travis...
     docker run -it \
         -e MANYLINUX=1 \
         --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
         quay.io/pypa/manylinux1_x86_64 \
-        "/io/mplcairo/$(realpath --relative-to="$toplevel" "$0")"
+        "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"
 
     user="${SUDO_USER:-$USER}"
     chown "$user:$(id -gn "$user")" -R "$tmpdir/mplcairo/build"
@@ -49,9 +50,10 @@ else
         cd workdir
         for dep in cairo fontconfig freetype2 python-cairo; do
             mkdir "$dep"
+            # In tar, ignore "ignoring unknown extended header keyword" warning.
             curl -L "https://www.archlinux.org/packages/extra/x86_64/$dep/download" |
                 xz -cd - |
-                (tar -C "$dep" -xf - || true)  # Ignoring unknown extended header keyword.
+                (tar -C "$dep" -xf - 2>/dev/null || true)
             mv "$dep/usr/include/"* /usr/include
         done
         # Provide a shim to access pycairo's header.
@@ -66,7 +68,7 @@ else
         "$PY_PREFIX/bin/pip" install pybind11
         # Force a rebuild of the extension.
         "$PY_PREFIX/bin/python" setup.py bdist_wheel
-        auditwheel repair -wdist \
+        auditwheel -v repair -wdist \
             dist/mplcairo-"$("$PY_PREFIX/bin/python" setup.py --version)"-*
     )
 

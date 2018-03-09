@@ -6,8 +6,10 @@ import sys
 
 if sys.platform == "darwin":
     os.environ.setdefault("CC", "clang")
-    # Funnily enough, distutils uses CC to compile c++ extensions but CXX to
-    # *link* such extensions...
+    # Funnily enough, distutils uses $CC to compile c++ extensions but $CXX to
+    # *link* such extensions...  (Moreover, it does some funky changes to $CXX
+    # if either $CC or $CXX has multiple words -- see UnixCCompiler.link for
+    # details.)
     os.environ.setdefault("CXX", "clang")
 
 from setupext import Extension, build_ext, find_packages, setup
