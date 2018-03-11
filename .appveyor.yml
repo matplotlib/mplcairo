@@ -1,0 +1,47 @@
+branches:
+  only: ['(none)']
+
+image: 'Visual Studio 2017'
+
+platform: 'x64'
+
+build: false
+
+cache:
+- 'C:\Miniconda36-x64\pkgs'
+- '%LOCALAPPDATA%\pip\Cache'
+
+install:
+- ps: |
+    # begin-syntax: ps1
+    $Env:PATH = "C:\Miniconda36-x64;C:\Miniconda36-x64\Scripts;$Env:PATH"
+    $Env:PYTHONUNBUFFERED = 1
+    conda config --set always_yes true
+    conda update --quiet --all
+    conda install --quiet matplotlib
+    New-Item -ItemType directory build
+    Set-Location build
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest https://github.com/preshing/cairo-windows/releases/download/1.15.10/cairo-windows-1.15.10.zip -OutFile cairo-windows-1.15.10.zip
+    Expand-Archive cairo-windows-1.15.10.zip -DestinationPath .
+    Set-Location ..
+    $Env:CL = "/I$(Get-Location)\build\cairo-windows-1.15.10\include"
+    $Env:LINK = "/LIBPATH:$(Get-Location)\build\cairo-windows-1.15.10\lib\x64"
+    pip install .
+    pip uninstall -y .  # Just get the dependencies.
+    python setup.py bdist_wheel
+    pip install $(Get-Item dist\*.whl)
+      # end-syntax: ps1
+
+test_script: |
+  rem begin-syntax: dosbatch
+  set PATH=C:\Miniconda36-x64;%PATH%
+  set MPLBACKEND=module://mplcairo.base
+  python -c "import os; from pylab import *; gca(); savefig(os.devnull, format='png')"
+  rem end-syntax: dosbatch
+
+artifacts:
+- path: dist\*.whl
+
+on_finish: |
+  conda clean --packages

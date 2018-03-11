@@ -22,9 +22,6 @@ Noteworthy points include:
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
   multi-page PDF).
 
-Currently, only Linux and OSX are supported.  Windows support is missing due to
-lack of full C++17 support by MSVC.
-
 .. _cairo: https://www.cairographics.org/
 .. _Matplotlib: http://matplotlib.org/
 .. _Raqm: https://github.com/HOST-Oman/libraqm
@@ -32,12 +29,13 @@ lack of full C++17 support by MSVC.
 Installation
 ============
 
-mplcairo requires Python 3 and cairo≥1.11.4 (but preferably ≥1.15.4) [#]_, and
-also declares the following dependencies (which are installed by pip):
+mplcairo requires Python 3 (Python 3.6 on Windows) and cairo≥1.11.4 (but
+preferably ≥1.15.4) [#]_, and also declares the following dependencies (which
+are installed by pip):
 
 - Matplotlib≥2.2,
-- pycairo≥1.16.0 [#]_,
-- pybind11≥2.2 [#]_.
+- pybind11≥2.2 [#]_,
+- on Linux and OSX only, pycairo≥1.16.0 [#]_.
 
 Linux and OSX wheels are available on Github releases.  Download them manually
 and install using pip, as usual.
@@ -46,51 +44,52 @@ and install using pip, as usual.
 
    cairo 1.15.4 added support for PDF metadata and links.
 
-.. [#] pycairo 1.16.0 added ``get_include()``.
-
-   We do not actually rely on pycairo's Python bindings.  Rather,
-   specifying a dependency on pycairo is a convenient way to specify a
-   dependency on cairo itself, and allows us to load cairo at runtime
-   instead of linking to it (which is problematic for a manylinux wheel).
-
 .. [#] pybind11 is technically only a build-time requirement, but doesn't play
    well with ``setup_requires``.
 
-.. _local-freetype:
+.. [#] pycairo 1.16.0 added ``get_include()``.
 
-**NOTE**: Matplotlib builds with the "local FreeType" option set (i.e.,
-with the ``MPLLOCALFREETYPE`` environment variable set, or with the
-``local_freetype`` entry set in ``setup.cfg``) are **not supported on OSX**.
-This option causes static linking to a fixed version of FreeType, which will
-usually be different from the version of FreeType that cairo is built against,
-causing binary incompatibilites.
+   We do not actually rely on pycairo's Python bindings.  Rather, specifying a
+   dependency on pycairo is a convenient way to specify a dependency on cairo
+   itself, and allows us to load cairo at runtime instead of linking to it
+   (simplifying the build of self-contained wheels).
 
-In particular, Matplotlib's PyPI wheels are built with this option, and are
-thus (unfortunately) **not supported on OSX**.  The Matplotlib conda package,
-on the other hand, do not suffer from this issue.
+   On Windows, this strategy is (AFAIK) not possible, so we explicitly link
+   against the cairo DLL.  Moreover, commonly available Windows builds of
+   pycairo (Anaconda, conda-forge, Gohlke) do not include FreeType support, and
+   are thus unusable anyways.
 
 Building
 ========
 
-In order to build mplcairo yourself, the following additional dependencies are
-required:
+This section is only relevant if you wish to build mplcairo yourself.  In all
+cases, once the dependencies described below are installed, mplcairo can be
+built and installed using any of the standard commands (``pip wheel --no-deps
+.``, ``pip install .``, ``pip install -e .`` and ``python setup.py build_ext
+-i`` being the most relevant ones).
+
+If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
+uses Raqm to perform complex text layout (right-to-left scripts, etc.).  An
+installation of Raqm is required; run ``setup.py`` for instructions for Unix
+OSes.
+
+Unix
+----
+
+The following additional dependencies are required:
 
 - a C++ compiler with C++17 support, e.g. GCC≥7.2 or Clang≥5.0.
 
-- cairo and FreeType headers, and pkg-config information to locate them.  If
-  using conda, they can be installed using ::
+- cairo and FreeType headers, and pkg-config information to locate them.  On
+  Linux and OSX, if using conda, they can be installed using ::
 
      conda install -y -c conda-forge pycairo pkg-config
 
   as pycairo (also a dependency) depends on cairo, which depends on freetype.
   Note that cairo and pkg-config from the anaconda channel will *not* work.
 
-If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
-uses Raqm to perform complex text layout (right-to-left scripts, etc.).  An
-installation of Raqm is required; run ``setup.py`` for instructions.
-
 Linux
------
+`````
 
 conda's compilers (``gxx_linux-64`` on the ``anaconda`` channel) currently
 interact poorly with installing cairo and pkg-config from conda-forge, so you
@@ -99,11 +98,6 @@ package manager).
 
 The manylinux wheel is built using ``tools/build-manylinux.sh``.  It does not
 include Raqm.
-
-**NOTE**: On Linux, compiling with Clang requires special care.  See
-`HACKING.rst`_.
-
-.. _HACKING.rst: HACKING.rst
 
 **NOTE**: On Arch Linux, the python-pillow 5.0.0-1 (Arch) package includes an
 invalid version ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not
@@ -115,11 +109,7 @@ another one is to package it yourself using e.g. pypi2pkgbuild_.
 .. _pypi2pkgbuild: https://github.com/anntzer/pypi2pkgbuild
 
 OSX
----
-
-See important note `above <local-freetype_>`_ regarding "local FreeType"
-Matplotlib builds (TLDR: do not use PyPI; use conda or build Matplotlib
-yourself).
+```
 
 Clang≥5.0 can be installed from ``conda``'s ``anaconda`` channel (``conda
 install -c anaconda clangxx_osx-64``), or can also be installed with Homebrew
@@ -132,6 +122,43 @@ libc++).  Currently, it can only be built from a Homebrew-clang wheel, not a
 conda-clang wheel (due to some path intricacies...).  It does not include Raqm.
 
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
+
+Windows
+-------
+
+The following additional dependencies are required:
+
+- a "recent enough" version of MSVC (19.13.26128 is sufficient).
+
+- FreeType headers, which can e.g. be installed using conda ::
+
+     conda install -y freetype
+
+- a cairo build (the headers, ``cairo.lib``, and ``cairo.dll``) *with FreeType
+  support*.  As noted above, this excludes, in particular, the Anaconda,
+  conda-forge, or Gohlke builds.  One place from where such a build is
+  available is https://github.com/preshing/cairo-windows/releases: download the
+  zip file and unpack it.
+
+  Because you will always need to provide cairo yourself, we did not implement
+  any special way to configure the location where it will be found.  Instead,
+  you **must** set the (standard) |CL|_ and |LINK|_ environment variables
+  (which always get prepended respectively to the invocations of the compiler
+  and the linker) as follows::
+
+     set CL=/IC:\path\to\directory\containing\cairo.h
+     set LINK=/LIBPATH:C\path\to\directory\containing\cairo.lib
+
+  Moreover, we also need to find ``cairo.dll`` and copy it next to
+  ``mplcairo``'s extension module.  As ``cairo.dll`` is typically found next to
+  ``cairo.lib``, we **explicitly** require the ``LINK`` environment variable to
+  use the above format and start with ``/LIBPATH:`` (case-insensitive); we
+  always copy ``cairo.dll`` from that directory.
+
+.. |CL| replace:: ``CL``
+.. _CL: https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables
+.. |LINK| replace:: ``LINK``
+.. _LINK: https://docs.microsoft.com/en-us/cpp/build/reference/link-environment-variables
 
 Use
 ===
@@ -170,8 +197,8 @@ peculiarities of the corresponding canvas classes.  On the other hand, this
 is currently the only way in which the webagg-based backends (e.g., Jupyter's
 inline widget) are supported.
 
-The ``examples`` folder contains a few cases where the output of this renderer
-is arguably more accurate than the one of the default renderer, Agg:
+The ``examples`` directory contains a few cases where the output of this
+renderer is arguably more accurate than the one of the default renderer, Agg:
 
 - ``circle_markers.py`` and ``square_markers.py``: more accurate and faster
   marker stamping.

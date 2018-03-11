@@ -1,6 +1,10 @@
+import functools
+import json
 import os
 from pathlib import Path
+import re
 import shlex
+import shutil
 import subprocess
 import sys
 
@@ -24,6 +28,18 @@ def get_pkg_config(info, lib):
                                                universal_newlines=True))
 
 
+@functools.lru_cache(1)
+def path_from_link_libpath():
+    match = re.fullmatch("(?i)/LIBPATH:(.*)", os.environ.get("LINK", ""))
+    if not match:
+        raise OSError("For a Windows build, the LINK environment variable "
+                      "must be set to a value starting with '/LIBPATH:'")
+    # "Easy" way to call CommandLineToArgvW...
+    return Path(json.loads(subprocess.check_output(
+        '"{}" -c "import json, sys; print(json.dumps(sys.argv[1]))" {}'
+        .format(sys.executable, match.group(1)))))
+
+
 class build_ext(build_ext):
     def _add_raqm_flags(self, ext):
         if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
@@ -43,8 +59,8 @@ class build_ext(build_ext):
                 else:
                     sys.exit("""
 Raqm is not installed system-wide (but you requested it by setting the
-MPLCAIRO_USE_LIBRAQM environment variable).  If your system package manager
-does not provide it,
+MPLCAIRO_USE_LIBRAQM environment variable).  On Linux and OSX, if your system
+package manager does not provide it,
 
 1. Install the FriBiDi and HarfBuzz headers (e.g., 'libfribidi-dev' and
    'libharfbuzz-dev') using your system package manager.
@@ -53,22 +69,22 @@ does not provide it,
 """)
 
     def build_extensions(self):
-        import cairo
         import pybind11
 
         ext, = self.distribution.ext_modules
 
-        ext.sources = (
+        ext.sources += (
             ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"])
-        ext.depends = (
+        ext.depends += (
             ["setup.py", "src/_macros.h",
              "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"])
         ext.language = "c++"
-        ext.include_dirs = (
-            [cairo.get_include(),
-             pybind11.get_include(), pybind11.get_include(user=True)])
+        ext.include_dirs += (
+            [pybind11.get_include(), pybind11.get_include(user=True)])
 
         if sys.platform == "linux":
+            import cairo
+            ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += (
                 ["-std=c++1z", "-fvisibility=hidden", "-flto",
                  "-Wextra", "-Wpedantic"]
@@ -84,6 +100,8 @@ does not provide it,
                     ["-march=native"])
 
         elif sys.platform == "darwin":
+            import cairo
+            ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += (
                 # version-min=10.9 avoids deprecation warning wrt. libstdc++.
                 ["-std=c++1z", "-fvisibility=hidden", "-flto",
@@ -95,16 +113,24 @@ does not provide it,
             self._add_raqm_flags(ext)
 
         elif sys.platform == "win32":
+            ext.include_dirs += (
+                # Windows conda path for FreeType.
+                [str(Path(sys.prefix, "Library/include"))])
             ext.extra_compile_args += (
-                ["/std:c++1z", "/EHsc", "/D_USE_MATH_DEFINES",
-                 # Windows conda paths.
-                 "-I{}".format(Path(sys.prefix, "Library/include")),
-                 "-I{}".format(Path(sys.prefix, "Library/include/cairo"))])
+                ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES"])
+            ext.libraries += (
+                ["cairo", "freetype"])
+            ext.library_dirs += (
+                # Windows conda path for FreeType.
+                [str(Path(sys.prefix, "Library/lib"))])
 
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
-        # libstdc++ + std::variant = compilation error).
-        if (subprocess.check_output([self.compiler.compiler[0], "--version"],
-                                    universal_newlines=True)
+        # libstdc++ + std::variant = compilation error).  Note that
+        # `.compiler.compiler` only exists for UnixCCompiler.
+        if (os.name == "posix"
+            and subprocess.check_output(
+                [self.compiler.compiler[0], "--version"],
+                universal_newlines=True)
                 .startswith("clang")):
             ext.extra_compile_args += ["-stdlib=libc++"]
             # Explicitly linking to libc++ is required to avoid picking up the
@@ -112,6 +138,18 @@ does not provide it,
             ext.extra_link_args += ["-lc++"]
 
         super().build_extensions()
+
+        if sys.platform == "win32":
+            shutil.copy2(str(path_from_link_libpath() / "cairo.dll"),
+                         str(Path(self.build_lib, "mplcairo")))
+
+
+    def copy_extensions_to_source(self):
+        super().copy_extensions_to_source()
+        if sys.platform == "win32":
+            shutil.copy2(str(path_from_link_libpath() / "cairo.dll"),
+                         self.get_finalized_command("build_py")
+                         .get_package_dir("mplcairo"))
 
 
 @setup.register_pth_hook("mplcairo.pth")
@@ -168,6 +206,6 @@ setup(
     install_requires=[
         "matplotlib>=2.2",
         "pybind11>=2.2",
-        "pycairo>=1.16.0",
+        "pycairo>=1.16.0; os_name == 'posix'",
     ],
 )

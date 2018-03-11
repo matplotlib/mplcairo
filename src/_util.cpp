@@ -144,16 +144,47 @@ AdditionalState& get_additional_state(cairo_t* cr)
 // (We can't simply call cairo_transform(cr, matrix) because matrix may be
 // degenerate (e.g., for zero-sized markers).  Fortunately, the cost of doing
 // the transformation ourselves seems negligible, if any.)
-class LoadPathContext {
-  cairo_t* cr;
+struct LoadPathContext {
+  cairo_t* const cr;
   cairo_matrix_t ctm;
+  bool const snap;
+#ifndef _WIN32
+  double (*snapper)(double);
+#else
+  std::function<double(double)> snapper;
+#endif
 
   public:
-  LoadPathContext(cairo_t* cr) : cr{cr}
+  LoadPathContext(cairo_t* cr) :
+    cr{cr},
+    snap{(!has_vector_surface(cr)) && get_additional_state(cr).snap}
   {
     cairo_get_matrix(cr, &ctm);
     cairo_identity_matrix(cr);
     cairo_new_path(cr);
+    auto const& lw = cairo_get_line_width(cr);
+    snapper =
+    // MSVC doesn't realize that the lambdas have the same type so it gets to
+    // use a slower path.
+#ifndef _WIN32
+      snap
+      ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
+         ? [](double x) -> double { return std::floor(x) + .5; }
+         : [](double x) -> double { return std::round(x); })
+      // Snap between pixels if lw is exactly zero 0 (in which case the edge is
+      // defined by the fill) or if lw rounds to an even value other than 0
+      // (minimizing the alpha due to antialiasing).
+      : [](double x) -> double { return x; };
+#else
+    [=](double x) -> double {
+      return
+        snap
+        ? ((lw < 1) || (std::lround(lw) % 2 == 1)
+           ? std::floor(x) + .5
+           : std::round(x))
+        : x;
+    };
+#endif
   }
   ~LoadPathContext()
   {
@@ -185,18 +216,7 @@ void load_path_exact(
   if (codes.shape(0) != n) {
     throw std::invalid_argument("Lengths of vertices and codes do not match");
   }
-  // Snap control.
-  auto const& snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
-  auto const& lw = cairo_get_line_width(cr);
-  auto const& snapper =
-    snap
-    ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
-       ? [](double x) -> double { return std::floor(x) + .5; }
-       : [](double x) -> double { return std::round(x); })
-    // Snap between pixels if lw is exactly zero 0 (in which case the edge is
-    // defined by the fill) or if lw rounds to an even value other than 0
-    // (minimizing the alpha due to antialiasing).
-    : [](double x) -> double { return x; };
+  auto const& snapper = lpc.snapper;
   // Main loop.
   for (auto i = 0; i < n; ++i) {
     auto x0 = vertices(i, 0), y0 = vertices(i, 1);
@@ -293,6 +313,7 @@ void load_path_exact(
   if (!((0 <= start) && (start <= stop) && (stop <= n))) {
     throw std::invalid_argument("Invalid bounds for sub-path");
   }
+  auto const& snapper = lpc.snapper;
 
   auto path_data = std::vector<cairo_path_data_t>{};
   path_data.reserve(2 * (stop - start));
@@ -311,13 +332,6 @@ void load_path_exact(
     }
     return code;
   };
-  // Snap control.
-  auto const& snap = (!has_vector_surface(cr)) && get_additional_state(cr).snap;
-  auto const& lw = cairo_get_line_width(cr);
-  auto const& snapper =
-    (lw < 1) || (std::lround(lw) % 2 == 1)
-    ? [](double x) -> double { return std::floor(x) + .5; }
-    : [](double x) -> double { return std::round(x); };
   // The previous point, if any, before clipping and snapping.
   auto prev = std::optional<std::tuple<double, double>>{};
   // Main loop.
@@ -386,18 +400,13 @@ void load_path_exact(
           header.header = {CAIRO_PATH_MOVE_TO, 2};
         }
         // Snapping.
-        if (snap) {
-          if ((x == x_prev) || (y == y_prev)) {
-            // If we have a horizontal or a vertical line, snap both
-            // coordinates.  While it may make sense to only snap in the
-            // direction orthogonal to the displacement, this would cause
-            // e.g. axes spines to not line up properly, as they are drawn as
-            // independent segments.
-            path_data.back().point = {snapper(x_prev), snapper(y_prev)};
-            point.point = {snapper(x), snapper(y)};
-          } else {
-            point.point = {x, y};
-          }
+        if (lpc.snap && ((x == x_prev) || (y == y_prev))) {
+          // If we have a horizontal or a vertical line, snap both coordinates.
+          // While it may make sense to only snap in the direction orthogonal
+          // to the displacement, this would cause e.g. axes spines to not line
+          // up properly, as they are drawn as independent segments.
+          path_data.back().point = {snapper(x_prev), snapper(y_prev)};
+          point.point = {snapper(x), snapper(y)};
         } else {
           point.point = {x, y};
         }
@@ -552,7 +561,7 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
   raqm_destroy(rq);
   cairo_ft_scaled_font_unlock_face(scaled_font);
 #else
-  auto glyphs = (cairo_glyph_t*){};
+  cairo_glyph_t* glyphs = nullptr;
   auto count = int{};
   CAIRO_CHECK(
     cairo_scaled_font_text_to_glyphs,

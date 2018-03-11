@@ -3,8 +3,10 @@
 #include "_util.h"
 #include "_pattern_cache.h"
 
+#ifndef _WIN32
 #include <py3cairo.h>
-#include <cairo/cairo-script.h>
+#endif
+#include <cairo-script.h>
 
 #include <stack>
 
@@ -188,6 +190,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     std::floor(width), std::floor(height), dpi}
 {}
 
+#ifndef _WIN32
 cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
 {
   if (!py::isinstance(
@@ -207,6 +210,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
     ctx.attr("get_target")().attr("get_height")().cast<double>(),
     dpi}
 {}
+#endif
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   StreamSurfaceType type, py::object file,
@@ -1403,35 +1407,39 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Setup global values.
 
-  import_cairo();
-
-  {
-    auto const& ctypes = py::module::import("ctypes"),
-              & _cairo = py::module::import("cairo._cairo");
-    auto const& dll = ctypes.attr("CDLL")(_cairo.attr("__file__"));
-    auto const& load_ptr = [&](char const* name) -> uintptr_t {
-      return
-        ctypes.attr("cast")(
-          py::getattr(dll, name, py::int_(0)), ctypes.attr("c_void_p"))
-        .attr("value").cast<std::optional<uintptr_t>>().value_or(0);
-    };
-#define LOAD_PTR(name) \
-    detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name))
-    LOAD_PTR(cairo_tag_begin);
-    LOAD_PTR(cairo_tag_end);
-    LOAD_PTR(cairo_pdf_surface_create_for_stream);
-    LOAD_PTR(cairo_ps_surface_create_for_stream);
-    LOAD_PTR(cairo_svg_surface_create_for_stream);
-    LOAD_PTR(cairo_pdf_surface_set_size);
-    LOAD_PTR(cairo_ps_surface_set_size);
-    LOAD_PTR(cairo_pdf_surface_set_metadata);
-    LOAD_PTR(cairo_ps_surface_set_eps);
-    LOAD_PTR(cairo_ps_surface_dsc_comment);
-#undef LOAD_PTR
-
-    detail::UNIT_CIRCLE =
-      py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+#ifndef _WIN32
+  if (import_cairo() < 0) {
+      // FIXME[pybind11]: Throwing exceptions during init (#1113).
+      m.ptr() = nullptr;
+      return;
   }
+
+  auto const& ctypes = py::module::import("ctypes"),
+            & _cairo = py::module::import("cairo._cairo");
+  auto const& dll = ctypes.attr("CDLL")(_cairo.attr("__file__"));
+  auto const& load_ptr = [&](char const* name) -> uintptr_t {
+    return
+      ctypes.attr("cast")(
+        py::getattr(dll, name, py::int_(0)), ctypes.attr("c_void_p"))
+      .attr("value").cast<std::optional<uintptr_t>>().value_or(0);
+  };
+#define LOAD_PTR(name) \
+  detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name))
+  LOAD_PTR(cairo_tag_begin);
+  LOAD_PTR(cairo_tag_end);
+  LOAD_PTR(cairo_pdf_surface_create_for_stream);
+  LOAD_PTR(cairo_ps_surface_create_for_stream);
+  LOAD_PTR(cairo_svg_surface_create_for_stream);
+  LOAD_PTR(cairo_pdf_surface_set_size);
+  LOAD_PTR(cairo_ps_surface_set_size);
+  LOAD_PTR(cairo_pdf_surface_set_metadata);
+  LOAD_PTR(cairo_ps_surface_set_eps);
+  LOAD_PTR(cairo_ps_surface_dsc_comment);
+#undef LOAD_PTR
+#endif
+
+  detail::UNIT_CIRCLE =
+    py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
   if (auto const& error = FT_Init_FreeType(&detail::ft_library)) {
     throw std::runtime_error(
@@ -1494,7 +1502,9 @@ PYBIND11_MODULE(_mplcairo, m)
     // The RendererAgg signature, which is also expected by MixedModeRenderer
     // (with doubles!).
     .def(py::init<double, double, double>())
+#ifndef _WIN32
     .def(py::init<py::object, double>())
+#endif
     .def(py::init<StreamSurfaceType, py::object, double, double, double>())
     .def(
       py::pickle(

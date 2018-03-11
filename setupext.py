@@ -17,7 +17,7 @@ class build_ext(build_ext):
     def build_extensions(self):
         try:
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
-        except ValueError:
+        except (AttributeError, ValueError):
             pass
         super().build_extensions()
 

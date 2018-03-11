@@ -13,6 +13,7 @@ result_images/
 .*.swp
 *.o
 *.pyc
+*.pyd
 *.so
 .coverage
 .gdb_history
