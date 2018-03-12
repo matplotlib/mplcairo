@@ -265,7 +265,10 @@ rcparam validation, using, e.g.
 
 The ``text.antialiased`` rcparam can likewise be set to any
 ``cairo_antialias_t`` enum value, or ``True`` (the default, which maps to
-``GRAY`` due to cairo bug #99021) or ``False`` (which maps to ``NONE``).
+``GRAY`` due to `cairo bug #99021 <cairo-99021_>`_) or ``False`` (which maps to
+``NONE``).
+
+.. _cairo-99021: https://bugs.freedesktop.org/show_bug.cgi?id=99021
 
 Fast drawing
 ------------
@@ -341,8 +344,10 @@ one to save figures (with ``savefig``) in the ``.cairoscript`` format, which is
 a "native script that matches the cairo drawing model".  This may be helpful
 for troubleshooting purposes.
 
-Note that this may crash the process after the file is written, due to cairo
-bug #104410.
+Note that this may crash the process after the file is written, due to `cairo
+bug #104410 <cairo-104410_>`_.
+
+.. _cairo-104410: https://bugs.freedesktop.org/show_bug.cgi?id=104410
 
 Markers at Bézier control points
 --------------------------------
