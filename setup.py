@@ -128,10 +128,9 @@ package manager does not provide it,
         # libstdc++ + std::variant = compilation error).  Note that
         # `.compiler.compiler` only exists for UnixCCompiler.
         if (os.name == "posix"
-            and subprocess.check_output(
-                [self.compiler.compiler[0], "--version"],
-                universal_newlines=True)
-                .startswith("clang")):
+            and "__clang__" in subprocess.check_output(
+                self.compiler.compiler + ["-dM", "-E", "-x", "c", "/dev/null"],
+                universal_newlines=True)):
             ext.extra_compile_args += ["-stdlib=libc++"]
             # Explicitly linking to libc++ is required to avoid picking up the
             # system C++ library (libstdc++ or an outdated libc++).

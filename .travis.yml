@@ -1,27 +1,26 @@
 cache:
-  - pip
-  - ccache
+- directories:
+  - "$HOME/Library/Caches/Homebrew"
+- ccache
+- pip
 
 matrix:
   include:
-
-    - dist: trusty
-      sudo: false
-      language: python
-      python: "3.6"
-
-    - os: osx
-      language: generic
-      env:
-        - PATH="/usr/local/opt/python/libexec/bin:$PATH"  # Py3.
-        - PIP_CACHE_DIR="$HOME/.cache/pip"
+  - dist: trusty
+    sudo: false
+    language: python
+    python: '3.6'
+  - os: osx
+    language: generic
+    env:
+    - PATH="/usr/local/opt/python/libexec/bin:$PATH"
+    - PIP_CACHE_DIR="$HOME/.cache/pip"
 
 install: |
   # begin-syntax: sh
   case "$TRAVIS_OS_NAME" in
   linux)
     sudo tools/build-manylinux.sh
-    echo 'manylinux1_compatible = True' >_manylinux.py
     pip install dist/*-manylinux*.whl
     ;;
   osx)
@@ -48,6 +47,12 @@ install: |
 
 script: |
   # begin-syntax: sh
-  MPLBACKEND=module://mplcairo.base python -c \
-    'import os; from pylab import *; gca(); savefig(os.devnull, format="png")'
+  MPLBACKEND=module://mplcairo.base python - <<EOF
+  import sys
+  if sys.platform == "darwin":
+      import mplcairo  # Apparently needed to get the correct libc++.
+  from pylab import *
+  gca()
+  savefig("/dev/null", format="png")
+  EOF
   # end-syntax: sh

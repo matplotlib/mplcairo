@@ -62,11 +62,13 @@ and install using pip, as usual.
 Building
 ========
 
-This section is only relevant if you wish to build mplcairo yourself.  In all
-cases, once the dependencies described below are installed, mplcairo can be
-built and installed using any of the standard commands (``pip wheel --no-deps
-.``, ``pip install .``, ``pip install -e .`` and ``python setup.py build_ext
--i`` being the most relevant ones).
+This section is only relevant if you wish to build mplcairo yourself.
+Otherwise, proceed to the Use_ section.
+
+In all cases, once the dependencies described below are installed, mplcairo
+can be built and installed using any of the standard commands (``pip wheel
+--no-deps .``, ``pip install .``, ``pip install -e .`` and ``python setup.py
+build_ext -i`` being the most relevant ones).
 
 If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
 uses Raqm to perform complex text layout (right-to-left scripts, etc.).  An
@@ -163,8 +165,11 @@ The following additional dependencies are required:
 Use
 ===
 
-The backend can be selected by setting the ``MPLBACKEND`` environment variable
-to one of
+On Linux and Windows, mplcairo can be used as any normal Matplotlib backend:
+call e.g. ``matplotlib.use("module://mplcairo.qt")`` before importing pyplot,
+add a ``backend: module://mplcairo.qt`` line in your ``matplotlibrc``, or set
+the ``MPLBACKEND`` environment variable to ``module://mplcairo.qt``.  More
+specifically, the following backends are provided:
 
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's),
@@ -181,6 +186,11 @@ to one of
 - ``module://mplcairo.macosx`` (macOS widget, copying data from a cairo image
   surface).
 
+On OSX, **it is necessary to explicitly import mplcairo before importing
+Matplotlib** due to incompatibilities associated with the use of a recent
+libc++.  As such, the most practical option is to import mplcairo, then call
+e.g. ``matplotlib.use("module//mplcairo.macosx")``.
+
 To use cairo rendering in Jupyter's ``inline`` mode, patch
 
 .. code-block:: python
@@ -192,10 +202,10 @@ Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
 throughout Matplotlib.  However, this approach is inefficient (due to the need
 of copies and conversions between premultiplied ARGB32 and non-premultiplied
-RGBA8888 buffers); additionally, it does not work with wx and OSX due to
-peculiarities of the corresponding canvas classes.  On the other hand, this
-is currently the only way in which the webagg-based backends (e.g., Jupyter's
-inline widget) are supported.
+RGBA8888 buffers); additionally, it does not work with the wx and macosx
+backends due to peculiarities of the corresponding canvas classes.  On the
+other hand, this is currently the only way in which the webagg-based backends
+(e.g., Jupyter's inline widget) are supported.
 
 The ``examples`` directory contains a few cases where the output of this
 renderer is arguably more accurate than the one of the default renderer, Agg:
