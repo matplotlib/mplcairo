@@ -29,35 +29,39 @@ Noteworthy points include:
 Installation
 ============
 
-mplcairo requires Python 3 (Python 3.6 on Windows) and cairo≥1.11.4 (but
-preferably ≥1.15.4) [#]_, and also declares the following dependencies (which
-are installed by pip):
+mplcairo requires
 
-- Matplotlib≥2.2,
-- pybind11≥2.2 [#]_,
-- on Linux and OSX only, pycairo≥1.16.0 [#]_.
+- Python 3 (3.6 on Windows),
+- Matplotlib≥2.2 (declared as ``install_requires``),
+- pybind11≥2.2 [#]_ (declared as ``install_requires``),
+- on Linux and OSX, pycairo≥1.16.0 [#]_ (declared as conditional
+  ``install_requires``),
+- on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
 
-Linux and OSX wheels are available on Github releases.  Download them manually
-and install using pip, as usual.
+As usual, install using pip::
 
-.. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
+   python -mpip install mplcairo
 
-   cairo 1.15.4 added support for PDF metadata and links.
-
-.. [#] pybind11 is technically only a build-time requirement, but doesn't play
+.. [#] pybind11 is actually only a build-time requirement, but doesn't play
    well with ``setup_requires``.
 
 .. [#] pycairo 1.16.0 added ``get_include()``.
 
    We do not actually rely on pycairo's Python bindings.  Rather, specifying a
    dependency on pycairo is a convenient way to specify a dependency on cairo
-   itself, and allows us to load cairo at runtime instead of linking to it
-   (simplifying the build of self-contained wheels).
+   (≥1.13.1, for pycairo≥1.14.0) itself, and allows us to load cairo at
+   runtime instead of linking to it (simplifying the build of self-contained
+   wheels).
 
    On Windows, this strategy is (AFAIK) not possible, so we explicitly link
    against the cairo DLL.  Moreover, commonly available Windows builds of
    pycairo (Anaconda, conda-forge, Gohlke) do not include FreeType support, and
    are thus unusable anyways.
+
+.. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
+
+   (cairo 1.15.4 added support for PDF metadata and links; the presence of this
+   feature is detected at runtime.)
 
 Building
 ========
@@ -130,7 +134,9 @@ Windows
 
 The following additional dependencies are required:
 
-- a "recent enough" version of MSVC (19.13.26128 is sufficient).
+- a "recent enough" version of MSVC (19.13.26128 is sufficient).  (This is the
+  reason for restricting support to Python 3.6 on Windows: distutils is able to
+  use MSVC 2017 only since Python 3.6.4.)
 
 - FreeType headers, which can e.g. be installed using conda ::
 
