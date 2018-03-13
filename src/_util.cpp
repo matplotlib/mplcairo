@@ -59,7 +59,7 @@ cairo_matrix_t matrix_from_transform(py::object transform, double y0)
     throw std::invalid_argument("Only affine transforms are handled");
   }
   auto const& py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
-  if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
+  if (py_matrix.shape(0) != 3 || py_matrix.shape(1) != 3) {
     throw std::invalid_argument(
       "Transformation matrix must have shape (3, 3)");
   }
@@ -76,7 +76,7 @@ cairo_matrix_t matrix_from_transform(
     throw std::invalid_argument("Only affine transforms are handled");
   }
   auto const& py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
-  if ((py_matrix.shape(0) != 3) || (py_matrix.shape(1) != 3)) {
+  if (py_matrix.shape(0) != 3 || py_matrix.shape(1) != 3) {
     throw std::invalid_argument(
       "Transformation matrix must have shape (3, 3)");
   }
@@ -157,7 +157,7 @@ struct LoadPathContext {
   public:
   LoadPathContext(cairo_t* cr) :
     cr{cr},
-    snap{(!has_vector_surface(cr)) && get_additional_state(cr).snap}
+    snap{!has_vector_surface(cr) && get_additional_state(cr).snap}
   {
     cairo_get_matrix(cr, &ctm);
     cairo_identity_matrix(cr);
@@ -168,7 +168,7 @@ struct LoadPathContext {
     // use a slower path.
 #ifndef _WIN32
       snap
-      ? ((0 < lw) && ((lw < 1) || (std::lround(lw) % 2 == 1))
+      ? (0 < lw && (lw < 1 || std::lround(lw) % 2 == 1)
          ? [](double x) -> double { return std::floor(x) + .5; }
          : [](double x) -> double { return std::round(x); })
       // Snap between pixels if lw is exactly zero 0 (in which case the edge is
@@ -179,7 +179,7 @@ struct LoadPathContext {
     [=](double x) -> double {
       return
         snap
-        ? ((lw < 1) || (std::lround(lw) % 2 == 1)
+        ? (0 < lw && (lw < 1 || std::lround(lw) % 2 == 1)
            ? std::floor(x) + .5
            : std::round(x))
         : x;
@@ -310,7 +310,7 @@ void load_path_exact(
 
   auto const& vertices = vertices_keepref.unchecked<2>();
   auto const& n = vertices.shape(0);
-  if (!((0 <= start) && (start <= stop) && (stop <= n))) {
+  if (!(0 <= start && start <= stop && stop <= n)) {
     throw std::invalid_argument("Invalid bounds for sub-path");
   }
   auto const& snapper = lpc.snapper;
@@ -400,7 +400,7 @@ void load_path_exact(
           header.header = {CAIRO_PATH_MOVE_TO, 2};
         }
         // Snapping.
-        if (lpc.snap && ((x == x_prev) || (y == y_prev))) {
+        if (lpc.snap && (x == x_prev || y == y_prev)) {
           // If we have a horizontal or a vertical line, snap both coordinates.
           // While it may make sense to only snap in the direction orthogonal
           // to the displacement, this would cause e.g. axes spines to not line

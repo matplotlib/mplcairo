@@ -82,12 +82,12 @@ bool PatternCache::EqualTo::operator()(
   CacheKey const& lhs, CacheKey const& rhs) const
 {
   return (lhs.path.is(rhs.path))
-    && (lhs.matrix.xx == rhs.matrix.xx) && (lhs.matrix.xy == rhs.matrix.xy)
-    && (lhs.matrix.yx == rhs.matrix.yx) && (lhs.matrix.yy == rhs.matrix.yy)
-    && (lhs.matrix.x0 == rhs.matrix.x0) && (lhs.matrix.y0 == rhs.matrix.y0)
-    && (lhs.draw_func == rhs.draw_func)
-    && (lhs.linewidth == rhs.linewidth) && (lhs.dash == rhs.dash)
-    && (lhs.capstyle == rhs.capstyle) && (lhs.joinstyle == rhs.joinstyle);
+    && lhs.matrix.xx == rhs.matrix.xx && lhs.matrix.xy == rhs.matrix.xy
+    && lhs.matrix.yx == rhs.matrix.yx && lhs.matrix.yy == rhs.matrix.yy
+    && lhs.matrix.x0 == rhs.matrix.x0 && lhs.matrix.y0 == rhs.matrix.y0
+    && lhs.draw_func == rhs.draw_func
+    && lhs.linewidth == rhs.linewidth && lhs.dash == rhs.dash
+    && lhs.capstyle == rhs.capstyle && lhs.joinstyle == rhs.joinstyle;
 }
 
 PatternCache::PatternCache(double threshold) : threshold_{threshold}
@@ -149,8 +149,8 @@ void PatternCache::mask(
     double x0, y0, x1, y1;
     cairo_path_extents(cr, &x0, &y0, &x1, &y1);
     // If the pattern is huge, caching it can blow up the memory.
-    if ((x1 - x0) > get_additional_state(cr).width
-        || (y1 - y0) > get_additional_state(cr).height) {
+    if (x1 - x0 > get_additional_state(cr).width
+        || y1 - y0 > get_additional_state(cr).height) {
       draw_direct();
       return;
     }
@@ -173,7 +173,7 @@ void PatternCache::mask(
   // bugzilla; see also gotw#88); so bind values instead.
   auto const x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
              y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
-  if ((x_max < threshold_) || (y_max < threshold_)) {
+  if (x_max < threshold_ || y_max < threshold_) {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});

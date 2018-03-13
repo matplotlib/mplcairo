@@ -630,11 +630,9 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   auto const& tri_raw = triangles.unchecked<3>();
   auto const& col_raw = colors.unchecked<3>();
   auto const& n = tri_raw.shape(0);
-  if ((n != col_raw.shape(0))
-      || (tri_raw.shape(1) != 3)
-      || (tri_raw.shape(2) != 2)
-      || (col_raw.shape(1) != 3)
-      || (col_raw.shape(2) != 4)) {
+  if (col_raw.shape(0) != n
+      || tri_raw.shape(1) != 3 || tri_raw.shape(2) != 2
+      || col_raw.shape(1) != 3 || col_raw.shape(2) != 4) {
     throw std::invalid_argument("Non-matching shapes");
   }
   auto const& pattern = cairo_pattern_create_mesh();
@@ -744,7 +742,7 @@ void GraphicsContextRenderer::draw_markers(
   auto patterns = std::unique_ptr<cairo_pattern_t*[]>{};
   auto const& n_subpix =  // NOTE: Arbitrary limit of 1/16.
     simplify_threshold >= 1. / 16 ? int(std::ceil(1 / simplify_threshold)) : 0;
-  if (n_subpix && (n_subpix * n_subpix < n_vertices)) {
+  if (n_subpix && n_subpix * n_subpix < n_vertices) {
     patterns.reset(new cairo_pattern_t*[n_subpix * n_subpix]);
   }
 
@@ -945,8 +943,8 @@ void GraphicsContextRenderer::draw_path_collection(
   //   hexbin() should provide its own Container class which correctly adjusts
   //   the transforms at draw time (or just be drawn as a quadmesh, see
   //   draw_quad_mesh).
-  if ((py::bool_(py::cast(this).attr("get_hatch")()))
-      || (offset_position == "data")) {
+  if (py::bool_(py::cast(this).attr("get_hatch")())
+      || offset_position == "data") {
     py::module::import("matplotlib.backend_bases")
       .attr("RendererBase").attr("draw_path_collection")(
         this, gc, master_transform,
@@ -1076,17 +1074,17 @@ void GraphicsContextRenderer::draw_quad_mesh(
     matrix_from_transform(master_transform, get_additional_state().height);
   auto const& fcs_raw = fcs.unchecked<2>(),
             & ecs_raw = ecs.unchecked<2>();
-  if ((coordinates.shape(0) != mesh_height + 1)
-      || (coordinates.shape(1) != mesh_width + 1)
-      || (coordinates.shape(2) != 2)
-      || (fcs_raw.shape(0) != mesh_height * mesh_width)
-      || (fcs_raw.shape(1) != 4)
-      || (ecs_raw.shape(1) != 4)) {
+  if (coordinates.shape(0) != mesh_height + 1
+      || coordinates.shape(1) != mesh_width + 1
+      || coordinates.shape(2) != 2
+      || fcs_raw.shape(0) != mesh_height * mesh_width
+      || fcs_raw.shape(1) != 4
+      || ecs_raw.shape(1) != 4) {
     throw std::invalid_argument("Non-matching shapes");
   }
-  if ((offsets.ndim() != 2)
-      || (offsets.shape(0) != 1) || (offsets.shape(1) != 2)
-      || (*offsets.data(0, 0) != 0) || (*offsets.data(0, 1) != 0)) {
+  if (offsets.ndim() != 2
+      || offsets.shape(0) != 1 || offsets.shape(1) != 2
+      || *offsets.data(0, 0) != 0 || *offsets.data(0, 1) != 0) {
     throw std::invalid_argument("Non-trivial offsets not supported");
   }
   auto coords_raw_keepref =  // Let numpy manage the buffer.
@@ -1265,8 +1263,8 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
     // Invert y-axis.
     & y0 = int(std::floor(state.height - bbox.attr("y1").cast<double>())),
     & y1 = int(std::ceil(state.height - bbox.attr("y0").cast<double>()));
-  if (!((0 <= x0) && (x0 <= x1) && (x1 <= state.width)
-        && (0 <= y0) && (y0 <= y1) && (y1 <= state.height))) {
+  if (!(0 <= x0 && x0 <= x1 && x1 <= state.width
+        && 0 <= y0 && y0 <= y1 && y1 <= state.height)) {
     throw std::invalid_argument("Invalid bbox");
   }
   auto const& width = x1 - x0, height = y1 - y0;
