@@ -480,12 +480,7 @@ void fill_and_stroke_exact(
 cairo_font_face_t* font_face_from_path(std::string path)
 {
   FT_Face ft_face;
-  if (auto const& error =
-        FT_New_Face(detail::ft_library, path.c_str(), 0, &ft_face)) {
-    throw std::runtime_error(
-      "FT_New_Face(ft_library, \"" + path + "\", 0, &ft_face) failed with "
-      "error: " + detail::ft_errors.at(error));
-  }
+  FT_CHECK(FT_New_Face, detail::ft_library, path.c_str(), 0, &ft_face);
   auto const& font_face =
     cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
   CAIRO_CLEANUP_CHECK(

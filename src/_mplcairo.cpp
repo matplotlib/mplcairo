@@ -1439,11 +1439,7 @@ PYBIND11_MODULE(_mplcairo, m)
   detail::UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
 
-  if (auto const& error = FT_Init_FreeType(&detail::ft_library)) {
-    throw std::runtime_error(
-      "FT_Init_FreeType(&ft_library) failed with error: "
-      + detail::ft_errors.at(error));
-  }
+  FT_CHECK(FT_Init_FreeType, &detail::ft_library);
   auto ft_cleanup = py::cpp_function{
     [&](py::handle /* weakref */) -> void {
       FT_Done_FreeType(detail::ft_library);
