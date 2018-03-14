@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-ver=0.4.0
+ver=0.5.0
 toplevel="$(git rev-parse --show-toplevel)"
 mkdir -p "$toplevel/build"
 cd "$toplevel/build"
