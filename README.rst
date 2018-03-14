@@ -11,7 +11,8 @@ UI, or non-interactively (i.e., to save figure to various file formats).
 Noteworthy points include:
 
 - Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
-  circular markers of variable colors).
+  circular markers of variable colors) and improved accuracy (e.g., with
+  marker positioning, quad meshes, and text kerning).
 - Support for a wider variety of font formats, such as otf and pfb, for vector
   (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
 - Optional support for complex text layout (right-to-left languages, etc.)
@@ -63,6 +64,10 @@ As usual, install using pip::
    (cairo 1.15.4 added support for PDF metadata and links; the presence of this
    feature is detected at runtime.)
 
+mplcairo can use Raqm_ for complex text layout if it is available.  Refer to
+the instructions on that project's website for installation on Linux and OSX.
+I am not aware of any build scripts for Raqm on Windows.
+
 Building
 ========
 
@@ -102,8 +107,7 @@ interact poorly with installing cairo and pkg-config from conda-forge, so you
 are on your own to install a recent compiler (e.g., using your distribution's
 package manager).
 
-The manylinux wheel is built using ``tools/build-manylinux.sh``.  It does not
-include Raqm.
+The manylinux wheel is built using ``tools/build-manylinux.sh``.
 
 **NOTE**: On Arch Linux, the python-pillow 5.0.0-1 (Arch) package includes an
 invalid version ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not
@@ -125,7 +129,7 @@ it requires manual modifications to the PATH and LDFLAGS (as documented by
 
 The OSX wheel is built using delocate-wheel_ (to vendor a recent version of
 libc++).  Currently, it can only be built from a Homebrew-clang wheel, not a
-conda-clang wheel (due to some path intricacies...).  It does not include Raqm.
+conda-clang wheel (due to some path intricacies...).
 
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
 
@@ -212,6 +216,10 @@ RGBA8888 buffers); additionally, it does not work with the wx and macosx
 backends due to peculiarities of the corresponding canvas classes.  On the
 other hand, this is currently the only way in which the webagg-based backends
 (e.g., Jupyter's inline widget) are supported.
+
+At import-time, mplcairo will attempt to load Raqm_.  The use of that library
+can be controlled and checked using the ``load_raqm``, ``unload_raqm``, and
+``has_raqm`` functions.
 
 The ``examples`` directory contains a few cases where the output of this
 renderer is arguably more accurate than the one of the default renderer, Agg:

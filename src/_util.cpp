@@ -1,8 +1,5 @@
+#include "_raqm.h"
 #include "_util.h"
-
-#ifdef MPLCAIRO_USE_LIBRAQM
-#include <raqm.h>
-#endif
 
 #include <stack>
 
@@ -530,39 +527,46 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
   text_to_glyphs(cairo_t* cr, std::string s)
 {
   auto const& scaled_font = cairo_get_scaled_font(cr);
-#ifdef MPLCAIRO_USE_LIBRAQM
-  auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
-  auto const& rq = raqm_create();
-  if (!(rq
-        && raqm_set_text_utf8(rq, s.c_str(), s.size())
-        && raqm_set_freetype_face(rq, ft_face)
-        && raqm_layout(rq))) {
-    raqm_destroy(rq);
-    cairo_ft_scaled_font_unlock_face(scaled_font);
-    throw std::runtime_error("Failed to compute text layout");
-  }
+  cairo_glyph_t* glyphs = {};
   auto count = size_t{};
-  auto const& rq_glyphs = raqm_get_glyphs(rq, &count);
-  auto const& glyphs = cairo_glyph_allocate(count);
-  auto x = 0., y = 0.;
-  for (auto i = 0u; i < count; ++i) {
-    auto const& rq_glyph = rq_glyphs[i];
-    glyphs[i].index = rq_glyph.index;
-    glyphs[i].x = x + rq_glyph.x_offset / 64.;
-    x += rq_glyph.x_advance / 64.;
-    glyphs[i].y = y + rq_glyph.y_offset / 64.;
-    y += rq_glyph.y_advance / 64.;
+  if (has_raqm()) {
+    auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
+    auto const& scaled_font_unlock_cleanup =
+      std::unique_ptr<
+        std::remove_pointer_t<std::remove_reference_t<decltype(scaled_font)>>,
+        decltype(&cairo_ft_scaled_font_unlock_face)>{
+          scaled_font, cairo_ft_scaled_font_unlock_face};
+    auto const& rq = raqm::create();
+    auto const& rq_cleanup =
+      std::unique_ptr<
+        std::remove_pointer_t<std::remove_reference_t<decltype(rq)>>,
+        decltype(raqm::destroy)>{
+          rq, raqm::destroy};
+    if (!rq) {
+      throw std::runtime_error("Failed to compute text layout");
+    }
+    TRUE_CHECK(raqm::set_text_utf8, rq, s.c_str(), s.size());
+    TRUE_CHECK(raqm::set_freetype_face, rq, ft_face);
+    TRUE_CHECK(raqm::layout, rq);
+    auto const& rq_glyphs = raqm::get_glyphs(rq, &count);
+    glyphs = cairo_glyph_allocate(count);
+    auto x = 0., y = 0.;
+    for (auto i = 0u; i < count; ++i) {
+      auto const& rq_glyph = rq_glyphs[i];
+      glyphs[i].index = rq_glyph.index;
+      glyphs[i].x = x + rq_glyph.x_offset / 64.;
+      x += rq_glyph.x_advance / 64.;
+      glyphs[i].y = y + rq_glyph.y_offset / 64.;
+      y += rq_glyph.y_advance / 64.;
+    }
+  } else {
+    auto _count = int{};
+    CAIRO_CHECK(
+      cairo_scaled_font_text_to_glyphs,
+      scaled_font, 0, 0, s.c_str(), s.size(),
+      &glyphs, &_count, nullptr, nullptr, nullptr);
+    count = _count;
   }
-  raqm_destroy(rq);
-  cairo_ft_scaled_font_unlock_face(scaled_font);
-#else
-  cairo_glyph_t* glyphs = nullptr;
-  auto count = int{};
-  CAIRO_CHECK(
-    cairo_scaled_font_text_to_glyphs,
-    scaled_font, 0, 0, s.c_str(), s.size(),
-    &glyphs, &count, nullptr, nullptr, nullptr);
-#endif
   auto ptr =
     std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>{
       glyphs, cairo_glyph_free};

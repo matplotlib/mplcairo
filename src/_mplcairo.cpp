@@ -1,7 +1,8 @@
 #include "_mplcairo.h"
 
-#include "_util.h"
 #include "_pattern_cache.h"
+#include "_raqm.h"
+#include "_util.h"
 
 #ifndef _WIN32
 #include <py3cairo.h>
@@ -1403,6 +1404,11 @@ PYBIND11_MODULE(_mplcairo, m)
 {
   m.doc() = "A cairo backend for matplotlib.";
 
+  try {
+    load_raqm();
+  } catch (std::runtime_error&) {
+  }
+
   // Setup global values.
 
 #ifndef _WIN32
@@ -1460,13 +1466,6 @@ PYBIND11_MODULE(_mplcairo, m)
     XSTR(PYBIND11_VERSION_MAJOR) "."
     XSTR(PYBIND11_VERSION_MINOR) "."
     XSTR(PYBIND11_VERSION_PATCH);
-  m.attr("__raqm__") =
-#ifdef MPLCAIRO_USE_LIBRAQM
-    true
-#else
-    false
-#endif
-    ;
 
   py::enum_<cairo_antialias_t>(m, "antialias_t")
     .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
@@ -1482,6 +1481,19 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("EPS", StreamSurfaceType::EPS)
     .value("SVG", StreamSurfaceType::SVG)
     .value("Script", StreamSurfaceType::Script);
+
+  // Export functions.
+  m.def(
+    "load_raqm", &load_raqm,
+    "Load raqm.  Raises an exception on failure.");
+  m.def(
+    "unload_raqm", &unload_raqm,
+    "Unload raqm.  Raises an exception on failure.");
+  m.def(
+    "has_raqm", &has_raqm,
+    "Return whether raqm is loaded.");
+
+  // Export classes.
 
   py::class_<Region>(m, "_Region")
     // Only for patching Agg.

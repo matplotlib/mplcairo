@@ -1,6 +1,7 @@
 #include "_pattern_cache.h"
 
 #include "_mplcairo.h"
+
 #include "_macros.h"
 
 namespace mplcairo {

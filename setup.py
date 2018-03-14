@@ -41,46 +41,31 @@ def path_from_link_libpath():
 
 
 class build_ext(build_ext):
-    def _add_raqm_flags(self, ext):
-        if os.environ.get("MPLCAIRO_USE_LIBRAQM"):
-            ext.define_macros = (
-                [("MPLCAIRO_USE_LIBRAQM", "1")])
-            try:
-                ext.extra_compile_args += (
-                    get_pkg_config("--cflags", "raqm"))
-                ext.extra_link_args += (
-                    get_pkg_config("--libs", "raqm"))
-            except subprocess.CalledProcessError:
-                if Path("build/raqm-prefix").is_dir():
-                    ext.include_dirs += (
-                        ["build/raqm-prefix/include"])
-                    ext.extra_objects += (
-                        ["build/raqm-prefix/lib/libraqm.a"])
-                else:
-                    sys.exit("""
-Raqm is not installed system-wide (but you requested it by setting the
-MPLCAIRO_USE_LIBRAQM environment variable).  On Linux and OSX, if your system
-package manager does not provide it,
-
-1. Install the FriBiDi and HarfBuzz headers (e.g., 'libfribidi-dev' and
-   'libharfbuzz-dev') using your system package manager.
-2. Run 'tools/build-raqm.sh' *outside of any conda environment*.
-3. Build and install mplcairo normally.
-""")
 
     def build_extensions(self):
         import pybind11
 
         ext, = self.distribution.ext_modules
 
-        ext.sources += (
-            ["src/_mplcairo.cpp", "src/_util.cpp", "src/_pattern_cache.cpp"])
-        ext.depends += (
-            ["setup.py", "src/_macros.h",
-             "src/_mplcairo.h", "src/_util.h", "src/_pattern_cache.h"])
+        ext.sources += [
+            "src/_mplcairo.cpp",
+            "src/_os.cpp",
+            "src/_util.cpp",
+            "src/_pattern_cache.cpp",
+            "src/_raqm.cpp",
+        ]
+        ext.depends += [
+            "setup.py", "src/_macros.h",
+            "src/_mplcairo.h",
+            "src/_os.h",
+            "src/_util.h",
+            "src/_pattern_cache.h",
+            "src/_raqm.cpp",
+        ]
         ext.language = "c++"
         ext.include_dirs += (
-            [pybind11.get_include(), pybind11.get_include(user=True)])
+            ["include",
+             pybind11.get_include(), pybind11.get_include(user=True)])
 
         if sys.platform == "linux":
             import cairo
@@ -91,7 +76,6 @@ package manager does not provide it,
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 ["-flto"])
-            self._add_raqm_flags(ext)
             if os.environ.get("MANYLINUX"):
                 ext.extra_link_args += (
                     ["-static-libgcc", "-static-libstdc++"])
@@ -110,7 +94,6 @@ package manager does not provide it,
             ext.extra_link_args += (
                 # version-min needs to be repeated to avoid a warning.
                 ["-flto", "-mmacosx-version-min=10.9"])
-            self._add_raqm_flags(ext)
 
         elif sys.platform == "win32":
             ext.include_dirs += (
