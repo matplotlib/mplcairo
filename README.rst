@@ -91,13 +91,20 @@ The following additional dependencies are required:
 
 - a C++ compiler with C++17 support, e.g. GCC≥7.2 or Clang≥5.0.
 
-- cairo and FreeType headers, and pkg-config information to locate them.  On
-  Linux and OSX, if using conda, they can be installed using ::
+- cairo and FreeType headers, and pkg-config information to locate them.
+
+  If using conda, they can be installed using ::
 
      conda install -y -c conda-forge pycairo pkg-config
 
   as pycairo (also a dependency) depends on cairo, which depends on freetype.
   Note that cairo and pkg-config from the anaconda channel will *not* work.
+
+  On Linux, they can also be installed with your distribution's package manager
+  (Debian/Ubuntu: ``libcairo2-dev``, Fedora: ``cairo-devel``).
+
+- Raqm headers.  They can be downloaded using
+  ``tools/download_raqm_header.py``.
 
 Linux
 `````
@@ -405,8 +412,8 @@ Possible optimizations
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's
   side.
 
-What about the already existing cairo (gtk3cairo) backend?
-==========================================================
+What about the already existing cairo (gtk3/qt5/wx/tk/...cairo) backends?
+=========================================================================
 
 It is slow (try running ``examples/mplot3d/wire3d_animation.py``), buggy (try
 calling ``imshow``, especially with an alpha channel), and renders math poorly
