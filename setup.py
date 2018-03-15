@@ -48,6 +48,7 @@ class build_ext(build_ext):
         ext, = self.distribution.ext_modules
 
         ext.sources += [
+            "src/_feature_tests.cpp",
             "src/_mplcairo.cpp",
             "src/_os.cpp",
             "src/_util.cpp",
@@ -110,14 +111,15 @@ class build_ext(build_ext):
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
         # libstdc++ + std::variant = compilation error).  Note that
         # `.compiler.compiler` only exists for UnixCCompiler.
-        if (os.name == "posix"
-            and "__clang__" in subprocess.check_output(
+        if os.name == "posix":
+            compiler_macros = subprocess.check_output(
                 self.compiler.compiler + ["-dM", "-E", "-x", "c", "/dev/null"],
-                universal_newlines=True)):
-            ext.extra_compile_args += ["-stdlib=libc++"]
-            # Explicitly linking to libc++ is required to avoid picking up the
-            # system C++ library (libstdc++ or an outdated libc++).
-            ext.extra_link_args += ["-lc++"]
+                universal_newlines=True)
+            if "__clang__" in compiler_macros:
+                ext.extra_compile_args += ["-stdlib=libc++"]
+                # Explicitly linking to libc++ is required to avoid picking up
+                # the system C++ library (libstdc++ or an outdated libc++).
+                ext.extra_link_args += ["-lc++"]
 
         super().build_extensions()
 

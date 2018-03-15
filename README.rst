@@ -43,6 +43,11 @@ As usual, install using pip::
 
    python -mpip install mplcairo
 
+mplcairo can use Raqm_ for complex text layout if it is available.  Refer to
+the instructions on that project's website for installation on Linux and OSX.
+You may want to look at https://github.com/HOST-Oman/libraqm-cmake for Windows
+build scripts.
+
 .. [#] pybind11 is actually only a build-time requirement, but doesn't play
    well with ``setup_requires``.
 
@@ -63,10 +68,6 @@ As usual, install using pip::
 
    (cairo 1.15.4 added support for PDF metadata and links; the presence of this
    feature is detected at runtime.)
-
-mplcairo can use Raqm_ for complex text layout if it is available.  Refer to
-the instructions on that project's website for installation on Linux and OSX.
-I am not aware of any build scripts for Raqm on Windows.
 
 Building
 ========
@@ -109,10 +110,19 @@ The following additional dependencies are required:
 Linux
 `````
 
-conda's compilers (``gxx_linux-64`` on the ``anaconda`` channel) currently
-interact poorly with installing cairo and pkg-config from conda-forge, so you
-are on your own to install a recent compiler (e.g., using your distribution's
-package manager).
+conda's compilers (``gxx_linux-64`` on the ``anaconda`` channel) `currently
+interact poorly with installing cairo and pkg-config from conda-forge
+<conda-build-2523>`_, so you are on your own to install a recent compiler
+(e.g., using your distribution's package manager).  You may want to set the
+``CC`` and ``CXX`` environment variables to point to your C++ compiler if it is
+nonstandard [#]_.  In that case, be careful to set them to e.g. ``g++-7`` and
+**not** ``gcc-7``, otherwise the compilation will succeed but the shared object
+will be mis-linked and fail to load.
+
+By default, on GCC, the build uses ``-Wfatal-errors`` so that errors regarding
+lack of support for C++17 or the absence of Raqm headers do not get lost in a
+sea of extraneous errors.  This option is removed if the environment variable
+``CFLAGS`` exists (even if it is empty).
 
 The manylinux wheel is built using ``tools/build-manylinux.sh``.
 
@@ -123,6 +133,12 @@ Python, even in a virtualenv (it can be installed when *using* mplcairo without
 causing any problems).  One solution is to temporarily uninstall the package;
 another one is to package it yourself using e.g. pypi2pkgbuild_.
 
+.. [#] ``distutils`` uses ``CC`` for *compiling* C++ sources but ``CXX`` for
+   linking them (don't ask).  You may run into additional issues if ``CC`` or
+   ``CXX`` has multiple words; e.g., if ``CC`` is set to ``ccache g++``, you
+   also need to set ``CXX`` to ``ccache gcc``.
+
+.. _conda-build-2523: https://github.com/conda/conda-build/issues/2523
 .. _pypi2pkgbuild: https://github.com/anntzer/pypi2pkgbuild
 
 OSX

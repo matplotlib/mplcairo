@@ -1,8 +1,4 @@
 #pragma once
-#if !__has_include(<raqm.h>)
-  #error "Please download raqm.h and place it in the include/ directory.  " \
-    "You may want to use tools/download_raqm_header.py."
-#else
 
 extern "C" {  // Support raqm<=0.2.
   #include <raqm.h>
@@ -33,5 +29,3 @@ ITER_RAQM_API(DECLARE_API)
 }
 
 }
-
-#endif
