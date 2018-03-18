@@ -37,9 +37,10 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   // CAIRO_ANTIALIAS_BEST, depending on the linewidth.  The threshold of 1/3
   // was determined empirically.
   std::visit([&](auto const& aa) -> void {
-    if constexpr (std::is_same_v<decltype(aa), cairo_antialias_t>) {
+    using aa_t = std::decay_t<decltype(aa)>;
+    if constexpr (std::is_same_v<aa_t, cairo_antialias_t>) {
       cairo_set_antialias(cr, aa);
-    } else if constexpr (std::is_same_v<decltype(aa), bool>) {
+    } else if constexpr (std::is_same_v<aa_t, bool>) {
       if (aa) {
         auto const& lw = cairo_get_line_width(cr);
         cairo_set_antialias(
