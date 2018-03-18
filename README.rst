@@ -104,8 +104,8 @@ The following additional dependencies are required:
   On Linux, they can also be installed with your distribution's package manager
   (Debian/Ubuntu: ``libcairo2-dev``, Fedora: ``cairo-devel``).
 
-- Raqm headers.  They can be downloaded using
-  ``tools/download_raqm_header.py``.
+Raqm headers are also needed, but will be automatically downloaded if not
+found.
 
 Linux
 `````
@@ -118,11 +118,6 @@ interact poorly with installing cairo and pkg-config from conda-forge
 nonstandard [#]_.  In that case, be careful to set them to e.g. ``g++-7`` and
 **not** ``gcc-7``, otherwise the compilation will succeed but the shared object
 will be mis-linked and fail to load.
-
-By default, on GCC, the build uses ``-Wfatal-errors`` so that errors regarding
-lack of support for C++17 or the absence of Raqm headers do not get lost in a
-sea of extraneous errors.  This option is removed if the environment variable
-``CFLAGS`` exists (even if it is empty).
 
 The manylinux wheel is built using ``tools/build-manylinux.sh``.
 

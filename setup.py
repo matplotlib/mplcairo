@@ -6,7 +6,9 @@ import re
 import shlex
 import shutil
 import subprocess
+from subprocess import CalledProcessError
 import sys
+import urllib.request
 
 if sys.platform == "darwin":
     os.environ.setdefault("CC", "clang")
@@ -17,6 +19,9 @@ if sys.platform == "darwin":
     os.environ.setdefault("CXX", "clang")
 
 from setupext import Extension, build_ext, find_packages, setup
+
+
+RAQM_TAG = "v0.5.0"
 
 
 def get_pkg_config(info, lib):
@@ -64,9 +69,21 @@ class build_ext(build_ext):
             "src/_raqm.cpp",
         ]
         ext.language = "c++"
+        tmp_include_dir = Path(self.get_finalized_command("build").build_base,
+                               "include")
+        tmp_include_dir.mkdir(parents=True, exist_ok=True)
         ext.include_dirs += (
-            ["include",
+            [tmp_include_dir,
              pybind11.get_include(), pybind11.get_include(user=True)])
+
+        try:
+            get_pkg_config("--exists", "raqm")
+        except (FileNotFoundError, CalledProcessError):
+            with urllib.request.urlopen(
+                    "https://raw.githubusercontent.com/HOST-Oman/libraqm/"
+                    "{}/src/raqm.h".format(RAQM_TAG)) as request, \
+                    (tmp_include_dir / "raqm.h").open("wb") as file:
+                file.write(request.read())
 
         if sys.platform == "linux":
             import cairo
