@@ -12,7 +12,6 @@ import warnings
 
 import matplotlib as mpl
 import matplotlib.backends.backend_agg
-import matplotlib.pyplot as plt
 import matplotlib.testing.compare
 import mplcairo.base
 
@@ -47,6 +46,7 @@ Matplotlib's agg backend.
     mpl.backends.backend_agg = \
         sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
     mpl.use("agg", warn=False, force=True)
+    import matplotlib.pyplot as plt
     plt.switch_backend("agg")
 
     cwd = os.getcwd()

@@ -31,6 +31,10 @@ Upstream issues
 Issues with Matplotlib
 ----------------------
 
+Matplotlib's software alpha compositor is incorrect (#8847). ::
+
+   test_image::test_image_composite_alpha[pdf,svg]
+
 Matplotlib's hatching is inconsistent across backends (#10034). ::
 
    test_artist::test_clipping
@@ -40,17 +44,19 @@ backends (#10035). ::
 
    test_axes::test_rgba_markers[pdf]
 
-Matplotlib's SVG backend does not implement Gouraud shading. ::
-
-   test_axes::test_pcolormesh[svg]
-
 Matplotlib's PDFPages is coupled too tightly with the PDF backend (#9114). ::
 
    test_backend_pdf::test_composite_image, test_multipage_*
 
-Matplotlib's software alpha compositor is incorrect (#8847). ::
+Matplotlib's SVG backend does not implement Gouraud shading. ::
 
-   test_image::test_image_composite_alpha[pdf,svg]
+   test_axes::test_pcolormesh[svg]
+
+Matplotlib does not write SVGs with ``image-rendering: pixelated`` (#10112). ::
+
+   test_backend_svg::test_noscale[svg]
+   test_image::test_rotate_image[svg]
+   test_tightlayout::test_tight_layout5[svg]
 
 Issues with cairo
 -----------------
@@ -100,12 +106,6 @@ precisely when combined with transparency. ::
 
 Non-issues
 ==========
-
-We do not implement the deprecated ``svg.image_noscale`` rcparam. ::
-
-   test_backend_svg::test_noscale[svg]
-   test_image::test_rotate_image[svg]
-   test_tightlayout::test_tight_layout5[svg]
 
 We do not support writing PS to text-mode streams. ::
 

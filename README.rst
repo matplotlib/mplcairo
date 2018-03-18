@@ -2,6 +2,18 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
+|PyPI| |Travis| |AppVeyor|
+
+.. |PyPI|
+   image:: https://img.shields.io/pypi/v/mplcairo.svg
+   :target: https://pypi.python.org/pypi/mplcairo
+.. |Travis|
+   image:: https://travis-ci.org/anntzer/mplcairo.svg?branch=master
+   :target: https://travis-ci.org/anntzer/mplcairo
+.. |AppVeyor|
+   image:: https://ci.appveyor.com/api/projects/status/github/anntzer/mplcairo?svg=true
+   :target: https://ci.appveyor.com/project/anntzer/mplcairo
+
 .. contents:: :local:
 
 This is a new, essentially complete implementation of a cairo_ backend for
@@ -397,7 +409,6 @@ Missing implementation
 Support for the following features is missing:
 
 - the ``svg.image_inline`` rcparam.
-- the deprecated ``svg.image_noscale`` rcparam.
 
 Missing support from cairo
 --------------------------
@@ -426,6 +437,6 @@ Possible optimizations
 What about the already existing cairo (gtk3/qt5/wx/tk/...cairo) backends?
 =========================================================================
 
-It is slow (try running ``examples/mplot3d/wire3d_animation.py``), buggy (try
-calling ``imshow``, especially with an alpha channel), and renders math poorly
-(try ``title(r"$\sqrt{2}$")``).
+They are slow (try running ``examples/mplot3d/wire3d_animation.py``), buggy
+(try calling ``imshow``, especially with an alpha channel), and renders math
+poorly (try ``title(r"$\sqrt{2}$")``).
