@@ -333,6 +333,9 @@ stamping is also implemented for scatter plots (which can have multiple
 colors).  Likewise, markers of different sizes get mapped into markers of
 discretized sizes, with an error bounded by the threshold.
 
+**NOTE**: "Pixel" markers (``","``) **must** be drawn snapped.  This is
+currently not implemented.
+
 **NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
 where the facets join each other.  This is because these functions internally
 use a ``PathCollection``, thus triggering the approximate stamping.

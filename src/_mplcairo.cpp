@@ -764,6 +764,8 @@ void GraphicsContextRenderer::draw_markers(
       x1 = std::min(x1, x2f);
       y1 = std::max(y1, y2f);
     }
+    x0 = std::floor(x0 / n_subpix) * n_subpix;
+    y0 = std::floor(y0 / n_subpix) * n_subpix;
 
     // Fill the pattern cache.
     auto const& raster_gcr =
