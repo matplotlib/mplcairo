@@ -35,7 +35,11 @@ ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
 
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
-py::object UNIT_CIRCLE{};
+py::object UNIT_CIRCLE{}, PIXEL_MARKER{};
+}
+
+bool py_eq(py::object obj1, py::object obj2) {
+  return py::module::import("operator").attr("eq")(obj1, obj2).cast<bool>();
 }
 
 py::object rc_param(std::string key)

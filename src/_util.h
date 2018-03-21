@@ -64,6 +64,7 @@ extern cairo_user_data_key_t const
   STATE_KEY, // cairo_t -> additional state.
   FT_KEY;    // cairo_font_face_t -> FT_Face.
 extern py::object UNIT_CIRCLE;
+extern py::object PIXEL_MARKER;
 }
 
 using rectangle_t = std::tuple<double, double, double, double>;
@@ -90,6 +91,7 @@ struct AdditionalState {
   std::optional<std::string> url;
 };
 
+bool py_eq(py::object obj1, py::object obj2);
 py::object rc_param(std::string key);
 rgba_t to_rgba(py::object color, std::optional<double> alpha = {});
 cairo_matrix_t matrix_from_transform(py::object transform, double y0 = 0);

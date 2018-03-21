@@ -728,7 +728,7 @@ void GraphicsContextRenderer::draw_markers(
   auto const& matrix =
     matrix_from_transform(transform, get_additional_state().height);
 
-  auto const& fc_raw =
+  auto const& fc_raw_opt =
     fc ? to_rgba(*fc, get_additional_state().alpha) : std::optional<rgba_t>{};
   auto const& ec_raw = get_rgba();
 
@@ -736,11 +736,15 @@ void GraphicsContextRenderer::draw_markers(
     auto const& m = cairo_matrix_t{
       marker_matrix.xx, marker_matrix.yx, marker_matrix.xy, marker_matrix.yy,
       marker_matrix.x0 + x, marker_matrix.y0 + y};
-    fill_and_stroke_exact(cr, marker_path, &m, fc_raw, ec_raw);
+    fill_and_stroke_exact(cr, marker_path, &m, fc_raw_opt, ec_raw);
   };
 
+  // Pixel markers *must* be drawn snapped.
+  auto const& is_pixel_marker =
+    py_eq(marker_path, detail::PIXEL_MARKER.attr("get_path")())
+    && py_eq(marker_transform, detail::PIXEL_MARKER.attr("get_transform")());
   auto const& simplify_threshold =
-    has_vector_surface(cr_)
+    is_pixel_marker || has_vector_surface(cr_)
     ? 0 : rc_param("path.simplify_threshold").cast<double>();
   auto patterns = std::unique_ptr<cairo_pattern_t*[]>{};
   auto const& n_subpix =  // NOTE: Arbitrary limit of 1/16.
@@ -827,6 +831,25 @@ void GraphicsContextRenderer::draw_markers(
       cairo_pattern_destroy(patterns[i]);
     }
 
+  } else if (is_pixel_marker && !has_vector_surface(cr_)) {
+    auto const& surface = cairo_get_target(cr_);
+    auto const& raw = cairo_image_surface_get_data(surface);
+    auto const& stride = cairo_image_surface_get_stride(surface);
+    auto const& [r, g, b, a] = fc_raw_opt ? *fc_raw_opt : ec_raw;
+    auto const& fc_argb32 = uint32_t(
+        (uint8_t(255 * a) << 24) | (uint8_t(255 * a * r) << 16)
+        | (uint8_t(255 * a * g) << 8) | (uint8_t(255 * a * b)));
+    cairo_surface_flush(surface);
+    for (auto i = 0; i < n_vertices; ++i) {
+      auto x = vertices(i, 0), y = vertices(i, 1);
+      cairo_matrix_transform_point(&matrix, &x, &y);
+      if (!(std::isfinite(x) && std::isfinite(y))) {
+        continue;
+      }
+      *reinterpret_cast<uint32_t*>(
+        raw + std::lround(y) * stride + 4 * std::lround(x)) = fc_argb32;
+    }
+    cairo_surface_mark_dirty(surface);
   } else {
     for (auto i = 0; i < n_vertices; ++i) {
       cairo_save(cr_);
@@ -1200,7 +1223,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
   // - "ismath" can be True, False, "TeX" (i.e., usetex).
   // FIXME[matplotlib]: RendererAgg relies on the text.usetex rcParam, whereas
   // RendererBase relies (correctly?) on the value of ismath.
-  if (py::module::import("operator").attr("eq")(ismath, "TeX").cast<bool>()) {
+  if (py_eq(ismath, py::cast("TeX"))) {
     return
       py::module::import("matplotlib.backend_bases").attr("RendererBase")
       .attr("get_text_width_height_descent")(this, s, prop, ismath)
@@ -1273,7 +1296,7 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
     throw std::invalid_argument("Invalid bbox");
   }
   auto const& width = x1 - x0, height = y1 - y0;
-  // 4 bytes per pixel throughout!
+  // 4 bytes per pixel throughout.
   auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[4 * width * height]};
   auto const& surface = cairo_get_target(cr_);
   if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
@@ -1302,9 +1325,8 @@ void GraphicsContextRenderer::restore_region(Region& region)
   auto const& raw = cairo_image_surface_get_data(surface);
   auto const& stride = cairo_image_surface_get_stride(surface);
   cairo_surface_flush(surface);
-  // 4 bytes per pixel!
   for (auto y = y0; y < y1; ++y) {
-    std::memcpy(
+    std::memcpy(  // 4 bytes per pixel.
       raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width, 4 * width);
   }
   cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
@@ -1448,6 +1470,8 @@ PYBIND11_MODULE(_mplcairo, m)
 
   detail::UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
+  detail::PIXEL_MARKER =
+    py::module::import("matplotlib.markers").attr("MarkerStyle")(",");
 
   FT_CHECK(FT_Init_FreeType, &detail::ft_library);
   auto ft_cleanup = py::cpp_function{
