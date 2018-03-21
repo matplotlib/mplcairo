@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from contextlib import ExitStack
 import functools
 from functools import partial, partialmethod
 from gzip import GzipFile
@@ -233,11 +232,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
         self.figure.set_dpi(72)
-        stream, was_path = cbook.to_filehandle(
-            path_or_stream, "wb", return_opened=True)
-        with ExitStack() as stack:
-            if was_path:
-                stack.push(stream)
+        with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
             renderer._set_metadata(metadata)
@@ -288,11 +283,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                  "xpdf": backend_ps.xpdf_distill}[
                      rcParams["ps.usedistiller"]](
                          tmp_name, False, ptype=papertype)
-                stream, was_path = cbook.to_filehandle(
-                    path_or_stream, "wb", return_opened=True)
-                with open(tmp_name, "rb") as tmp_file, ExitStack() as stack:
-                    if was_path:
-                        stack.push(stream)
+                with open(tmp_name, "rb") as tmp_file, \
+                        cbook.open_file_cm(path_or_stream, "wb") as stream:
                     shutil.copyfileobj(tmp_file, stream)
         else:
             print_method(path_or_stream, **kwargs)
@@ -318,11 +310,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         img = self._get_fresh_unmultiplied_rgba8888()
         if dryrun:
             return
-        stream, was_path = cbook.to_filehandle(
-            path_or_stream, "wb", return_opened=True)
-        with ExitStack() as stack:
-            if was_path:
-                stack.push(stream)
+        with cbook.open_file_cm(path_or_stream, "wb") as stream:
             stream.write(img.tobytes())
 
     print_raw = print_rgba
@@ -340,11 +328,7 @@ class FigureCanvasCairo(FigureCanvasBase):
               "matplotlib version {}, https://matplotlib.org"
               .format(matplotlib.__version__))])
         full_metadata.update(metadata or {})
-        stream, was_path = cbook.to_filehandle(
-            path_or_stream, "wb", return_opened=True)
-        with ExitStack() as stack:
-            if was_path:
-                stack.push(stream)
+        with cbook.open_file_cm(path_or_stream, "wb") as stream:
             _png.write_png(img, stream, metadata=full_metadata)
 
     if Image:
