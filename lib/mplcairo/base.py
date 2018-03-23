@@ -32,7 +32,8 @@ from ._mplcairo import _StreamSurfaceType
 _log = logging.getLogger()
 # FreeType2 is thread-unsafe (as we rely on Matplotlib's unique FT_Library).
 _LOCK = RLock()
-MathTextParser._backend_mapping["cairo"] = _mplcairo.MathtextBackendCairo
+MathTextParser._backend_mapping[
+    "mplcairo"] = _mplcairo.MathtextBackendCairo
 
 
 @functools.lru_cache(1)

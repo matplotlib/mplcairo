@@ -106,7 +106,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   // This does *not* incref the cairo_t, but the destructor *will* decref it.
   cr_{cr},
   mathtext_parser_{
-    py::module::import("matplotlib.mathtext").attr("MathTextParser")("cairo")},
+    py::module::import("matplotlib.mathtext")
+      .attr("MathTextParser")("mplcairo")},
   texmanager_{py::none()},
   text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()}
 {
