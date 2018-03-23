@@ -44,9 +44,14 @@ def _get_drawn_subarray_and_bounds(img):
     """Return the drawn region of a buffer and its ``(l, b, w, h)`` bounds.
     """
     drawn = img[..., 3] != 0
-    l, r = drawn.any(axis=0).nonzero()[0][[0, -1]]
-    b, t = drawn.any(axis=1).nonzero()[0][[0, -1]]
-    return img[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
+    x_nz, = drawn.any(axis=0).nonzero()
+    y_nz, = drawn.any(axis=1).nonzero()
+    if len(x_nz) and len(y_nz):
+        l, r = drawn.any(axis=0).nonzero()[0][[0, -1]]
+        b, t = drawn.any(axis=1).nonzero()[0][[0, -1]]
+        return img[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
+    else:
+        return np.zeros((0, 0, 4), dtype=np.uint8), (0, 0, 0, 0)
 
 
 _mplcairo._Region.to_string_argb = (
@@ -124,6 +129,8 @@ class GraphicsContextRendererCairo(
     def stop_filter(self, filter_func):
         img = _util.to_unmultiplied_rgba8888(self._stop_filter_get_buffer())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
+        if not (w and h):
+            return
         img, dx, dy = filter_func(img[::-1] / 255, self.dpi)
         if img.dtype.kind == "f":
             img = np.asarray(img * 255, np.uint8)
