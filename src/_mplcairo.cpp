@@ -713,8 +713,6 @@ void GraphicsContextRenderer::draw_markers(
     throw std::invalid_argument("Non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
-  auto const& old_snap = get_additional_state().snap;
-  get_additional_state().snap = false;
 
   // As paths store their vertices in an array, the .cast<>() will not make a
   // copy and we don't need to explicitly keep the intermediate result alive.
@@ -754,11 +752,19 @@ void GraphicsContextRenderer::draw_markers(
   }
 
   if (patterns) {
+    // When stamping subpixel-positioned markers, there is no benefit in
+    // snapping (we're going to shift the path by subpixels anyways).  We don't
+    // want to force snapping off in the non-stamped case, as that would e.g.
+    // ruin alignment of ticks and spines, so the change is only applied in
+    // this branch.
+    auto const& old_snap = get_additional_state().snap;
+    get_additional_state().snap = false;
+    load_path_exact(cr_, marker_path, &marker_matrix);
+    get_additional_state().snap = old_snap;
     // Get the extent of the marker.  Importantly, cairo_*_extents() ignores
     // surface dimensions and clipping.
     // Matplotlib chooses *not* to call draw_markers() if the marker is bigger
     // than the canvas (which may make sense if the marker is indeed huge...).
-    load_path_exact(cr_, marker_path, &marker_matrix);
     double x0, y0, x1, y1;
     cairo_stroke_extents(cr_, &x0, &y0, &x1, &y1);
     if (fc) {
@@ -850,6 +856,7 @@ void GraphicsContextRenderer::draw_markers(
         raw + std::lround(y) * stride + 4 * std::lround(x)) = fc_argb32;
     }
     cairo_surface_mark_dirty(surface);
+
   } else {
     for (auto i = 0; i < n_vertices; ++i) {
       cairo_save(cr_);
@@ -862,8 +869,6 @@ void GraphicsContextRenderer::draw_markers(
       cairo_restore(cr_);
     }
   }
-
-  get_additional_state().snap = old_snap;
 }
 
 void GraphicsContextRenderer::draw_path(
