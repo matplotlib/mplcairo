@@ -2,12 +2,14 @@
 #include "_os.h"
 #include "_macros.h"
 
+#include <stdexcept>
+
 namespace mplcairo {
 
 namespace raqm {
 
 namespace {
-void* _handle;
+os::library_t _handle;
 }
 
 #define DEFINE_API(name) decltype(raqm_##name)* name{};
@@ -23,7 +25,7 @@ void load_raqm() {
         "libraqm.so.0";
       #elif defined __APPLE__
         "libraqm.dylib";
-      #elif defined _win32
+      #elif defined _WIN32
         "libraqm";
       #endif
     raqm::_handle = os::dlopen(filename);

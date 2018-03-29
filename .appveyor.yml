@@ -17,8 +17,10 @@ install:
     $Env:PATH = "C:\Miniconda36-x64;C:\Miniconda36-x64\Scripts;$Env:PATH"
     $Env:PYTHONUNBUFFERED = 1
     conda config --set always_yes true
+    conda update -n base conda
     conda update --quiet --all
     conda install --quiet matplotlib
+    pip install -U pip
     New-Item -ItemType directory build
     Set-Location build
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -31,7 +33,7 @@ install:
     pip uninstall -y .  # Just get the dependencies.
     python setup.py bdist_wheel
     pip install $(Get-Item dist\*.whl)
-      # end-syntax: ps1
+    # end-syntax: ps1
 
 test_script: |
   rem begin-syntax: dosbatch
