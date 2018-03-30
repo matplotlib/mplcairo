@@ -1251,7 +1251,10 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto const& [glyphs, count] = text_to_glyphs(cr_, s);
     cairo_glyph_extents(cr_, glyphs.get(), count, &extents);
     cairo_restore(cr_);
-    return {extents.width, extents.height, extents.height + extents.y_bearing};
+    return {
+      extents.width + extents.x_bearing,
+      extents.height,
+      extents.height + extents.y_bearing};
   }
 }
 
