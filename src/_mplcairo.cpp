@@ -768,12 +768,12 @@ void GraphicsContextRenderer::draw_markers(
     double x0, y0, x1, y1;
     cairo_stroke_extents(cr_, &x0, &y0, &x1, &y1);
     if (fc) {
-      double x1f, y1f, x2f, y2f;
-      cairo_fill_extents(cr_, &x1f, &y1f, &x2f, &y2f);
-      x0 = std::min(x0, x1f);
-      y0 = std::max(y0, y1f);
-      x1 = std::min(x1, x2f);
-      y1 = std::max(y1, y2f);
+      double x0f, y0f, x1f, y1f;
+      cairo_fill_extents(cr_, &x0f, &y0f, &x1f, &y1f);
+      x0 = std::min(x0, x0f);
+      y0 = std::min(y0, y0f);
+      x1 = std::max(x1, x1f);
+      y1 = std::max(y1, y1f);
     }
     x0 = std::floor(x0 / n_subpix) * n_subpix;
     y0 = std::floor(y0 / n_subpix) * n_subpix;
