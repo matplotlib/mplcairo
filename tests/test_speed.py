@@ -3,23 +3,21 @@ import pytest
 import matplotlib as mpl
 from matplotlib.testing.conftest import mpl_test_settings
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5 import QtGui
 import numpy as np
 
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from mplcairo import antialias_t
-from mplcairo.qt import FigureCanvasQTCairo
+from mplcairo.base import FigureCanvasCairo
 
 
-_canvas_classes = [FigureCanvasQTAgg, FigureCanvasQTCairo]
+_canvas_classes = [FigureCanvasAgg, FigureCanvasCairo]
 pytest.fixture(autouse=True)(mpl_test_settings)
 
 
 @pytest.fixture
 def axes():
     mpl.rcdefaults()
-    fig = Figure()
-    return fig.add_subplot(111)
+    return Figure().subplots()
 
 
 def despine(ax):
@@ -46,14 +44,14 @@ def test_axes(benchmark, canvas_cls, axes):
 
 @pytest.mark.parametrize(
     "canvas_cls,antialiased",
-    [(FigureCanvasQTAgg, False),
-     (FigureCanvasQTAgg, True),
-     (FigureCanvasQTCairo, antialias_t.NONE),
-     (FigureCanvasQTCairo, antialias_t.GRAY),
-     (FigureCanvasQTCairo, antialias_t.SUBPIXEL),
-     (FigureCanvasQTCairo, antialias_t.FAST),
-     (FigureCanvasQTCairo, antialias_t.GOOD),
-     (FigureCanvasQTCairo, antialias_t.BEST)])
+    [(FigureCanvasAgg, False),
+     (FigureCanvasAgg, True),
+     (FigureCanvasCairo, antialias_t.NONE),
+     (FigureCanvasCairo, antialias_t.GRAY),
+     (FigureCanvasCairo, antialias_t.SUBPIXEL),
+     (FigureCanvasCairo, antialias_t.FAST),
+     (FigureCanvasCairo, antialias_t.GOOD),
+     (FigureCanvasCairo, antialias_t.BEST)])
 @pytest.mark.parametrize("joinstyle", ["miter", "round", "bevel"])
 def test_line(
         benchmark, canvas_cls, antialiased, joinstyle, axes, sample_vectors):
