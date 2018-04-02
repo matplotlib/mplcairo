@@ -44,10 +44,14 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
       if (aa) {
         auto const& lw = cairo_get_line_width(cr);
         cairo_set_antialias(
-          cr, lw < 1. / 3 ? CAIRO_ANTIALIAS_BEST : CAIRO_ANTIALIAS_FAST);
+          cr,
+          (0 < lw) && (lw < 1. / 3)
+          ? CAIRO_ANTIALIAS_BEST : CAIRO_ANTIALIAS_FAST);
       } else {
         cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
       }
+    } else {
+      static_assert(always_false<aa_t>::value);
     }
   }, state.antialias);
   // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.

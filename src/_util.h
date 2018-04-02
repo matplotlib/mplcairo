@@ -9,6 +9,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+// Helper for std::visit.
+template<class T> struct always_false : std::false_type {};
+
 namespace mplcairo {
 
 namespace py = pybind11;
