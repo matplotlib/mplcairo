@@ -87,11 +87,17 @@ struct AdditionalState {
   std::tuple<std::optional<py::object>, std::shared_ptr<cairo_path_t>>
     clip_path;
   std::optional<std::string> hatch;
-  rgba_t hatch_color;
-  double hatch_linewidth;
+  // hatch_color and linewidth are made optional only to be able to lazy-load
+  // them, which is needed to keep GCR instantiation fast... which is needed
+  // for the pattern cache.
+  std::optional<rgba_t> hatch_color;
+  std::optional<double> hatch_linewidth;
   std::optional<py::object> sketch;
   bool snap;
   std::optional<std::string> url;
+
+  rgba_t get_hatch_color();
+  double get_hatch_linewidth();
 };
 
 bool py_eq(py::object obj1, py::object obj2);

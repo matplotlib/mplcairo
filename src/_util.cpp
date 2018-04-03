@@ -39,6 +39,20 @@ cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{}, PIXEL_MARKER{};
 }
 
+rgba_t AdditionalState::get_hatch_color() {
+  if (!hatch_color) {
+    hatch_color = to_rgba(rc_param("hatch.color"));
+  }
+  return *hatch_color;
+}
+
+double AdditionalState::get_hatch_linewidth() {
+  if (!hatch_linewidth) {
+    hatch_linewidth = rc_param("hatch.linewidth").cast<double>();
+  }
+  return *hatch_linewidth;
+}
+
 bool py_eq(py::object obj1, py::object obj2) {
   return py::module::import("operator").attr("eq")(obj1, obj2).cast<bool>();
 }

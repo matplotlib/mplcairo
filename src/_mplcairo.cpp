@@ -140,8 +140,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     /* clip_rectangle */  {},
     /* clip_path */       {{}, {nullptr, cairo_path_destroy}},
     /* hatch */           {},
-    /* hatch_color */     to_rgba(rc_param("hatch.color")),
-    /* hatch_linewidth */ rc_param("hatch.linewidth").cast<double>(),
+    /* hatch_color */     {},  // Lazily loaded by get_hatch_color.
+    /* hatch_linewidth */ {},  // Lazily loaded by get_hatch_linewidth.
     /* sketch */          {},
     /* snap */            true,  // Defaults to None, i.e. True for us.
     /* url */             {}
@@ -912,10 +912,10 @@ void GraphicsContextRenderer::draw_path(
     auto hatch_gcr = GraphicsContextRenderer{
       hatch_cr, double(dpi), double(dpi), double(dpi)};
     hatch_gcr.get_additional_state().snap = false;
-    hatch_gcr.set_linewidth(get_additional_state().hatch_linewidth);
+    hatch_gcr.set_linewidth(get_additional_state().get_hatch_linewidth());
     auto const& matrix =
       cairo_matrix_t{double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
-    auto const& hatch_color = get_additional_state().hatch_color;
+    auto const& hatch_color = get_additional_state().get_hatch_color();
     fill_and_stroke_exact(
       hatch_cr, *hatch_path, &matrix, hatch_color, hatch_color);
     auto const& hatch_pattern =
@@ -1620,12 +1620,12 @@ PYBIND11_MODULE(_mplcairo, m)
     .def(
       "get_hatch_color",
       [](GraphicsContextRenderer& gcr) -> rgba_t {
-        return gcr.get_additional_state().hatch_color;
+        return gcr.get_additional_state().get_hatch_color();
       })
     .def(
       "get_hatch_linewidth",
       [](GraphicsContextRenderer& gcr) -> double {
-        return gcr.get_additional_state().hatch_linewidth;
+        return gcr.get_additional_state().get_hatch_linewidth();
       })
     // Not strictly needed now.
     .def("get_linewidth", &GraphicsContextRenderer::get_linewidth)

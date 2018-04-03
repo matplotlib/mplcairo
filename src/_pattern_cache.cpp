@@ -237,8 +237,6 @@ void PatternCache::mask(
     auto const& raster_surface =
       cairo_image_surface_create(CAIRO_FORMAT_A8, width, height);
     auto const& raster_gcr =
-      // FIXME: Looks like building a full new gcr is too costly :/ (involves
-      // Python to build the additional state).
       GraphicsContextRenderer::make_pattern_gcr(raster_surface);
     key.draw(
       raster_gcr.cr_,
