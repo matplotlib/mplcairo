@@ -17,6 +17,8 @@ namespace mplcairo {
 
 using namespace pybind11::literals;
 
+py::object GraphicsContextRenderer::mathtext_parser_{};
+
 Region::Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf) :
   bbox{bbox}, buf{std::move(buf)}
 {}
@@ -108,12 +110,7 @@ GraphicsContextRenderer::additional_context()
 GraphicsContextRenderer::GraphicsContextRenderer(
   cairo_t* cr, double width, double height, double dpi) :
   // This does *not* incref the cairo_t, but the destructor *will* decref it.
-  cr_{cr},
-  mathtext_parser_{
-    py::module::import("matplotlib.mathtext")
-      .attr("MathTextParser")("mplcairo")},
-  texmanager_{py::none()},
-  text2path_{py::module::import("matplotlib.textpath").attr("TextToPath")()}
+  cr_{cr}
 {
   if (auto const& status = cairo_status(cr);
       status == CAIRO_STATUS_INVALID_SIZE) {
@@ -1474,18 +1471,29 @@ PYBIND11_MODULE(_mplcairo, m)
 #undef LOAD_PTR
 #endif
 
+  FT_CHECK(FT_Init_FreeType, &detail::ft_library);
+
   detail::UNIT_CIRCLE =
     py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
   detail::PIXEL_MARKER =
     py::module::import("matplotlib.markers").attr("MarkerStyle")(",");
+  GraphicsContextRenderer::mathtext_parser_ =
+    py::module::import("matplotlib.mathtext")
+    .attr("MathTextParser")("mplcairo");
 
-  FT_CHECK(FT_Init_FreeType, &detail::ft_library);
-  auto ft_cleanup = py::cpp_function{
-    [&](py::handle /* weakref */) -> void {
+  auto cleanup = py::cpp_function{
+    [&](py::handle weakref) -> void {
       FT_Done_FreeType(detail::ft_library);
+
+      // Make sure that these objects don't outlive the Python interpreter.
+      detail::UNIT_CIRCLE = {};
+      detail::PIXEL_MARKER = {};
+      GraphicsContextRenderer::mathtext_parser_ = {};
+
+      weakref.dec_ref();
     }
   };
-  py::weakref(m, ft_cleanup).release();
+  py::weakref(m, cleanup).release();
 
   // Export symbols.
 
@@ -1647,9 +1655,19 @@ PYBIND11_MODULE(_mplcairo, m)
       [](GraphicsContextRenderer& gcr) -> double {
         return gcr.get_additional_state().dpi;
       })
-    // Needed for usetex and patheffects.
-    .def_readwrite("_texmanager", &GraphicsContextRenderer::texmanager_)
-    .def_readonly("_text2path", &GraphicsContextRenderer::text2path_)
+    // Needed for usetex and patheffects.  These actually return constants.
+    .def_property_readonly(
+      "_texmanager",  // No need to instantiate *another* texmanager.
+      [](GraphicsContextRenderer& /* gcr */) -> py::object {
+        return
+          py::module::import("matplotlib.textpath")
+          .attr("text_to_path").attr("get_texmanager")();
+      })
+    .def_property_readonly(
+      "_text2path",
+      [](GraphicsContextRenderer& /* gcr */) -> py::object {
+        return py::module::import("matplotlib.textpath").attr("text_to_path");
+      })
 
     .def(
       "get_canvas_width_height",

@@ -35,10 +35,9 @@ class GraphicsContextRenderer {
   AdditionalContext additional_context();
 
   public:
+  static py::object mathtext_parser_;
+
   cairo_t* const cr_;
-  py::object mathtext_parser_;
-  py::object texmanager_;
-  py::object text2path_;
 
   GraphicsContextRenderer(
     cairo_t* cr, double width, double height, double dpi);

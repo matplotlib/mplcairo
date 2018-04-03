@@ -112,9 +112,8 @@ class GraphicsContextRendererCairo(
 
     # Based on the backend_pdf implementation.
     def draw_tex(self, gc, x, y, s, prop, angle, ismath="TeX!", mtext=None):
-        texmanager = self.get_texmanager()
         fontsize = prop.get_size_in_points()
-        dvifile = texmanager.make_dvi(s, fontsize)
+        dvifile = self.get_texmanager().make_dvi(s, fontsize)
         with dviread.Dvi(dvifile, self.dpi) as dvi:
             page = next(iter(dvi))
         mb = _mplcairo.MathtextBackendCairo()
