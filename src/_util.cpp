@@ -1,5 +1,6 @@
-#include "_raqm.h"
 #include "_util.h"
+
+#include "_raqm.h"
 
 #include <stack>
 

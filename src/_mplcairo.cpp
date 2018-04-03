@@ -166,17 +166,11 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
     // not called on e.g. a SVG surface before the GCR gets GC'd. e.g. comment
     // out this catch, and _finish() in base.py, and run
     //
-    // import gc
-    // from matplotlib import pyplot as plt
-    //
-    // fig = plt.gcf()
-    // file = open("/dev/null", "wb")
-    // fig.savefig(file, format="svg")
-    // file.close()
+    // import gc; from matplotlib import pyplot as plt
+    // with open("/dev/null", "wb") as file:
+    //     plt.gcf().savefig(file, format="svg")
     // plt.close("all")
-    // del fig
     // gc.collect()
-    // print("ok")
     std::cerr << "Exception ignored in destructor: " << e.what() << "\n";
   }
 }

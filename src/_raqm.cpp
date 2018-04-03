@@ -1,8 +1,10 @@
 #include "_raqm.h"
+
 #include "_os.h"
-#include "_macros.h"
 
 #include <stdexcept>
+
+#include "_macros.h"
 
 namespace mplcairo {
 

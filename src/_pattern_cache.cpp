@@ -43,7 +43,7 @@ void PatternCache::CacheKey::draw(
     case draw_func_t::Stroke:
       cairo_save(cr);
       cairo_set_line_width(cr, linewidth);
-      cairo_set_miter_limit(cr, linewidth); // cf. set_linewidth.
+      cairo_set_miter_limit(cr, linewidth);  // cf. set_linewidth.
       set_dashes(cr, dash);
       cairo_set_line_cap(cr, capstyle);
       cairo_set_line_join(cr, joinstyle);
@@ -82,7 +82,8 @@ size_t PatternCache::Hash::operator()(CacheKey const& key) const
 bool PatternCache::EqualTo::operator()(
   CacheKey const& lhs, CacheKey const& rhs) const
 {
-  return (lhs.path.is(rhs.path))
+  return
+    lhs.path.is(rhs.path)
     && lhs.matrix.xx == rhs.matrix.xx && lhs.matrix.xy == rhs.matrix.xy
     && lhs.matrix.yx == rhs.matrix.yx && lhs.matrix.yy == rhs.matrix.yy
     && lhs.matrix.x0 == rhs.matrix.x0 && lhs.matrix.y0 == rhs.matrix.y0
@@ -163,15 +164,15 @@ void PatternCache::mask(
     }
   }
   // Approximate ("quantize") the transform matrix, so that the transformed
-  // path is within 3 x (thresholds/3) of the path transformed by the original
-  // matrix.  1 x threshold will be added by the patterns_ cache.
+  // path is within 3x(threshold/3) of the path transformed by the original
+  // matrix.  1x threshold will be added by the patterns_ cache.
   // If the entire object is within the threshold of the origin in either
   // direction, then draw it directly, as doing otherwise would be highly
   // inaccurate (see e.g. test_mplot3d.test_quiver3d).
   auto const& bbox = it_bboxes->second;
-  // Here, gcc 7.2 (not cairo) fails to extend the lifetime of the temporaries
-  // whose references are bound to constant *references* (various issues on
-  // bugzilla; see also gotw#88); so bind values instead.
+  // Here, gcc 7.2 fails to extend the lifetime of the temporaries whose
+  // references are bound to constant *references* (various issues on bugzilla;
+  // see also gotw#88); so bind values instead.
   auto const x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
              y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
   if (x_max < threshold_ || y_max < threshold_) {
@@ -202,7 +203,7 @@ void PatternCache::mask(
       case draw_func_t::Stroke:
         cairo_save(cr);
         cairo_set_line_width(cr, key.linewidth);
-        cairo_set_miter_limit(cr, key.linewidth); // cf. set_linewidth.
+        cairo_set_miter_limit(cr, key.linewidth);  // cf. set_linewidth.
         set_dashes(cr, key.dash);
         cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
         cairo_restore(cr);
@@ -219,7 +220,7 @@ void PatternCache::mask(
       throw std::runtime_error("Unexpected insertion failure into cache");
     }
   }
-  auto const& entry = it_patterns->second;  // Reference, as we have a unique_ptr.
+  auto const& entry = it_patterns->second;
   auto const& target_x = x + entry.x,
             & target_y = y + entry.y;
   auto const& i_target_x = std::floor(target_x),
@@ -236,6 +237,8 @@ void PatternCache::mask(
     auto const& raster_surface =
       cairo_image_surface_create(CAIRO_FORMAT_A8, width, height);
     auto const& raster_gcr =
+      // FIXME: Looks like building a full new gcr is too costly :/ (involves
+      // Python to build the additional state).
       GraphicsContextRenderer::make_pattern_gcr(raster_surface);
     key.draw(
       raster_gcr.cr_,

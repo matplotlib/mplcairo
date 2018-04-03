@@ -279,8 +279,15 @@ Test suite
 
 Run ``run-mpl-test-suite.py`` to run the Matplotlib test suite with
 the Agg backend patched by the mplcairo backend.  Matplotlib *must* be
-editably-installed from a git checkout.  Certain tests that are known to fail
-(and listed in ``ISSUES.rst``) are automatically skipped.
+editably-installed from a git checkout.
+
+Nearly all image comparison tests "fail" as the renderers are fundamentally
+different; currently, the intent is to manually check the diff images.  Passing
+``--infinite-tolerance`` marks these tests as "passed" so that one can spot
+issues not related to rendering differences.
+
+Some other (non-image-comparison) tests are also known to fail (they are listed
+in ``ISSUES.rst``, with the relevant explanations), and automatically skipped.
 
 Notes
 =====

@@ -12,10 +12,10 @@ import urllib.request
 
 if sys.platform == "darwin":
     os.environ.setdefault("CC", "clang")
-    # Funnily enough, distutils uses $CC to compile c++ extensions but $CXX to
-    # *link* such extensions...  (Moreover, it does some funky changes to $CXX
-    # if either $CC or $CXX has multiple words -- see UnixCCompiler.link for
-    # details.)
+    # Funnily enough, distutils uses $CC to compile c++ extensions but
+    # $CXX to *link* such extensions...  (Moreover, it does some funky
+    # changes to $CXX if either $CC or $CXX has multiple words -- see e.g.
+    # https://bugs.python.org/issue6863.)
     os.environ.setdefault("CXX", "clang")
 
 from setupext import Extension, build_ext, find_packages, setup
