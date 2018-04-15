@@ -1433,11 +1433,6 @@ PYBIND11_MODULE(_mplcairo, m)
 {
   m.doc() = "A cairo backend for matplotlib.";
 
-  try {
-    load_raqm();
-  } catch (std::runtime_error&) {
-  }
-
   // Setup global values.
 
 #ifndef _WIN32
@@ -1473,8 +1468,6 @@ PYBIND11_MODULE(_mplcairo, m)
 
   FT_CHECK(FT_Init_FreeType, &detail::ft_library);
 
-  detail::UNIT_CIRCLE =
-    py::module::import("matplotlib.path").attr("Path").attr("unit_circle")();
   detail::PIXEL_MARKER =
     py::module::import("matplotlib.markers").attr("MarkerStyle")(",");
   GraphicsContextRenderer::mathtext_parser_ =
@@ -1526,14 +1519,43 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Export functions.
   m.def(
-    "load_raqm", &load_raqm,
-    "Load raqm.  Raises an exception on failure.");
+    "set_options", [](py::kwargs kwargs) -> void {
+      // FIXME[pybind11]: Redo once they pybind11 has kwonly args.
+      auto pop_option = [&](std::string key) -> std::optional<bool> {
+        return kwargs.attr("pop")(key, py::none()).cast<std::optional<bool>>();
+      };
+      if (auto cairo_circles = pop_option("cairo_circles")) {
+        detail::UNIT_CIRCLE =
+          *cairo_circles
+          ? py::module::import("matplotlib.path").attr("Path")
+            .attr("unit_circle")()
+          : py::none{};
+      }
+      if (auto raqm = pop_option("raqm")) {
+        if (*raqm) {
+          load_raqm();
+        } else {
+          unload_raqm();
+        }
+      }
+      if (py::bool_(kwargs)) {
+        throw std::runtime_error("Unknown options passed to set_options");
+      }
+    }, R"__doc__(
+Set mplcairo options.  The following options are available:
+- cairo_circles: Use cairo's circle drawing algorithm, rather than Matplotlib's
+  fixed spline approximation.
+- raqm: Use Raqm for text rendering.
+)__doc__");
   m.def(
-    "unload_raqm", &unload_raqm,
-    "Unload raqm.  Raises an exception on failure.");
-  m.def(
-    "has_raqm", &has_raqm,
-    "Return whether raqm is loaded.");
+    "get_options", []() -> py::dict {
+      return py::dict(
+        "cairo_circles"_a=!detail::UNIT_CIRCLE.is(py::none{}),
+        "raqm"_a=has_raqm());
+    }, R"__doc__(
+Get current mplcairo options.  See `set_mplcairo` for a description of
+available options.
+)__doc__");
 
   // Export classes.
 

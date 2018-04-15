@@ -11,7 +11,6 @@ except (ImportError, LookupError):
     except ImportError:
         pass
 
-
 if sys.platform != "win32":
     def _load_symbols():
         # dlopen() pycairo's extension module with RTLD_GLOBAL to dynamically
@@ -22,6 +21,12 @@ if sys.platform != "win32":
 
     _load_symbols()
 
-from ._mplcairo import antialias_t, load_raqm, unload_raqm, has_raqm
+from ._mplcairo import antialias_t, get_options, set_options
 
-__all__ = ["antialias_t", "load_raqm", "unload_raqm", "has_raqm"]
+__all__ = ["antialias_t", "get_options", "set_options"]
+
+set_options(cairo_circles=True)
+try:
+    set_options(raqm=True)
+except RuntimeError:
+    pass

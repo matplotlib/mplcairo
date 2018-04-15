@@ -6,6 +6,7 @@ from matplotlib.figure import Figure
 import numpy as np
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+import mplcairo
 from mplcairo import antialias_t
 from mplcairo.base import FigureCanvasCairo
 
@@ -17,6 +18,7 @@ pytest.fixture(autouse=True)(mpl_test_settings)
 @pytest.fixture
 def axes():
     mpl.rcdefaults()
+    mplcairo.set_options(cairo_circles=True, raqm=False)
     return Figure().subplots()
 
 
@@ -37,7 +39,7 @@ def sample_image():
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)
-def test_axes(benchmark, canvas_cls, axes):
+def test_axes(benchmark, axes, canvas_cls):
     axes.figure.canvas = canvas_cls(axes.figure)
     benchmark(axes.figure.canvas.draw)
 
@@ -54,7 +56,7 @@ def test_axes(benchmark, canvas_cls, axes):
      (FigureCanvasCairo, antialias_t.BEST)])
 @pytest.mark.parametrize("joinstyle", ["miter", "round", "bevel"])
 def test_line(
-        benchmark, canvas_cls, antialiased, joinstyle, axes, sample_vectors):
+        benchmark, axes, sample_vectors, canvas_cls, antialiased, joinstyle):
     with mpl.rc_context({"agg.path.chunksize": 0}):
         axes.plot(*sample_vectors,
                   antialiased=antialiased, solid_joinstyle=joinstyle)
@@ -67,11 +69,24 @@ def test_line(
 # code path for circles which may not be representative of general performance.
 
 
-@pytest.mark.parametrize("canvas_cls", _canvas_classes)
-@pytest.mark.parametrize("threshold", [1 / 8, 0])
-@pytest.mark.parametrize("marker", ["o", "s"])
-def test_markers(
-        benchmark, canvas_cls, threshold, marker, axes, sample_vectors):
+_marker_test_parametrization = pytest.mark.parametrize(
+    "canvas_cls, threshold, marker, cairo_circles", [
+        (FigureCanvasAgg, 0, "o", False),
+        (FigureCanvasAgg, 0, "s", False),
+        (FigureCanvasCairo, 0, "o", False),
+        (FigureCanvasCairo, 0, "o", True),
+        (FigureCanvasCairo, 0, "s", False),
+        (FigureCanvasCairo, 1 / 8, "o", False),
+        (FigureCanvasCairo, 1 / 8, "o", True),
+        (FigureCanvasCairo, 1 / 8, "s", False),
+    ]
+)
+
+
+@_marker_test_parametrization
+def test_markers(benchmark, axes, sample_vectors,
+                 canvas_cls, threshold, marker, cairo_circles):
+    mplcairo.set_options(cairo_circles=cairo_circles)
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         axes.plot(*sample_vectors, marker=marker)
         despine(axes)
@@ -79,11 +94,9 @@ def test_markers(
         benchmark(axes.figure.canvas.draw)
 
 
-@pytest.mark.parametrize("canvas_cls", _canvas_classes)
-@pytest.mark.parametrize("threshold", [1 / 8, 0])
-@pytest.mark.parametrize("marker", ["o", "s"])
-def test_scatter_multicolor(
-        benchmark, canvas_cls, threshold, marker, axes, sample_vectors):
+@_marker_test_parametrization
+def test_scatter_multicolor(benchmark, axes, sample_vectors,
+                            canvas_cls, threshold, marker, cairo_circles):
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         a, b = sample_vectors
         axes.scatter(a, a, c=b, marker=marker)
@@ -92,11 +105,9 @@ def test_scatter_multicolor(
         benchmark(axes.figure.canvas.draw)
 
 
-@pytest.mark.parametrize("canvas_cls", _canvas_classes)
-@pytest.mark.parametrize("threshold", [1 / 8, 0])
-@pytest.mark.parametrize("marker", ["o", "s"])
-def test_scatter_multisize(
-        benchmark, canvas_cls, threshold, marker, axes, sample_vectors):
+@_marker_test_parametrization
+def test_scatter_multisize(benchmark, axes, sample_vectors,
+                           canvas_cls, threshold, marker, cairo_circles):
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         a, b = sample_vectors
         axes.scatter(a, a, s=100 * b ** 2, marker=marker)

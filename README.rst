@@ -248,8 +248,8 @@ other hand, this is currently the only way in which the webagg-based backends
 (e.g., Jupyter's inline widget) are supported.
 
 At import-time, mplcairo will attempt to load Raqm_.  The use of that library
-can be controlled and checked using the ``load_raqm``, ``unload_raqm``, and
-``has_raqm`` functions.
+can be controlled and checked using ``set_options`` and ``get_options``
+functions.
 
 The ``examples`` directory contains a few cases where the output of this
 renderer is arguably more accurate than the one of the default renderer, Agg:
