@@ -55,7 +55,7 @@ As usual, install using pip::
 
    python -mpip install mplcairo
 
-mplcairo can use Raqm_ for complex text layout if it is available.  Refer to
+mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.  Refer to
 the instructions on that project's website for installation on Linux and OSX.
 You may want to look at https://github.com/HOST-Oman/libraqm-cmake for Windows
 build scripts.
@@ -92,11 +92,6 @@ can be built and installed using any of the standard commands (``pip wheel
 --no-deps .``, ``pip install .``, ``pip install -e .`` and ``python setup.py
 build_ext -i`` being the most relevant ones).
 
-If the ``MPLCAIRO_USE_LIBRAQM`` environment variable is set, the build also
-uses Raqm to perform complex text layout (right-to-left scripts, etc.).  An
-installation of Raqm is required; run ``setup.py`` for instructions for Unix
-OSes.
-
 Unix
 ----
 
@@ -116,8 +111,8 @@ The following additional dependencies are required:
   On Linux, they can also be installed with your distribution's package manager
   (Debian/Ubuntu: ``libcairo2-dev``, Fedora: ``cairo-devel``).
 
-Raqm headers are also needed, but will be automatically downloaded if not
-found.
+Raqm (≥0.2) headers are also needed, but will be automatically downloaded if
+not found.
 
 Linux
 `````
@@ -133,9 +128,9 @@ will be mis-linked and fail to load.
 
 The manylinux wheel is built using ``tools/build-manylinux.sh``.
 
-**NOTE**: On Arch Linux, the python-pillow 5.0.0-1 (Arch) package includes an
-invalid version ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not
-be installed while building a Raqm-enabled version of mplcairo using the system
+**NOTE**: On Arch Linux, the python-pillow (Arch) package includes an invalid
+version of ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not be
+installed while building a Raqm-enabled version of mplcairo using the system
 Python, even in a virtualenv (it can be installed when *using* mplcairo without
 causing any problems).  One solution is to temporarily uninstall the package;
 another one is to package it yourself using e.g. pypi2pkgbuild_.

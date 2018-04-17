@@ -21,14 +21,22 @@ if sys.platform == "darwin":
 from setupext import Extension, build_ext, find_packages, setup
 
 
+MIN_CAIRO_VERSION = "1.11.4"
+MIN_RAQM_VERSION = "0.2.0"
 RAQM_TAG = "v0.5.0"
 
 
 def get_pkg_config(info, lib):
-    if os.environ.get("MANYLINUX") and info == "--cflags":
-        return ["-static-libgcc", "-static-libstdc++",
-                "-I/usr/include/cairo",
-                "-I/usr/include/freetype2"]
+    if os.environ.get("MANYLINUX"):
+        if info.startswith("--atleast-version"):
+            if lib == "raqm":
+                raise FileNotFoundError  # Trigger the header download.
+            else:
+                return ""
+        if info == "--cflags":
+            return ["-static-libgcc", "-static-libstdc++",
+                    "-I/usr/include/cairo",
+                    "-I/usr/include/freetype2"]
     return shlex.split(subprocess.check_output(["pkg-config", info, lib],
                                                universal_newlines=True))
 
@@ -77,7 +85,8 @@ class build_ext(build_ext):
              pybind11.get_include(), pybind11.get_include(user=True)])
 
         try:
-            get_pkg_config("--exists", "raqm")
+            get_pkg_config(
+                "--atleast-version={}".format(MIN_RAQM_VERSION), "raqm")
         except (FileNotFoundError, CalledProcessError):
             with urllib.request.urlopen(
                     "https://raw.githubusercontent.com/HOST-Oman/libraqm/"
@@ -87,6 +96,8 @@ class build_ext(build_ext):
 
         if sys.platform == "linux":
             import cairo
+            get_pkg_config(
+                "--atleast-version={}".format(MIN_CAIRO_VERSION), "cairo")
             ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += (
                 ["-std=c++1z", "-fvisibility=hidden", "-flto",
@@ -103,6 +114,8 @@ class build_ext(build_ext):
 
         elif sys.platform == "darwin":
             import cairo
+            get_pkg_config(
+                "--atleast-version={}".format(MIN_CAIRO_VERSION), "cairo")
             ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += (
                 # version-min=10.9 avoids deprecation warning wrt. libstdc++.

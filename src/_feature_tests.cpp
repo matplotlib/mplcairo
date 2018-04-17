@@ -7,8 +7,3 @@
 #if defined __clang__ && !defined _LIBCPP_VERSION
   #error "Compilation with Clang requires using libc++, not libstdc++."
 #endif
-
-#if !__has_include(<raqm.h>)
-  #error "Please download raqm.h and place it in the include/ directory.  " \
-         "You may want to use tools/download_raqm_header.py."
-#endif
