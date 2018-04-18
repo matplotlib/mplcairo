@@ -157,9 +157,9 @@ AdditionalState& get_additional_state(cairo_t* cr)
 // if desired.
 // FIXME[cairo]: cairo requires coordinates to fit within a 24-bit signed
 // integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091 and
-// test_simplification.test_overflow).  We simply clamp the values in the
-// general case (with codes) -- proper handling would involve clipping
-// of polygons and of Beziers -- and use a simple clippling algorithm
+// :mpltest:`test_simplification.test_overflow`).  We simply clamp the
+// values in the general case (with codes) -- proper handling would involve
+// clipping of polygons and of Beziers -- and use a simple clippling algorithm
 // (Cohen-Sutherland) in the simple (codeless) case as we expect most segments
 // to be within the clip rectangle -- cairo will run its own clipping later
 // anyways.
@@ -267,9 +267,9 @@ void load_path_exact(
         }
         break;
       // The semantics of nonfinite control points are tested in
-      // test_simplification.test_simplify_curve: if the last point is finite,
-      // it sets the current point for the next curve; otherwise, a new
-      // sub-path is created.
+      // :mpltest:`test_simplification.test_simplify_curve`: if the last point
+      // is finite, it sets the current point for the next curve; otherwise, a
+      // new sub-path is created.
       case PathCode::CURVE3: {
         auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
         cairo_matrix_transform_point(matrix, &x1, &y1);

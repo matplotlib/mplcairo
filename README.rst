@@ -283,8 +283,9 @@ PyPI or from source.
 
 Nearly all image comparison tests "fail" as the renderers are fundamentally
 different; currently, the intent is to manually check the diff images.  Passing
-``--infinite-tolerance`` marks these tests as "passed" so that one can spot
-issues not related to rendering differences.
+``--tolerance=inf`` marks these tests as "passed" (while still textually
+reporting the image differences) so that one can spot issues not related to
+rendering differences.
 
 Some other (non-image-comparison) tests are also known to fail (they are listed
 in ``ISSUES.rst``, with the relevant explanations), and automatically skipped.

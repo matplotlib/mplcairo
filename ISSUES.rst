@@ -2,6 +2,7 @@ Crashes
 =======
 
 ::
+
    gca(); savefig("/tmp/test.cairoscript")
 
 Seems to be due to cairo trying to call ``write`` during shutdown when the
@@ -12,11 +13,11 @@ Fix needed
 ==========
 
 test_image
+   test_figimage0[pdf], test_figimage1[pdf], test_interp_nearest_vs_none[pdf,svg], test_rasterize_dpi[pdf,svg]
+      Invalid dpi manipulations in vector output.
+
    test_jpeg_alpha
       Not respecting savefig.facecolor.
-
-   test_interp_nearest_vs_none[pdf,svg], test_rasterize_dpi[pdf,svg]
-      Not respecting dpi in vector output.
 
 test_text
    test_multiline
@@ -25,19 +26,28 @@ test_text
    test_text_alignment
       Bad alignment.
 
+text_labels_and_annotations/usetex_baseline_test
+   Bad layout of mathtext.
+
 Upstream issues
 ===============
 
 Issues with Matplotlib
 ----------------------
 
-Matplotlib's software alpha compositor is incorrect (#8847). ::
-
-   test_image::test_image_composite_alpha[pdf,svg]
-
 Matplotlib's hatching is inconsistent across backends (#10034). ::
 
    test_artist::test_clipping
+
+Matplotlib fails to drop the alpha channel when saving comparison failure diffs
+(#11075) (and the baseline images are lacking an alpha channel). ::
+
+   test_axes::test_log_scales[png]
+   test_scale::test_logscale_mask[png]
+
+Matplotlib's SVG backend does not implement Gouraud shading. ::
+
+   test_axes::test_pcolormesh[svg]
 
 Matplotlib's partially transparent markers with edges are inconsistent across
 backends (#10035). ::
@@ -48,15 +58,16 @@ Matplotlib's PDFPages is coupled too tightly with the PDF backend (#9114). ::
 
    test_backend_pdf::test_composite_image, test_multipage_*
 
-Matplotlib's SVG backend does not implement Gouraud shading. ::
-
-   test_axes::test_pcolormesh[svg]
-
 Matplotlib does not write SVGs with ``image-rendering: pixelated`` (#10112). ::
 
    test_backend_svg::test_noscale[svg]
    test_image::test_rotate_image[svg]
    test_tightlayout::test_tight_layout5[svg]
+
+Matplotlib's software alpha compositor is incorrect (#8847). ::
+
+   test_image::test_image_composite_alpha[pdf,svg]
+
 
 Issues with cairo
 -----------------
@@ -115,7 +126,7 @@ Tight bboxes are different. ::
 
    test_bbox_tight::test_bbox_inches_tight_suptile_legend
 
-``--infinite-tolerance`` subverts Matplotlib's test interface. ::
+``--tolerance`` subverts Matplotlib's test interface. ::
 
    test_compare_image::*
 
