@@ -115,8 +115,16 @@ bool has_vector_surface(cairo_t* cr)
     case CAIRO_SURFACE_TYPE_PS:
     case CAIRO_SURFACE_TYPE_SVG:
     case CAIRO_SURFACE_TYPE_RECORDING:
-    case CAIRO_SURFACE_TYPE_SCRIPT:
       return true;
+    case CAIRO_SURFACE_TYPE_SCRIPT:
+      if (auto script_surface =
+            std::string{std::getenv("MPLCAIRO_SCRIPT_SURFACE")};
+          script_surface == "raster") {
+        return false;
+      } else if (script_surface == "vector") {
+        return true;
+      }
+      [[fallthrough]];
     default:
       throw
         std::invalid_argument(

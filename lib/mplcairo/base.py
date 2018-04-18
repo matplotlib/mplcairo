@@ -255,7 +255,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         _print_method, GraphicsContextRendererCairo._for_svg_output)
     print_svgz = partialmethod(
         _print_method, GraphicsContextRendererCairo._for_svgz_output)
-    if os.environ.get("MPLCAIRO_DEBUG"):
+    if os.environ.get("MPLCAIRO_SCRIPT_SURFACE") in ["raster", "vector"]:
         print_cairoscript = partialmethod(
             _print_method, GraphicsContextRendererCairo._for_script_output)
 
