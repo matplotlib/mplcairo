@@ -11,3 +11,11 @@ The following vim settings may be useful::
 
    setlocal cinoptions+=(0,W2,l1,h0
    setlocal shiftwidth=2
+
+Reference style
+===============
+
+In comments:
+
+- refer to upstream issues as ``FIXME[upstream-name]: ... (#issue-id)``;
+- refer to specific Matplotlib tests as ``:mpltest:`test_foo.test_bar```.

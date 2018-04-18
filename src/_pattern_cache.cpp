@@ -168,7 +168,7 @@ void PatternCache::mask(
   // matrix.  1x threshold will be added by the patterns_ cache.
   // If the entire object is within the threshold of the origin in either
   // direction, then draw it directly, as doing otherwise would be highly
-  // inaccurate (see e.g. test_mplot3d.test_quiver3d).
+  // inaccurate (see e.g. :mpltest:`test_mplot3d.test_quiver3d`).
   auto const& bbox = it_bboxes->second;
   // Here, gcc 7.2 fails to extend the lifetime of the temporaries whose
   // references are bound to constant *references* (various issues on bugzilla;

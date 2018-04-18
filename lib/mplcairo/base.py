@@ -118,10 +118,14 @@ class GraphicsContextRendererCairo(
             page = next(iter(dvi))
         mb = _mplcairo.MathtextBackendCairo()
         for x1, y1, dvifont, glyph, width in page.text:
+            texfont = _get_tex_font_map()[dvifont.texname]
+            if texfont.filename is None:
+                # Not TypeError:
+                # :mpltest:`test_backend_svg.test_missing_psfont`.
+                raise ValueError("No font file found for {} ({!a})"
+                                 .format(texfont.psname, texfont.texname))
             mb._render_usetex_glyph(
-                x1, -y1,
-                _get_tex_font_map()[dvifont.texname].filename, dvifont.size,
-                glyph)
+                x1, -y1, texfont.filename, dvifont.size, glyph)
         for x1, y1, h, w in page.boxes:
             mb.render_rect_filled(x1, -y1, x1 + w, -(y1 + h))
         mb._draw(self, x, y, angle)
@@ -212,10 +216,8 @@ class FigureCanvasCairo(FigureCanvasBase):
     def get_renderer(self, *, _draw_if_new=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
-            *(np.array([self.figure.bbox.width, self.figure.bbox.height])
-              * getattr(self, "_dpi_ratio", 1)),
-            # Py3.4 support: use kwarg for dpi.
-            dpi=self.figure.dpi, _draw_if_new=_draw_if_new)
+            self.figure.bbox.width, self.figure.bbox.height, self.figure.dpi,
+            _draw_if_new=_draw_if_new)
 
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
