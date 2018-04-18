@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""
+Run the Matplotlib test suite, using the mplcairo backend to patch out
+Matplotlib's agg backend.
+
+.. PYTEST_DONT_REWRITE
+"""
 
 from argparse import ArgumentParser
 import os
@@ -49,32 +55,24 @@ Matplotlib's agg backend.
     import matplotlib.pyplot as plt
     plt.switch_backend("agg")
 
-    cwd = os.getcwd()
-    try:
-        matplotlib_srcdir = os.fsdecode(subprocess.check_output(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=Path(matplotlib.__file__).parent)[:-1])
-    except CalledProcessError:
-        sys.exit("This script must be run in an environment where Matplotlib "
-                 "is installed as an editable install.")
-
-    os.chdir(matplotlib_srcdir)
-    rv = pytest.main(["-p", "__main__", *rest])
-    os.chdir(cwd)
-    result_images = Path(matplotlib_srcdir, "result_images")
-    if result_images.exists():
-        dest = Path(cwd, "result_images")
-        shutil.rmtree(str(dest), ignore_errors=True)
-        result_images.replace(dest)
-    return rv
+    return pytest.main([
+        "-p", "__main__",
+        # Don't get confused by our *own* conftest...
+        "-p", "no:{}".format(Path(__file__).parent.resolve()
+                             / "tests/conftest.py"),
+        "--pyargs", "matplotlib",
+        *rest])
 
 
 def pytest_collection_modifyitems(session, config, items):
+    if len(items) == 0:
+        pytest.exit("No tests found; Matplotlib was likely installed without "
+                    "test data.")
     excluded_modules = {
         "matplotlib.tests.test_compare_images",
     }
     excluded_nodeids = {
-        "lib/matplotlib/tests/" + name for name in [
+        "matplotlib/tests/" + name for name in [
             "test_agg.py::test_repeated_save_with_alpha",
             "test_artist.py::test_cull_markers",
             "test_backend_pdf.py::test_composite_image",
@@ -97,18 +95,22 @@ def pytest_collection_modifyitems(session, config, items):
             "test_simplification.py::test_throw_rendering_complexity_exceeded",
         ]
     }
-    filtered = []
+    selected = []
+    deselected = []
     for item in items:
-        if item.module.__name__ in excluded_modules:
-            pass
-        elif item.nodeid in excluded_nodeids:
-            excluded_nodeids -= {item.nodeid}
+        if (item.module.__name__ in excluded_modules
+                or item.nodeid in excluded_nodeids):
+            deselected.append(item)
         else:
-            filtered.append(item)
-    if excluded_nodeids:
+            selected.append(item)
+    items[:] = selected
+    config.hook.pytest_deselected(items=deselected)
+    invalid_exclusions = (
+        (excluded_modules - {item.module.__name__ for item in deselected})
+        | (excluded_nodeids - {item.nodeid for item in deselected}))
+    if invalid_exclusions:
         warnings.warn("Unused exclusions:\n    {}"
-                      .format("\n    ".join(sorted(excluded_nodeids))))
-    items[:] = filtered
+                      .format("\n    ".join(sorted(invalid_exclusions))))
 
 
 if __name__ == "__main__":
