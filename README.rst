@@ -22,9 +22,12 @@ UI, or non-interactively (i.e., to save figure to various file formats).
 
 Noteworthy points include:
 
-- Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
-  circular markers of variable colors) and improved accuracy (e.g., with
-  marker positioning, quad meshes, and text kerning).
+.. ... sadly, currently not true.
+   - Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
+     circular markers of variable colors).
+
+- Improved accuracy (e.g., with marker positioning, quad meshes, and text
+  kerning).
 - Support for a wider variety of font formats, such as otf and pfb, for vector
   (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
 - Optional support for complex text layout (right-to-left languages, etc.)
