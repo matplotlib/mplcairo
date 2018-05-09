@@ -1,3 +1,5 @@
+import multiprocessing
+
 import pytest
 
 import matplotlib as mpl
@@ -70,50 +72,70 @@ def test_line(
 
 
 _marker_test_parametrization = pytest.mark.parametrize(
-    "canvas_cls, threshold, marker, cairo_circles", [
-        (FigureCanvasAgg, 0, "o", False),
-        (FigureCanvasAgg, 0, "s", False),
-        (FigureCanvasCairo, 0, "o", False),
-        (FigureCanvasCairo, 0, "o", True),
-        (FigureCanvasCairo, 0, "s", False),
-        (FigureCanvasCairo, 1 / 8, "o", False),
-        (FigureCanvasCairo, 1 / 8, "o", True),
-        (FigureCanvasCairo, 1 / 8, "s", False),
+    "canvas_cls, threshold, marker, marker_threads, cairo_circles", [
+        (FigureCanvasAgg, 0, "o", 0, False),
+        (FigureCanvasAgg, 0, "s", 0, False),
+        (FigureCanvasCairo, 0, "o", 0, False),
+        (FigureCanvasCairo, 0, "o", 0, True),
+        (FigureCanvasCairo, 0, "s", 0, False),
+        (FigureCanvasCairo, 1 / 8, "o", 0, False),
+        (FigureCanvasCairo, 1 / 8, "o", 0, True),
+        (FigureCanvasCairo, 1 / 8, "s", 0, False),
+        (FigureCanvasCairo, 1 / 8, "o", 1, False),
+        (FigureCanvasCairo, 1 / 8, "o", 1, True),
+        (FigureCanvasCairo, 1 / 8, "s", 1, False),
+        (FigureCanvasCairo, 1 / 8, "o", multiprocessing.cpu_count() - 1, False),
+        (FigureCanvasCairo, 1 / 8, "o", multiprocessing.cpu_count() - 1, True),
+        (FigureCanvasCairo, 1 / 8, "s", multiprocessing.cpu_count() - 1, False),
     ]
 )
 
 
 @_marker_test_parametrization
-def test_markers(benchmark, axes, sample_vectors,
-                 canvas_cls, threshold, marker, cairo_circles):
-    mplcairo.set_options(cairo_circles=cairo_circles)
+def test_markers(
+        benchmark, axes, sample_vectors,
+        canvas_cls, threshold, marker, marker_threads, cairo_circles):
+    mplcairo.set_options(marker_threads=marker_threads,
+                         cairo_circles=cairo_circles)
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         axes.plot(*sample_vectors, marker=marker)
         despine(axes)
         axes.figure.canvas = canvas_cls(axes.figure)
         benchmark(axes.figure.canvas.draw)
+    mplcairo.set_options(marker_threads=0,
+                         cairo_circles=False)
 
 
 @_marker_test_parametrization
-def test_scatter_multicolor(benchmark, axes, sample_vectors,
-                            canvas_cls, threshold, marker, cairo_circles):
+def test_scatter_multicolor(
+        benchmark, axes, sample_vectors,
+        canvas_cls, threshold, marker, marker_threads, cairo_circles):
+    mplcairo.set_options(marker_threads=marker_threads,
+                         cairo_circles=cairo_circles)
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         a, b = sample_vectors
         axes.scatter(a, a, c=b, marker=marker)
         despine(axes)
         axes.figure.canvas = canvas_cls(axes.figure)
         benchmark(axes.figure.canvas.draw)
+    mplcairo.set_options(marker_threads=0,
+                         cairo_circles=False)
 
 
 @_marker_test_parametrization
-def test_scatter_multisize(benchmark, axes, sample_vectors,
-                           canvas_cls, threshold, marker, cairo_circles):
+def test_scatter_multisize(
+        benchmark, axes, sample_vectors,
+        canvas_cls, threshold, marker, marker_threads, cairo_circles):
+    mplcairo.set_options(marker_threads=marker_threads,
+                         cairo_circles=cairo_circles)
     with mpl.rc_context({"path.simplify_threshold": threshold}):
         a, b = sample_vectors
         axes.scatter(a, a, s=100 * b ** 2, marker=marker)
         despine(axes)
         axes.figure.canvas = canvas_cls(axes.figure)
         benchmark(axes.figure.canvas.draw)
+    mplcairo.set_options(marker_threads=0,
+                         cairo_circles=False)
 
 
 @pytest.mark.parametrize("canvas_cls", _canvas_classes)

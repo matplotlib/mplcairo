@@ -68,6 +68,7 @@ extern cairo_user_data_key_t const
   FT_KEY;    // cairo_font_face_t -> FT_Face.
 extern py::object UNIT_CIRCLE;
 extern py::object PIXEL_MARKER;
+extern int MARKER_THREADS;
 }
 
 using rectangle_t = std::tuple<double, double, double, double>;
