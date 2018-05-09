@@ -98,7 +98,7 @@ def test_markers(
     mplcairo.set_options(marker_threads=marker_threads,
                          cairo_circles=cairo_circles)
     with mpl.rc_context({"path.simplify_threshold": threshold}):
-        axes.plot(*sample_vectors, marker=marker)
+        axes.plot(*sample_vectors, linestyle="none", marker=marker)
         despine(axes)
         axes.figure.canvas = canvas_cls(axes.figure)
         benchmark(axes.figure.canvas.draw)
