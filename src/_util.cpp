@@ -37,6 +37,7 @@ ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
 
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
+int MARKER_THREADS{};
 }
 
 rgba_t AdditionalState::get_hatch_color() {

@@ -10,6 +10,7 @@
 #include <cairo-script.h>
 
 #include <stack>
+#include <thread>
 
 #include "_macros.h"
 
@@ -648,8 +649,8 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   cairo_matrix_invert(&matrix);
   cairo_pattern_set_matrix(pattern, &matrix);
   cairo_set_source(cr_, pattern);
-  cairo_paint(cr_);
   cairo_pattern_destroy(pattern);
+  cairo_paint(cr_);
 }
 
 void GraphicsContextRenderer::draw_image(
@@ -692,8 +693,8 @@ void GraphicsContextRenderer::draw_image(
     cairo_matrix_t{1, 0, 0, -1, -x, -y + get_additional_state().height};
   cairo_pattern_set_matrix(pattern, &matrix);
   cairo_set_source(cr_, pattern);
-  cairo_paint(cr_);
   cairo_pattern_destroy(pattern);
+  cairo_paint(cr_);
 }
 
 void GraphicsContextRenderer::draw_markers(
@@ -804,27 +805,61 @@ void GraphicsContextRenderer::draw_markers(
       }
     }
 
-    for (auto i = 0; i < n_vertices; ++i) {
-      auto x = vertices(i, 0), y = vertices(i, 1);
-      cairo_matrix_transform_point(&matrix, &x, &y);
-      auto const& target_x = x + x0,
-                & target_y = y + y0;
-      if (!(std::isfinite(target_x) && std::isfinite(target_y))) {
-        continue;
+    auto worker = [&](cairo_t* ctx, int start, int stop) {
+      for (auto i = start; i < stop; ++i) {
+        auto x = vertices(i, 0), y = vertices(i, 1);
+        cairo_matrix_transform_point(&matrix, &x, &y);
+        auto const& target_x = x + x0,
+                  & target_y = y + y0;
+        if (!(std::isfinite(target_x) && std::isfinite(target_y))) {
+          continue;
+        }
+        auto const& i_target_x = std::floor(target_x),
+                  & i_target_y = std::floor(target_y);
+        auto const& f_target_x = target_x - i_target_x,
+                  & f_target_y = target_y - i_target_y;
+        auto const& idx =
+          int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
+        auto const& pattern = patterns[idx];
+        // Offsetting by height is already taken care of by matrix.
+        auto const& pattern_matrix =
+          cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
+        cairo_pattern_set_matrix(pattern, &pattern_matrix);
+        cairo_set_source(ctx, pattern);
+        cairo_paint(ctx);
       }
-      auto const& i_target_x = std::floor(target_x),
-                & i_target_y = std::floor(target_y);
-      auto const& f_target_x = target_x - i_target_x,
-                & f_target_y = target_y - i_target_y;
-      auto const& idx =
-        int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
-      auto const& pattern = patterns[idx];
-      // Offsetting by height is already taken care of by matrix.
-      auto const& pattern_matrix =
-        cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
-      cairo_pattern_set_matrix(pattern, &pattern_matrix);
-      cairo_set_source(cr_, pattern);
-      cairo_paint(cr_);
+    };
+    if (detail::MARKER_THREADS) {
+      auto const& chunk_size =
+        int(std::ceil(double(n_vertices) / detail::MARKER_THREADS));
+      auto ctxs = std::vector<cairo_t*>{};
+      auto threads = std::vector<std::thread>{};
+      for (auto i = 0; i < detail::MARKER_THREADS; ++i) {
+        auto const& surface =
+          cairo_surface_create_similar_image(
+            cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
+            get_additional_state().width, get_additional_state().height);
+        auto const& ctx = cairo_create(surface);
+        cairo_surface_destroy(surface);
+        ctxs.push_back(ctx);
+        threads.emplace_back(
+          worker, ctx,
+          chunk_size * i, std::min<int>(chunk_size * (i + 1), n_vertices));
+      }
+      for (auto& thread: threads) {
+        thread.join();
+      }
+      for (auto const& ctx: ctxs) {
+        auto const& pattern =
+          cairo_pattern_create_for_surface(cairo_get_target(ctx));
+        cairo_destroy(ctx);
+        cairo_set_source(cr_, pattern);
+        cairo_pattern_destroy(pattern);
+        cairo_paint(cr_);
+      }
+    }
+    else {
+      worker(cr_, 0, n_vertices);
     }
 
     // Cleanup.
@@ -847,6 +882,7 @@ void GraphicsContextRenderer::draw_markers(
       if (!(std::isfinite(x) && std::isfinite(y))) {
         continue;
       }
+      // FIXME: Correctly apply alpha.
       *reinterpret_cast<uint32_t*>(
         raw + std::lround(y) * stride + 4 * std::lround(x)) = fc_argb32;
     }
@@ -1041,6 +1077,7 @@ void GraphicsContextRenderer::draw_path_collection(
     has_vector_surface(cr_)
     ? 0 : rc_param("path.simplify_threshold").cast<double>();
   auto cache = PatternCache{simplify_threshold};
+  // FIXME: Implement parallelization.
   for (auto i = 0; i < n; ++i) {
     auto const& path = paths[i % n_paths];
     auto const& matrix = matrices[i % n_transforms];
@@ -1178,8 +1215,8 @@ void GraphicsContextRenderer::draw_quad_mesh(
       }
     }
     cairo_set_source(cr_, pattern);
-    cairo_paint(cr_);
     cairo_pattern_destroy(pattern);
+    cairo_paint(cr_);
   }
 }
 
@@ -1521,17 +1558,23 @@ PYBIND11_MODULE(_mplcairo, m)
   m.def(
     "set_options", [](py::kwargs kwargs) -> void {
       // FIXME[pybind11]: Redo once they pybind11 has kwonly args.
-      auto pop_option = [&](std::string key) -> std::optional<bool> {
-        return kwargs.attr("pop")(key, py::none()).cast<std::optional<bool>>();
+      auto pop_option = [&](std::string key) -> py::object {
+        return kwargs.attr("pop")(key, py::none());
       };
-      if (auto cairo_circles = pop_option("cairo_circles")) {
+      if (auto cairo_circles =
+          pop_option("cairo_circles").cast<std::optional<bool>>()) {
         detail::UNIT_CIRCLE =
           *cairo_circles
           ? py::module::import("matplotlib.path").attr("Path")
             .attr("unit_circle")()
           : py::none{};
       }
-      if (auto raqm = pop_option("raqm")) {
+      if (auto marker_threads =
+          pop_option("marker_threads").cast<std::optional<int>>()) {
+        detail::MARKER_THREADS = *marker_threads;
+      }
+      if (auto raqm =
+          pop_option("raqm").cast<std::optional<bool>>()) {
         if (*raqm) {
           load_raqm();
         } else {
@@ -1543,14 +1586,16 @@ PYBIND11_MODULE(_mplcairo, m)
       }
     }, R"__doc__(
 Set mplcairo options.  The following options are available:
-- cairo_circles: Use cairo's circle drawing algorithm, rather than Matplotlib's
-  fixed spline approximation.
-- raqm: Use Raqm for text rendering.
+- cairo_circles (bool): Use cairo's circle drawing algorithm, rather than
+  Matplotlib's fixed spline approximation.
+- marker_threads (int): Use this number of threads to render markers.
+- raqm (bool): Use Raqm for text rendering.
 )__doc__");
   m.def(
     "get_options", []() -> py::dict {
       return py::dict(
         "cairo_circles"_a=!detail::UNIT_CIRCLE.is(py::none{}),
+        "marker_threads"_a=detail::MARKER_THREADS,
         "raqm"_a=has_raqm());
     }, R"__doc__(
 Get current mplcairo options.  See `set_mplcairo` for a description of
