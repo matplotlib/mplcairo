@@ -82,7 +82,7 @@ class build_ext(build_ext):
         tmp_include_dir.mkdir(parents=True, exist_ok=True)
         ext.include_dirs += (
             [tmp_include_dir,
-             pybind11.get_include(), pybind11.get_include(user=True)])
+             pybind11.get_include(user=True), pybind11.get_include()])
 
         try:
             get_pkg_config(
