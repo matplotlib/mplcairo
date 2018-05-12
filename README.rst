@@ -37,10 +37,12 @@ Noteworthy points include:
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
   multi-page PDF).
+- Support for custom blend modes (see `examples/operators.py`_).
 
 .. _cairo: https://www.cairographics.org/
 .. _Matplotlib: http://matplotlib.org/
 .. _Raqm: https://github.com/HOST-Oman/libraqm
+.. _examples/operators.py: examples/operators.py
 
 Installation
 ============
@@ -249,15 +251,22 @@ At import-time, mplcairo will attempt to load Raqm_.  The use of that library
 can be controlled and checked using ``set_options`` and ``get_options``
 functions.
 
-The ``examples`` directory contains a few cases where the output of this
-renderer is arguably more accurate than the one of the default renderer, Agg:
+The examples_ directory contains a few cases where the output of this renderer
+is arguably more accurate than the one of the default renderer, Agg:
 
-- ``circle_markers.py`` and ``square_markers.py``: more accurate and faster
-  marker stamping.
-- ``markevery.py``: more accurate marker stamping.
-- ``quadmesh.py``: better antialiasing of quad meshes, fewer artefacts with
+- circle_markers.py_ and square_markers.py_: more accurate and faster marker
+  stamping.
+- markevery.py_: more accurate marker stamping.
+- quadmesh.py_: better antialiasing of quad meshes, fewer artefacts with
   masked data.
-- ``text_kerning.py``: improved text kerning.
+- text_kerning.py_: improved text kerning.
+
+.. _examples: examples/
+.. _circle_markers.py: examples/circle_markers.py
+.. _square_markers.py: examples/square_markers.py
+.. _markevery.py: examples/markevery.py
+.. _quadmesh.py: examples/quadmesh.py
+.. _text_kerning.py: examples/text_kerning.py
 
 Benchmarks
 ==========
@@ -305,7 +314,9 @@ than 1/3px and ``BEST`` for lines thinner than that: for lines thinner
 than 1/3px, the former leads to artefacts such as lines disappearing in
 certain sections (see e.g. ``test_cycles.test_property_collision_plot`` after
 forcing the antialiasing to ``FAST``).  The threshold of 1/3px was determined
-empirically, see ``examples/thin_line_antialiasing.py``.
+empirically, see `examples/thin_line_antialiasing.py`_.
+
+.. _examples/thin_line_antialiasing.py: examples/thin_line_antialiasing.py
 
 Note that in order to set the ``lines.antialiased`` or ``patch.antialiased``
 rcparams to a ``cairo_antialias_t`` enum value, it is necessary to bypass
@@ -326,10 +337,12 @@ Fast drawing
 ------------
 
 For fast drawing of path with many segments, the ``agg.path.chunksize`` rcparam
-should be set to 1000 (see ``examples/time_drawing_per_element.py`` for the
+should be set to 1000 (see `examples/time_drawing_per_element.py`_ for the
 determination of this value); this causes longer paths to be split into
 individually rendered sections of 1000 segments each (directly rendering longer
 paths appears to have slightly superlinear complexity).
+
+.. _examples/time_drawing_per_element.py: examples/time_drawing_per_element.py
 
 Simplification threshold
 ------------------------
@@ -450,6 +463,8 @@ Possible optimizations
 What about the already existing cairo (gtk3/qt5/wx/tk/...cairo) backends?
 =========================================================================
 
-They are slow (try running ``examples/mplot3d/wire3d_animation.py``), buggy
-(try calling ``imshow``, especially with an alpha channel), and renders math
-poorly (try ``title(r"$\sqrt{2}$")``).
+They are slow (try running `examples/mplot3d/wire3d_animation.py`_), buggy (try
+calling ``imshow``, especially with an alpha channel), and renders math poorly
+(try ``title(r"$\sqrt{2}$")``).
+
+.. _examples/mplot3d/wire3d_animation.py: examples/mplot3d/wire3d_animation.py

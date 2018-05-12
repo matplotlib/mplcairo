@@ -21,9 +21,9 @@ if sys.platform != "win32":
 
     _load_symbols()
 
-from ._mplcairo import antialias_t, get_options, set_options
+from ._mplcairo import antialias_t, operator_t, get_options, set_options
 
-__all__ = ["antialias_t", "get_options", "set_options"]
+__all__ = ["antialias_t", "operator_t", "get_options", "set_options"]
 
 set_options(cairo_circles=True)
 try:

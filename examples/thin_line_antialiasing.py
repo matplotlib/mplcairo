@@ -1,4 +1,5 @@
-"""Plot a series of lines of various thicknesses to test antialiasing.
+"""
+Plot a series of lines of various thicknesses to test antialiasing.
 
 On the mplcairo backend, the bottom halves of the lines are drawn with FAST
 antialiasing and the top with BEST antialiasing.  On other backends, the bottom
