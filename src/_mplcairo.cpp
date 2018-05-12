@@ -1547,6 +1547,37 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("FAST", CAIRO_ANTIALIAS_FAST)
     .value("GOOD", CAIRO_ANTIALIAS_GOOD)
     .value("BEST", CAIRO_ANTIALIAS_BEST);
+  py::enum_<cairo_operator_t>(m, "operator_t")
+    .value("CLEAR", CAIRO_OPERATOR_CLEAR)
+    .value("SOURCE", CAIRO_OPERATOR_SOURCE)
+    .value("OVER", CAIRO_OPERATOR_OVER)
+    .value("IN", CAIRO_OPERATOR_IN)
+    .value("OUT", CAIRO_OPERATOR_OUT)
+    .value("ATOP", CAIRO_OPERATOR_ATOP)
+    .value("DEST", CAIRO_OPERATOR_DEST)
+    .value("DEST_OVER", CAIRO_OPERATOR_DEST_OVER)
+    .value("DEST_IN", CAIRO_OPERATOR_DEST_IN)
+    .value("DEST_OUT", CAIRO_OPERATOR_DEST_OUT)
+    .value("DEST_ATOP", CAIRO_OPERATOR_DEST_ATOP)
+    .value("XOR", CAIRO_OPERATOR_XOR)
+    .value("ADD", CAIRO_OPERATOR_ADD)
+    .value("SATURATE", CAIRO_OPERATOR_SATURATE)
+    .value("MULTIPLY", CAIRO_OPERATOR_MULTIPLY)
+    .value("SCREEN", CAIRO_OPERATOR_SCREEN)
+    .value("OVERLAY", CAIRO_OPERATOR_OVERLAY)
+    .value("DARKEN", CAIRO_OPERATOR_DARKEN)
+    .value("LIGHTEN", CAIRO_OPERATOR_LIGHTEN)
+    .value("COLOR_DODGE", CAIRO_OPERATOR_COLOR_DODGE)
+    .value("COLOR_BURN", CAIRO_OPERATOR_COLOR_BURN)
+    .value("HARD_LIGHT", CAIRO_OPERATOR_HARD_LIGHT)
+    .value("SOFT_LIGHT", CAIRO_OPERATOR_SOFT_LIGHT)
+    .value("DIFFERENCE", CAIRO_OPERATOR_DIFFERENCE)
+    .value("EXCLUSION", CAIRO_OPERATOR_EXCLUSION)
+    .value("HSL_HUE", CAIRO_OPERATOR_HSL_HUE)
+    .value("HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION)
+    .value("HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR)
+    .value("HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY);
+
   py::enum_<StreamSurfaceType>(m, "_StreamSurfaceType")
     .value("PDF", StreamSurfaceType::PDF)
     .value("PS", StreamSurfaceType::PS)
@@ -1666,6 +1697,13 @@ available options.
     .def("set_linewidth", &GraphicsContextRenderer::set_linewidth)
     .def("set_snap", &GraphicsContextRenderer::set_snap)
     .def("set_url", &GraphicsContextRenderer::set_url)
+
+    // This one function is specific to mplcairo.
+    .def(
+      "set_mplcairo_operator",
+      [](GraphicsContextRenderer& gcr, cairo_operator_t op) -> void {
+        cairo_set_operator(gcr.cr_, op);
+      })
 
     .def(
       "get_clip_rectangle",
