@@ -3,7 +3,6 @@ import multiprocessing
 import pytest
 
 import matplotlib as mpl
-from matplotlib.testing.conftest import mpl_test_settings
 from matplotlib.figure import Figure
 import numpy as np
 
@@ -12,9 +11,11 @@ import mplcairo
 from mplcairo import antialias_t
 from mplcairo.base import FigureCanvasCairo
 
+# Import an autouse fixture.
+from matplotlib.testing.conftest import mpl_test_settings
+
 
 _canvas_classes = [FigureCanvasAgg, FigureCanvasCairo]
-pytest.fixture(autouse=True)(mpl_test_settings)
 
 
 @pytest.fixture
