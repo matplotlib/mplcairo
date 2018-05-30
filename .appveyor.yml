@@ -20,7 +20,7 @@ install:
     conda update -n base conda
     conda update --quiet --all
     conda install --quiet matplotlib
-    pip install -U pip
+    python -mpip install -U pip
     New-Item -ItemType directory build
     Set-Location build
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -29,18 +29,20 @@ install:
     Set-Location ..
     $Env:CL = "/I$(Get-Location)\build\cairo-windows-1.15.10\include"
     $Env:LINK = "/LIBPATH:$(Get-Location)\build\cairo-windows-1.15.10\lib\x64"
-    pip install .
-    pip uninstall -y .  # Just get the dependencies.
+    python -mpip install .
+    python -mpip uninstall -y .  # Just get the dependencies.
     python setup.py bdist_wheel
-    pip install $(Get-Item dist\*.whl)
+    python -mpip install $(Get-Item dist\*.whl)
+    $host.SetShouldExit($LastExitCode)  # The only thing that matters, regardless of stderr.
     # end-syntax: ps1
 
-test_script: |
-  rem begin-syntax: dosbatch
-  set PATH=C:\Miniconda36-x64;%PATH%
-  set MPLBACKEND=module://mplcairo.base
-  python -c "import os; from pylab import *; gca(); savefig(os.devnull, format='png')"
-  rem end-syntax: dosbatch
+test_script:
+- ps: |
+    # begin-syntax: ps1
+    $Env:PATH = "C:\Miniconda36-x64;$Env:PATH"
+    $Env:MPLBACKEND = "module://mplcairo.base"
+    python -c "import os; from pylab import *; gca(); savefig(os.devnull, format='png')"
+    # end-syntax: ps1
 
 artifacts:
 - path: dist\*.whl
