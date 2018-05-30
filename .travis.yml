@@ -31,27 +31,27 @@ install: |
   # begin-syntax: sh
   case "$TRAVIS_OS_NAME" in
   linux)
-    sudo tools/build-manylinux.sh
-    pip install dist/*-manylinux*.whl
+    sudo tools/build-manylinux.sh &&
+      pip install dist/*-manylinux*.whl
     ;;
   osx)
     brew update >/dev/null &&
       brew upgrade python &&
       brew install ccache llvm &&
       brew install cairo &&
-      pip install delocate
-    (
-      export PATH="/usr/local/opt/llvm/bin:$PATH"
-      export CPPFLAGS=-L/usr/local/opt/llvm/include
-      export LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib'
-      export CC='ccache clang'
-      export CXX='ccache clang'  # Needed due to weird manipulations by distutils.
-      pip install . &&
-        pip uninstall -y mplcairo &&  # Just get the dependencies.
-        python setup.py bdist_wheel &&
-        delocate-wheel -v dist/*
-    )
-    pip install dist/*.whl
+      pip install delocate &&
+      (
+        export PATH="/usr/local/opt/llvm/bin:$PATH"
+        export CPPFLAGS=-L/usr/local/opt/llvm/include
+        export LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib'
+        export CC='ccache clang'
+        export CXX='ccache clang'  # Needed due to weird manipulations by distutils.
+        pip install . &&
+          pip uninstall -y mplcairo &&  # Just get the dependencies.
+          python setup.py bdist_wheel &&
+          delocate-wheel -v dist/*
+      ) &&
+      pip install dist/*.whl
     ;;
   esac
   # end-syntax: sh
