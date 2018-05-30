@@ -150,12 +150,6 @@ void PatternCache::mask(
     load_path_exact(cr, key.path, &id);
     double x0, y0, x1, y1;
     cairo_path_extents(cr, &x0, &y0, &x1, &y1);
-    // If the pattern is huge, caching it can blow up the memory.
-    if (x1 - x0 > get_additional_state(cr).width
-        || y1 - y0 > get_additional_state(cr).height) {
-      draw_direct();
-      return;
-    }
     bool ok;
     std::tie(it_bboxes, ok) =
       bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, x1 - x0, y1 - y0});
@@ -208,6 +202,12 @@ void PatternCache::mask(
         cairo_stroke_extents(cr, &x0, &y0, &x1, &y1);
         cairo_restore(cr);
         break;
+    }
+    // If the pattern is huge, caching it can blow up the memory.
+    if (x1 - x0 > get_additional_state(cr).width
+        || y1 - y0 > get_additional_state(cr).height) {
+      draw_direct();
+      return;
     }
     // Must be nullptr-initialized.
     auto patterns =
