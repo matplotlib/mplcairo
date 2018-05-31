@@ -16,8 +16,8 @@ try:
 except ImportError:
     Image = None
 
-import matplotlib
-from matplotlib import _png, cbook, colors, dviread, rcParams
+import matplotlib as mpl
+from matplotlib import _png, cbook, colors, dviread
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
@@ -107,7 +107,7 @@ class GraphicsContextRendererCairo(
         return obj
 
     def option_image_nocomposite(self):
-        return (not rcParams["image.composite_image"]
+        return (not mpl.rcParams["image.composite_image"]
                 if self._has_vector_surface() else True)
 
     # Based on the backend_pdf implementation.
@@ -185,7 +185,14 @@ def _fix_ipython_backend2gui():
         "module://mplcairo.wx": "wx",
         "module://mplcairo.macosx": "osx",
     })
-    ip.enable_matplotlib()
+    # Work around pylabtools.find_gui_and_backend always reading from
+    # rcParamsOrig.
+    orig_origbackend = mpl.rcParamsOrig["backend"]
+    try:
+        mpl.rcParamsOrig["backend"] = mpl.rcParams["backend"]
+        ip.enable_matplotlib()
+    finally:
+        mpl.rcParamsOrig["backend"] = orig_origbackend
 
 
 class FigureCanvasCairo(FigureCanvasBase):
@@ -264,7 +271,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     def _print_ps_impl(self, is_eps, path_or_stream,
                        orientation="portrait", papertype=None, **kwargs):
         if papertype is None:
-            papertype = rcParams["ps.papersize"]
+            papertype = mpl.rcParams["ps.papersize"]
         if orientation == "portrait":
             if papertype == "auto":
                 width, height = self.figure.get_size_inches()
@@ -283,14 +290,14 @@ class FigureCanvasCairo(FigureCanvasBase):
                                GraphicsContextRendererCairo._for_eps_output
                                if is_eps else
                                GraphicsContextRendererCairo._for_ps_output)
-        if rcParams["ps.usedistiller"]:
+        if mpl.rcParams["ps.usedistiller"]:
             with TemporaryDirectory() as tmp_dirname:
                 tmp_name = str(Path(tmp_dirname, "tmp"))
                 print_method(tmp_name, **kwargs)
                 # Assume we can get away without passing the bbox.
                 {"ghostscript": backend_ps.gs_distill,
                  "xpdf": backend_ps.xpdf_distill}[
-                     rcParams["ps.usedistiller"]](
+                     mpl.rcParams["ps.usedistiller"]](
                          tmp_name, False, ptype=papertype)
                 with open(tmp_name, "rb") as tmp_file, \
                         cbook.open_file_cm(path_or_stream, "wb") as stream:
@@ -335,7 +342,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         full_metadata = OrderedDict(
             [("Software",
               "matplotlib version {}, https://matplotlib.org"
-              .format(matplotlib.__version__))])
+              .format(mpl.__version__))])
         full_metadata.update(metadata or {})
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             _png.write_png(img, stream, metadata=full_metadata)
@@ -361,7 +368,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
             composited = Image.new("RGB", buf.shape[:2][::-1], background)
             composited.paste(img, img)
-            kwargs.setdefault("quality", rcParams["savefig.jpeg_quality"])
+            kwargs.setdefault("quality", mpl.rcParams["savefig.jpeg_quality"])
             composited.save(path_or_stream, format="jpeg",
                             dpi=(self.figure.dpi, self.figure.dpi), **kwargs)
 
