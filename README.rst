@@ -328,8 +328,9 @@ rcparam validation, using, e.g.
 
 The ``text.antialiased`` rcparam can likewise be set to any
 ``cairo_antialias_t`` enum value, or ``True`` (the default, which maps to
-``GRAY`` due to `cairo bug #99021 <cairo-99021_>`_) or ``False`` (which maps to
-``NONE``).
+``SUBPIXEL`` -- ``GRAY`` is not sufficient to benefit from Raqm_'s subpixel
+positioning; see also `cairo bug #99021 <cairo-99021_>`_) or ``False`` (which
+maps to ``NONE``).
 
 .. _cairo-99021: https://bugs.freedesktop.org/show_bug.cgi?id=99021
 

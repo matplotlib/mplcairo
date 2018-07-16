@@ -551,7 +551,8 @@ std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
       try {
         return aa.cast<cairo_antialias_t>();
       } catch (py::cast_error&) {
-        return aa.cast<bool>() ? CAIRO_ANTIALIAS_GRAY : CAIRO_ANTIALIAS_NONE;
+        return
+          aa.cast<bool>() ? CAIRO_ANTIALIAS_SUBPIXEL : CAIRO_ANTIALIAS_NONE;
       }
     }());
   return {options, cairo_font_options_destroy};
