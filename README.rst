@@ -294,7 +294,7 @@ Nearly all image comparison tests "fail" as the renderers are fundamentally
 different; currently, the intent is to manually check the diff images.  Passing
 ``--tolerance=inf`` marks these tests as "passed" (while still textually
 reporting the image differences) so that one can spot issues not related to
-rendering differences.
+rendering differences.  In practice, ``--tolerance=50`` appears to be enough.
 
 Some other (non-image-comparison) tests are also known to fail (they are listed
 in ``ISSUES.rst``, with the relevant explanations), and automatically skipped.
