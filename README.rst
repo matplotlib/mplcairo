@@ -124,7 +124,7 @@ Linux
 
 conda's compilers (``gxx_linux-64`` on the ``anaconda`` channel) `currently
 interact poorly with installing cairo and pkg-config from conda-forge
-<conda-build-2523>`_, so you are on your own to install a recent compiler
+<conda-build-2523_>`_, so you are on your own to install a recent compiler
 (e.g., using your distribution's package manager).  You may want to set the
 ``CC`` and ``CXX`` environment variables to point to your C++ compiler if it is
 nonstandard [#]_.  In that case, be careful to set them to e.g. ``g++-7`` and
@@ -248,7 +248,7 @@ other hand, this is currently the only way in which the webagg-based backends
 (e.g., Jupyter's inline widget) are supported.
 
 At import-time, mplcairo will attempt to load Raqm_.  The use of that library
-can be controlled and checked using ``set_options`` and ``get_options``
+can be controlled and checked using the ``set_options`` and ``get_options``
 functions.
 
 The examples_ directory contains a few cases where the output of this renderer

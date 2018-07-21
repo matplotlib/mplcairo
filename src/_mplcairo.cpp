@@ -1616,11 +1616,17 @@ PYBIND11_MODULE(_mplcairo, m)
         throw std::runtime_error("Unknown options passed to set_options");
       }
     }, R"__doc__(
-Set mplcairo options.  The following options are available:
-- cairo_circles (bool): Use cairo's circle drawing algorithm, rather than
-  Matplotlib's fixed spline approximation.
-- marker_threads (int): Use this number of threads to render markers.
-- raqm (bool): Use Raqm for text rendering.
+Set mplcairo options.
+
+Parameters
+----------
+cairo_circles : bool
+  Whether to use cairo's circle drawing algorithm, rather than Matplotlib's
+  fixed spline approximation.
+marker_threads : int
+  Number of threads to use to render markers.
+raqm : bool
+  Whether to use Raqm for text rendering.
 )__doc__");
   m.def(
     "get_options", []() -> py::dict {
@@ -1629,8 +1635,8 @@ Set mplcairo options.  The following options are available:
         "marker_threads"_a=detail::MARKER_THREADS,
         "raqm"_a=has_raqm());
     }, R"__doc__(
-Get current mplcairo options.  See `set_mplcairo` for a description of
-available options.
+Get current mplcairo options.  See `set_options` for a description of available
+options.
 )__doc__");
 
   // Export classes.
