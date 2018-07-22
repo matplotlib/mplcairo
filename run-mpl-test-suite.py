@@ -15,10 +15,11 @@ from subprocess import CalledProcessError
 import sys
 import warnings
 
+import mplcairo.base  # Need to come before matplotlib import on OSX.
+
 import matplotlib as mpl
 import matplotlib.backends.backend_agg
 import matplotlib.testing.decorators
-import mplcairo.base
 
 import pytest
 

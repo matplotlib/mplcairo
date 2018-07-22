@@ -284,11 +284,11 @@ Keep in mind that conda-forge's cairo is (on my setup) ~2× slower than a
 Test suite
 ==========
 
-Run ``run-mpl-test-suite.py`` to run the Matplotlib test suite with the
-Agg backend patched by the mplcairo backend.  Note that Matplotlib must be
-installed with its test data, which is not the case when it is installed from
-conda or from most Linux distributions; instead, it should be installed from
-PyPI or from source.
+Run ``run-mpl-test-suite.py`` (which depends on ``pytest>=3.2.2``) to run the
+Matplotlib test suite with the Agg backend patched by the mplcairo backend.
+Note that Matplotlib must be installed with its test data, which is not the
+case when it is installed from conda or from most Linux distributions; instead,
+it should be installed from PyPI or from source.
 
 Nearly all image comparison tests "fail" as the renderers are fundamentally
 different; currently, the intent is to manually check the diff images.  Passing

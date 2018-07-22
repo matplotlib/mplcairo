@@ -45,7 +45,7 @@ install: |
         export CPPFLAGS=-L/usr/local/opt/llvm/include
         export LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib'
         export CC='ccache clang'
-        export CXX='ccache clang'  # Needed due to weird manipulations by distutils.
+        export CXX='ccache clang'  # Due to weird manipulations by distutils.
         pip install . &&
           pip uninstall -y mplcairo &&  # Just get the dependencies.
           python setup.py bdist_wheel &&
@@ -54,24 +54,45 @@ install: |
       pip install dist/*.whl
     ;;
   esac
+  # sphinx is needed to make test_tinypages pass on mpl 2.2.2.
+  pip install -U pytest sphinx
+  # Install test data.
+  (
+    cd "$(mktemp -d)"
+    mplver="$(python -c 'import matplotlib as mpl; print(mpl.__version__)')"
+    curl -L https://github.com/matplotlib/matplotlib/archive/v"$mplver".tar.gz |
+      tar -xz
+    cd *
+    for package in matplotlib mpl_toolkits; do
+      cp -r "lib/$package/tests" \
+        "$(python -c "import $package; print(list($package.__path__)[0])")"
+    done
+  )
   # end-syntax: sh
 
 script: |
   # begin-syntax: sh
-  MPLBACKEND=module://mplcairo.base python - <<EOF
+  case "$TRAVIS_OS_NAME" in
+  linux)
+    ./run-mpl-test-suite.py --tolerance=50
+    ;;
+  osx)
+    MPLBACKEND=module://mplcairo.base python - <<EOF
   import sys
-  if sys.platform == "darwin":
-      import mplcairo  # Apparently needed to get the correct libc++.
+  import mplcairo  # Apparently needed to get the correct libc++.
   from pylab import *
   gca()
   savefig("/dev/null", format="png")
   EOF
+    ;;
+  esac
   # end-syntax: sh
 
 after_success: |
   # begin-syntax: sh
   if [[ "$TRAVIS_OS_NAME" = osx ]]; then
-    brew install https://raw.githubusercontent.com/kadwanev/bigboybrew/master/Library/Formula/sshpass.rb
+    brew install \
+      https://raw.githubusercontent.com/kadwanev/bigboybrew/master/Library/Formula/sshpass.rb
   fi
   echo "$KNOWN_HOST" >>~/.ssh/known_hosts
   sshpass -e scp -rq dist $DEPLOY:wheels || echo 'Failed to deploy wheels.'
