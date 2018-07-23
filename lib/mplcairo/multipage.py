@@ -9,34 +9,28 @@ from .base import GraphicsContextRendererCairo, _LOCK
 class MultiPage:
     """Multi-page output, for backends that support them.
 
-    Use as follows::
+    Usage is similar to `matplotlib.backends.backend_pdf.PdfPages`::
 
-        with MultiPage(path) as mp:
+        with MultiPage(path, metadata=...) as mp:
             mp.savefig(fig1)
             mp.savefig(fig2)
 
-    (Note that no other methods of PdfPages are currently implemented, and that
-    is is compulsory to use the context manager form.)
+    (Note that no other methods of `PdfPages` are implemented.)
     """
-    # FIXME: Add metadata keyword to __init__?
 
-    def __init__(self, path_or_stream=None, format=None):
-        self._path_or_stream = path_or_stream
-        self._format = format
-
-    def __enter__(self):
+    def __init__(self, path_or_stream=None, format=None, *, metadata=None):
         self._stack = ExitStack()
         stream = self._stack.enter_context(
-            cbook.open_file_cm(self._path_or_stream, "wb"))
-        fmt = (self._format
+            cbook.open_file_cm(path_or_stream, "wb"))
+        fmt = (format
                or Path(getattr(stream, "name", "")).suffix[1:]
                or rcParams["savefig.format"]).lower()
         self._renderer = {
             "pdf": GraphicsContextRendererCairo._for_pdf_output,
             "ps": GraphicsContextRendererCairo._for_ps_output,
-        }[fmt](stream, 1, 1, 1)
+        }[fmt](stream, 1, 1, 1)  # FIXME(?) What to do with empty files.
         self._stack.callback(self._renderer._finish)
-        return self
+        self._renderer._set_metadata(metadata)
 
     def savefig(self, figure, **kwargs):
         # FIXME[Upstream]: Not all kwargs are supported here -- but I plan to
@@ -47,6 +41,12 @@ class MultiPage:
         with _LOCK:
             figure.draw(self._renderer)
         self._renderer._show_page()
+
+    def close(self):
+        return self._stack.__exit__(None, None, None)
+
+    def __enter__(self):
+        return self
 
     def __exit__(self, *args):
         return self._stack.__exit__(*args)
