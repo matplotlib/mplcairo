@@ -14,7 +14,11 @@ class MultiPage:
         with MultiPage(path) as mp:
             mp.savefig(fig1)
             mp.savefig(fig2)
+
+    (Note that no other methods of PdfPages are currently implemented, and that
+    is is compulsory to use the context manager form.)
     """
+    # FIXME: Add metadata keyword to __init__?
 
     def __init__(self, path_or_stream=None, format=None):
         self._path_or_stream = path_or_stream

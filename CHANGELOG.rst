@@ -1,10 +1,13 @@
-v0.1a2
-======
+v0.1
+====
 
-- Switch to ``dlopen``\ing Raqm.
-- Allow control of circle-drawing algorithm.
-- Add ``set_option``, ``get_option``.
-- Various bug, performance, and build fixes.
+- Integration with libraqm now occurs via dlopen() rather than being selected
+  at compile-time.
+- Add ``set_option``, ``get_option`` for controlling certain rendering
+  parameters.
+- Various rendering and performance improvements.
+- On Travis, we now run Matplotlib's test suite with mplcairo patching the
+  default Agg renderer.
 
 v0.1a1
 ======

@@ -77,9 +77,7 @@ build scripts.
    wheels).
 
    On Windows, this strategy is (AFAIK) not possible, so we explicitly link
-   against the cairo DLL.  Moreover, commonly available Windows builds of
-   pycairo (Anaconda, conda-forge, Gohlke) do not include FreeType support, and
-   are thus unusable anyways.
+   against the cairo DLL.
 
 .. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
 
@@ -111,10 +109,10 @@ The following additional dependencies are required:
      conda install -y -c conda-forge pycairo pkg-config
 
   as pycairo (also a dependency) depends on cairo, which depends on freetype.
-  Note that cairo and pkg-config from the anaconda channel will *not* work.
+  Note that cairo and pkg-config from the ``anaconda`` channel will *not* work.
 
   On Linux, they can also be installed with your distribution's package manager
-  (Debian/Ubuntu: ``libcairo2-dev``, Fedora: ``cairo-devel``).
+  (Arch: ``cairo``, Debian/Ubuntu: ``libcairo2-dev``, Fedora: ``cairo-devel``).
 
 Raqm (≥0.2) headers are also needed, but will be automatically downloaded if
 not found.
@@ -177,10 +175,10 @@ The following additional dependencies are required:
      conda install -y freetype
 
 - a cairo build (the headers, ``cairo.lib``, and ``cairo.dll``) *with FreeType
-  support*.  As noted above, this excludes, in particular, the Anaconda,
-  conda-forge, or Gohlke builds.  One place from where such a build is
-  available is https://github.com/preshing/cairo-windows/releases: download the
-  zip file and unpack it.
+  support*.  Note that this excludes, in particular, the Anaconda and
+  conda-forge builds: they do not include FreeType support.  One place from
+  where such a build is available is https://github.com/preshing/cairo-windows/releases:
+  download the zip file and unpack it.
 
   Because you will always need to provide cairo yourself, we did not implement
   any special way to configure the location where it will be found.  Instead,
@@ -404,6 +402,9 @@ The API is similar:
    with MultiPage(path_or_stream) as mp:
        mp.savefig(fig1)
        mp.savefig(fig2)
+
+(Note that no other methods of PdfPages are currently implemented, and that is
+is compulsory to use the context manager form.)
 
 ``cairo-script`` output
 -----------------------
