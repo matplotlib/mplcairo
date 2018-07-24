@@ -32,11 +32,15 @@ def main(argv=None):
         description="""\
 Run the Matplotlib test suite, using the mplcairo backend to patch out
 Matplotlib's agg backend.
+
+To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
 """,
         epilog="Other arguments are forwarded to pytest.")
     parser.add_argument("--tolerance", type=float,
                         help="Set image comparison tolerance.")
     args, rest = parser.parse_known_args(argv)
+    if "--pyargs" not in rest:
+        rest.extend(["--pyargs", "matplotlib"])
 
     if args.tolerance is not None:
         def _raise_on_image_difference(expected, actual, tol):
@@ -78,11 +82,8 @@ Matplotlib's agg backend.
     plt.switch_backend("agg")
 
     return pytest.main([
+        "--rootdir", str(Path(mpl.__file__).parents[1]),
         "-p", "__main__",
-        # Don't get confused by our *own* conftest...
-        "-p", "no:{}".format(Path(__file__).parent.resolve()
-                             / "tests/conftest.py"),
-        "--pyargs", "matplotlib",
         *rest])
 
 
