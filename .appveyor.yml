@@ -17,21 +17,9 @@ install:
     $Env:PATH = "C:\Miniconda36-x64;C:\Miniconda36-x64\Scripts;$Env:PATH"
     $Env:PYTHONUNBUFFERED = 1
     conda config --set always_yes true
-    conda update -n base conda
     conda update --quiet --all
-    conda install --quiet matplotlib
     python -mpip install -U pip
-    New-Item -ItemType directory build
-    Set-Location build
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest https://github.com/preshing/cairo-windows/releases/download/1.15.10/cairo-windows-1.15.10.zip -OutFile cairo-windows-1.15.10.zip
-    Expand-Archive cairo-windows-1.15.10.zip -DestinationPath .
-    Set-Location ..
-    $Env:CL = "/I$(Get-Location)\build\cairo-windows-1.15.10\include"
-    $Env:LINK = "/LIBPATH:$(Get-Location)\build\cairo-windows-1.15.10\lib\x64"
-    python -mpip install .
-    python -mpip uninstall -y .  # Just get the dependencies.
-    python setup.py bdist_wheel
+    .\tools\build-windows-wheel.ps1
     python -mpip install $(Get-Item dist\*.whl)
     $host.SetShouldExit($LastExitCode)  # The only thing that matters, regardless of stderr.
     # end-syntax: ps1

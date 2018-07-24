@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# Build script for the manylinux wheel.  Depends on git and docker.
+
 set -eo pipefail
 set -x
 
@@ -6,7 +9,6 @@ if [[ ! "$MANYLINUX" ]]; then
     toplevel="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
     tmpdir="$(mktemp -d)"
-    echo "$tmpdir"
     trap 'rm -rf "$tmpdir"' EXIT INT TERM
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...

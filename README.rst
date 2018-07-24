@@ -129,7 +129,7 @@ nonstandard [#]_.  In that case, be careful to set them to e.g. ``g++-7`` and
 **not** ``gcc-7``, otherwise the compilation will succeed but the shared object
 will be mis-linked and fail to load.
 
-The manylinux wheel is built using ``tools/build-manylinux.sh``.
+The manylinux wheel is built using ``tools/build-manylinux-wheel.sh``.
 
 **NOTE**: On Arch Linux, the python-pillow (Arch) package includes an invalid
 version of ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not be
@@ -155,9 +155,10 @@ install -c anaconda clangxx_osx-64``), or can also be installed with Homebrew
 it requires manual modifications to the PATH and LDFLAGS (as documented by
 ``brew info llvm``).
 
-The OSX wheel is built using delocate-wheel_ (to vendor a recent version of
-libc++).  Currently, it can only be built from a Homebrew-clang wheel, not a
-conda-clang wheel (due to some path intricacies...).
+The OSX wheel is built using ``tools/build-osx-wheel.sh``, which relies on
+delocate-wheel_ (to vendor a recent version of libc++).  Currently, it can only
+be built from a Homebrew-clang wheel, not a conda-clang wheel (due to some path
+intricacies...).
 
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
 
@@ -170,30 +171,35 @@ The following additional dependencies are required:
   reason for restricting support to Python 3.6 on Windows: distutils is able to
   use MSVC 2017 only since Python 3.6.4.)
 
-- FreeType headers, which can e.g. be installed using conda ::
+- cairo headers and import and dynamic libraries (``cairo.lib`` and
+  ``cairo.dll``) *with FreeType support*.  Note that this excludes, in
+  particular, the Anaconda and conda-forge builds: they do not include
+  FreeType support.  One place from where such a build is available is
+  https://github.com/preshing/cairo-windows/releases: download the zip file and
+  unpack it.
+
+- FreeType headers and import and dynamic libraries (``freetype.lib`` and
+  ``freetype.dll``), which can be retrieved from
+  https://github.com/ubawurinna/freetype-windows-binaries, or alternatively
+  using conda::
 
      conda install -y freetype
 
-- a cairo build (the headers, ``cairo.lib``, and ``cairo.dll``) *with FreeType
-  support*.  Note that this excludes, in particular, the Anaconda and
-  conda-forge builds: they do not include FreeType support.  One place from
-  where such a build is available is https://github.com/preshing/cairo-windows/releases:
-  download the zip file and unpack it.
+The (standard) |CL|_ and |LINK|_ environment variables (which always get
+prepended respectively to the invocations of the compiler and the linker)
+should be set as follows::
 
-  Because you will always need to provide cairo yourself, we did not implement
-  any special way to configure the location where it will be found.  Instead,
-  you **must** set the (standard) |CL|_ and |LINK|_ environment variables
-  (which always get prepended respectively to the invocations of the compiler
-  and the linker) as follows::
+   set CL=/IC:\path\to\dir\containing\cairo.h /IC:/same/for/ft2build.h
+   set LINK=/LIBPATH:C\path\to\dir\containing\cairo.lib /LIBPATH:C\same\for\freetype.lib
 
-     set CL=/IC:\path\to\directory\containing\cairo.h
-     set LINK=/LIBPATH:C\path\to\directory\containing\cairo.lib
+Moreover, we also need to find ``cairo.dll`` and ``freetype.dll`` and copy
+them next to ``mplcairo``'s extension module.  As the dynamic libraries are
+typically found next to import libraries, we search the ``/LIBPATH:`` entries
+in the ``LINK`` environment variable and copy the first ``cairo.dll`` and
+``freetype.dll`` found there.
 
-  Moreover, we also need to find ``cairo.dll`` and copy it next to
-  ``mplcairo``'s extension module.  As ``cairo.dll`` is typically found next to
-  ``cairo.lib``, we **explicitly** require the ``LINK`` environment variable to
-  use the above format and start with ``/LIBPATH:`` (case-insensitive); we
-  always copy ``cairo.dll`` from that directory.
+The PowerShell script ``tools/build-windows-wheel.ps1`` automates the retrieval
+of the cairo and FreeType and the wheel build.
 
 .. |CL| replace:: ``CL``
 .. _CL: https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables

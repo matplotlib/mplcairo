@@ -42,15 +42,17 @@ def get_pkg_config(info, lib):
 
 
 @functools.lru_cache(1)
-def path_from_link_libpath():
-    match = re.fullmatch("(?i)/LIBPATH:(.*)", os.environ.get("LINK", ""))
-    if not match:
-        raise OSError("For a Windows build, the LINK environment variable "
-                      "must be set to a value starting with '/LIBPATH:'")
+def paths_from_link_libpaths():
     # "Easy" way to call CommandLineToArgvW...
-    return Path(json.loads(subprocess.check_output(
-        '"{}" -c "import json, sys; print(json.dumps(sys.argv[1]))" {}'
-        .format(sys.executable, match.group(1)))))
+    argv = json.loads(subprocess.check_output(
+        '"{}" -c "import json, sys; print(json.dumps(sys.argv[1:]))" {}'
+        .format(sys.executable, os.environ.get("LINK", ""))))
+    paths = []
+    for arg in argv:
+        match = re.fullmatch("(?i)/LIBPATH:(.*)", arg)
+        if match:
+            paths.append(Path(match.group(1)))
+    return paths
 
 
 class build_ext(build_ext):
@@ -154,16 +156,23 @@ class build_ext(build_ext):
         super().build_extensions()
 
         if sys.platform == "win32":
-            shutil.copy2(str(path_from_link_libpath() / "cairo.dll"),
-                         str(Path(self.build_lib, "mplcairo")))
-
+            for dll in ["cairo.dll", "freetype.dll"]:
+                for path in paths_from_link_libpaths():
+                    if (path / dll).exists():
+                        shutil.copy2(str(path / dll),
+                                     str(Path(self.build_lib, "mplcairo")))
+                        break
 
     def copy_extensions_to_source(self):
         super().copy_extensions_to_source()
         if sys.platform == "win32":
-            shutil.copy2(str(path_from_link_libpath() / "cairo.dll"),
-                         self.get_finalized_command("build_py")
-                         .get_package_dir("mplcairo"))
+            for dll in ["cairo.dll", "freetype.dll"]:
+                for path in paths_from_link_libpaths():
+                    if (path / dll).exists():
+                        shutil.copy2(str(path / dll),
+                                     self.get_finalized_command("build_py")
+                                     .get_package_dir("mplcairo"))
+                        break
 
 
 @setup.register_pth_hook("mplcairo.pth")

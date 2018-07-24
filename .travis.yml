@@ -31,7 +31,7 @@ install: |
   # begin-syntax: sh
   case "$TRAVIS_OS_NAME" in
   linux)
-    sudo tools/build-manylinux.sh &&
+    sudo tools/build-manylinux-wheel.sh &&
       pip install dist/*-manylinux*.whl
     ;;
   osx)
@@ -39,17 +39,13 @@ install: |
       brew upgrade python &&
       brew install ccache llvm &&
       brew install cairo &&
-      pip install delocate &&
       (
         export PATH="/usr/local/opt/llvm/bin:$PATH"
         export CPPFLAGS=-L/usr/local/opt/llvm/include
         export LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib'
         export CC='ccache clang'
         export CXX='ccache clang'  # Due to weird manipulations by distutils.
-        pip install . &&
-          pip uninstall -y mplcairo &&  # Just get the dependencies.
-          python setup.py bdist_wheel &&
-          delocate-wheel -v dist/*
+        tools/build-osx-wheel.sh
       ) &&
       pip install dist/*.whl
     ;;
