@@ -1,4 +1,5 @@
 from contextlib import ExitStack
+import copy
 from pathlib import Path
 
 from matplotlib import cbook, rcParams
@@ -15,26 +16,36 @@ class MultiPage:
             mp.savefig(fig1)
             mp.savefig(fig2)
 
-    (Note that no other methods of `PdfPages` are implemented.)
+    (Note that no other methods of `PdfPages` are implemented, and that empty
+    files are not created -- as if the *keep_empty* argument to `PdfPages` was
+    always True.)
     """
 
     def __init__(self, path_or_stream=None, format=None, *, metadata=None):
         self._stack = ExitStack()
-        stream = self._stack.enter_context(
-            cbook.open_file_cm(path_or_stream, "wb"))
-        fmt = (format
-               or Path(getattr(stream, "name", "")).suffix[1:]
-               or rcParams["savefig.format"]).lower()
-        self._renderer = {
-            "pdf": GraphicsContextRendererCairo._for_pdf_output,
-            "ps": GraphicsContextRendererCairo._for_ps_output,
-        }[fmt](stream, 1, 1, 1)  # FIXME(?) What to do with empty files.
-        self._stack.callback(self._renderer._finish)
-        self._renderer._set_metadata(metadata)
+        self._renderer = None
+
+        def _make_renderer():
+            stream = self._stack.enter_context(
+                cbook.open_file_cm(path_or_stream, "wb"))
+            fmt = (format
+                or Path(getattr(stream, "name", "")).suffix[1:]
+                or rcParams["savefig.format"]).lower()
+            renderer_cls = {
+                "pdf": GraphicsContextRendererCairo._for_pdf_output,
+                "ps": GraphicsContextRendererCairo._for_ps_output,
+            }[fmt]
+            self._renderer = renderer_cls(stream, 1, 1, 1)
+            self._stack.callback(self._renderer._finish)
+            self._renderer._set_metadata(copy.copy(metadata))
+
+        self._make_renderer = _make_renderer
 
     def savefig(self, figure, **kwargs):
         # FIXME[Upstream]: Not all kwargs are supported here -- but I plan to
         # deprecate them upstream.
+        if self._renderer is None:
+            self._make_renderer()
         figure.set_dpi(72)
         self._renderer._set_size(*figure.canvas.get_width_height(),
                                  kwargs.get("dpi", 72))
