@@ -415,12 +415,12 @@ is compulsory to use the context manager form.)
 ``cairo-script`` output
 -----------------------
 
-Setting the ``MPLCAIRO_SCRIPT_SURFACE`` environment variable to ``vector``
-or ``raster`` allows one to save figures (with ``savefig``) in the
-``.cairoscript`` format, which is a "native script that matches the cairo
-drawing model".  The value of the variable determines the rendering path used
-(e.g., whether marker stamping is used at all).  This may be helpful for
-troubleshooting purposes.
+Setting the ``MPLCAIRO_SCRIPT_SURFACE`` environment variable *before mplcairo
+is imported* to ``vector`` or ``raster`` allows one to save figures (with
+``savefig``) in the ``.cairoscript`` format, which is a "native script that
+matches the cairo drawing model".  The value of the variable determines the
+rendering path used (e.g., whether marker stamping is used at all).  This may
+be helpful for troubleshooting purposes.
 
 Note that this may crash the process after the file is written, due to `cairo
 bug #104410 <cairo-104410_>`_.
