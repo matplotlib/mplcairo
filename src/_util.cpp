@@ -6,12 +6,14 @@
 
 #include "_macros.h"
 
+using namespace std::string_literals;
+
 namespace mplcairo {
 
 namespace detail {
 
-// Load FreeType error codes.  This approach (modified to use
-// std::unordered_map) is documented in fterror.h.
+// FreeType error codes.  They are loaded as documented in fterror.h (modified
+// to use std::unordered_map).
 // NOTE: If we require FreeType>=2.6.3 then the macro can be replaced by
 // FTERRORS_H_.
 #undef __FTERRORS_H__
@@ -24,8 +26,10 @@ std::unordered_map<FT_Error, std::string> ft_errors =
 ;
 FT_Library ft_library{};
 
+// Optional parts of cairo, backported from 1.15.
 tag_begin_t                 cairo_tag_begin;
 tag_end_t                   cairo_tag_end;
+// Optional parts of cairo.
 surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
                             cairo_ps_surface_create_for_stream,
                             cairo_svg_surface_create_for_stream;
@@ -35,9 +39,24 @@ pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
 
+// Other useful values.
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
 int MARKER_THREADS{};
+MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{
+  []() -> MplcairoScriptSurface {
+    if (auto script_surface = std::getenv("MPLCAIRO_SCRIPT_SURFACE");
+        script_surface) {
+      if (script_surface == "raster"s) {
+        return MplcairoScriptSurface::Raster;
+      } else if (script_surface == "vector"s) {
+        return MplcairoScriptSurface::Vector;
+      }
+    }
+    return MplcairoScriptSurface::None;
+  }()
+};
+
 }
 
 rgba_t AdditionalState::get_hatch_color() {
@@ -118,14 +137,13 @@ bool has_vector_surface(cairo_t* cr)
     case CAIRO_SURFACE_TYPE_RECORDING:
       return true;
     case CAIRO_SURFACE_TYPE_SCRIPT:
-      if (auto script_surface =
-            std::string{std::getenv("MPLCAIRO_SCRIPT_SURFACE")};
-          script_surface == "raster") {
-        return false;
-      } else if (script_surface == "vector") {
-        return true;
+      switch (detail::MPLCAIRO_SCRIPT_SURFACE) {
+        case detail::MplcairoScriptSurface::Raster:
+          return false;
+        case detail::MplcairoScriptSurface::Vector:
+          return true;
+        default: ;
       }
-      [[fallthrough]];
     default:
       throw
         std::invalid_argument(

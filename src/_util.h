@@ -18,6 +18,9 @@ namespace py = pybind11;
 
 namespace detail {
 
+extern std::unordered_map<FT_Error, std::string> ft_errors;
+extern FT_Library ft_library;
+
 // Optional parts of cairo, backported from 1.15.
 // Copy-pasted from cairo.h.
 #define CAIRO_TAG_DEST "cairo.dest"
@@ -38,7 +41,6 @@ typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_CREATE_DATE,
     CAIRO_PDF_METADATA_MOD_DATE,
 } cairo_pdf_metadata_t;
-// Dynamically loaded functions.
 using surface_create_for_stream_t =
   cairo_surface_t* (*)(cairo_write_func_t, void*, double, double);
 using surface_set_size_t =
@@ -58,9 +60,6 @@ extern pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
 extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
 extern ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
 
-extern std::unordered_map<FT_Error, std::string> ft_errors;
-extern FT_Library ft_library;
-
 // Other useful values.
 extern cairo_user_data_key_t const
   REFS_KEY,  // cairo_t -> kept alive Python objects.
@@ -69,6 +68,10 @@ extern cairo_user_data_key_t const
 extern py::object UNIT_CIRCLE;
 extern py::object PIXEL_MARKER;
 extern int MARKER_THREADS;
+enum class MplcairoScriptSurface {
+  None, Raster, Vector
+};
+extern MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE;
 }
 
 using rectangle_t = std::tuple<double, double, double, double>;
