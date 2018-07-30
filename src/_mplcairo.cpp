@@ -544,12 +544,15 @@ void GraphicsContextRenderer::set_linewidth(double lw)
   cairo_set_miter_limit(cr_, cairo_get_line_width(cr_));
 }
 
-void GraphicsContextRenderer::set_snap(std::optional<bool> snap)
+// NOTE: Don't take std::optional<bool> as argument as this appears to lead to
+// additional_state.snap being uninitialized further downstream (per valgrind),
+// and possibly causes a crash on Fedora's buildbots.
+void GraphicsContextRenderer::set_snap(py::object snap)
 {
   // NOTE: We treat None (snap if only vertical or horizontal lines) as True.
   // NOTE: It appears that even when rcParams["path.snap"] is False, this is
   // sometimes set to True.
-  get_additional_state().snap = snap.value_or(true);
+  get_additional_state().snap = snap.is_none() ? true : snap.cast<bool>();
 }
 
 void GraphicsContextRenderer::set_url(std::optional<std::string> url)
