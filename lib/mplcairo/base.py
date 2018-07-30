@@ -32,8 +32,8 @@ from ._mplcairo import _StreamSurfaceType
 _log = logging.getLogger()
 # FreeType2 is thread-unsafe.
 _LOCK = RLock()
-MathTextParser._backend_mapping[
-    "mplcairo"] = _mplcairo.MathtextBackendCairo
+MathTextParser._backend_mapping["mplcairo"] = \
+    _mplcairo.MathtextBackendCairo
 
 
 @functools.lru_cache(1)
@@ -300,7 +300,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                      mpl.rcParams["ps.usedistiller"]](
                          tmp_name, False, ptype=papertype)
                 with open(tmp_name, "rb") as tmp_file, \
-                        cbook.open_file_cm(path_or_stream, "wb") as stream:
+                     cbook.open_file_cm(path_or_stream, "wb") as stream:
                     shutil.copyfileobj(tmp_file, stream)
         else:
             print_method(path_or_stream, **kwargs)

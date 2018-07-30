@@ -148,8 +148,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     /* url */             {}
   }}};
   CAIRO_CHECK(
-    cairo_set_user_data, cr, &detail::STATE_KEY,
-    stack, [](void* data) -> void {
+    cairo_set_user_data, cr, &detail::STATE_KEY, stack,
+    [](void* data) -> void {
       // Just calling operator delete would not invoke the destructor.
       delete static_cast<std::stack<AdditionalState>*>(data);
     });
@@ -420,9 +420,11 @@ py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
        4},
       {cairo_image_surface_get_stride(surface), 4, 1},
       cairo_image_surface_get_data(surface),
-      py::capsule(surface, [](void* surface) -> void {
-        cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
-      })};
+      py::capsule(
+        surface,
+        [](void* surface) -> void {
+          cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
+        })};
 }
 
 void GraphicsContextRenderer::_finish()
@@ -1316,9 +1318,11 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter_get_buffer()
       4},
      {cairo_image_surface_get_stride(raster_surface), 4, 1},
      cairo_image_surface_get_data(raster_surface),
-     py::capsule(raster_surface, [](void* raster_surface) -> void {
-       cairo_surface_destroy(static_cast<cairo_surface_t*>(raster_surface));
-     })};
+     py::capsule(
+       raster_surface,
+       [](void* raster_surface) -> void {
+         cairo_surface_destroy(static_cast<cairo_surface_t*>(raster_surface));
+       })};
 }
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
@@ -1587,7 +1591,8 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Export functions.
   m.def(
-    "set_options", [](py::kwargs kwargs) -> void {
+    "set_options",
+    [](py::kwargs kwargs) -> void {
       // FIXME[pybind11]: Redo once they pybind11 has kwonly args.
       auto pop_option = [&](std::string key) -> py::object {
         return kwargs.attr("pop")(key, py::none());
@@ -1629,9 +1634,10 @@ raqm : bool
   Whether to use Raqm for text rendering.
 )__doc__");
   m.def(
-    "get_options", []() -> py::dict {
+    "get_options",
+    []() -> py::dict {
       return py::dict(
-        "cairo_circles"_a=!detail::UNIT_CIRCLE.is(py::none{}),
+        "cairo_circles"_a=!detail::UNIT_CIRCLE.is_none(),
         "marker_threads"_a=detail::MARKER_THREADS,
         "raqm"_a=has_raqm());
     }, R"__doc__(
@@ -1643,12 +1649,14 @@ options.
 
   py::class_<Region>(m, "_Region")
     // Only for patching Agg.
-    .def("_get_buffer", [](Region& r) -> py::array_t<uint8_t> {
-      return
-        {{r.bbox.height, r.bbox.width, 4},
-         {r.bbox.width * 4, 4, 1},
-         r.buf.get()};
-    });
+    .def(
+      "_get_buffer",
+      [](Region& r) -> py::array_t<uint8_t> {
+        return
+          {{r.bbox.height, r.bbox.width, 4},
+          {r.bbox.width * 4, 4, 1},
+          r.buf.get()};
+      });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
     // The RendererAgg signature, which is also expected by MixedModeRenderer
@@ -1854,9 +1862,11 @@ Backend rendering mathtext to a cairo recording surface.
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)
     .def("_draw", &MathtextBackend::_draw)
-    .def("get_hinting_type", [](MathtextBackend& /* mb */) -> long {
-      return get_hinting_flag();
-    });
+    .def(
+      "get_hinting_type",
+      [](MathtextBackend& /* mb */) -> long {
+        return get_hinting_flag();
+      });
 }
 
 }
