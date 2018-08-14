@@ -1518,19 +1518,22 @@ PYBIND11_MODULE(_mplcairo, m)
     py::module::import("matplotlib.mathtext")
     .attr("MathTextParser")("mplcairo");
 
-  auto cleanup = py::cpp_function{
-    [&](py::handle weakref) -> void {
-      FT_Done_FreeType(detail::ft_library);
-
-      // Make sure that these objects don't outlive the Python interpreter.
-      detail::UNIT_CIRCLE = {};
-      detail::PIXEL_MARKER = {};
-      GraphicsContextRenderer::mathtext_parser_ = {};
-
-      weakref.dec_ref();
+  py::module::import("atexit").attr("register")(
+    py::cpp_function{
+      [&]() -> void {
+        FT_Done_FreeType(detail::ft_library);
+        // Make sure that these objects don't outlive the Python interpreter.
+        // (It appears that sometimes, a weakref callback to the module doesn't
+        // get called at shutdown, so if we rely on that approach instead of
+        // using `atexit.register`, we may get a segfault when Python tries to
+        // deallocate the type objects (via a decref by the C++ destructor) too
+        // late in the shutdown sequence.)
+        detail::UNIT_CIRCLE = {};
+        detail::PIXEL_MARKER = {};
+        GraphicsContextRenderer::mathtext_parser_ = {};
+      }
     }
-  };
-  py::weakref(m, cleanup).release();
+  );
 
   // Export symbols.
 
