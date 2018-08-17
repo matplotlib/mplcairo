@@ -18,8 +18,6 @@ namespace mplcairo {
 
 using namespace pybind11::literals;
 
-py::object GraphicsContextRenderer::mathtext_parser_{};
-
 Region::Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf) :
   bbox{bbox}, buf{std::move(buf)}
 {}
@@ -1235,7 +1233,8 @@ void GraphicsContextRenderer::draw_text(
   }
   auto const& ac = additional_context();
   if (ismath) {
-    mathtext_parser_.attr("parse")(s, get_additional_state().dpi, prop)
+    py::module::import("mplcairo")
+      .attr("_mathtext_parse")(s, get_additional_state().dpi, prop)
       .cast<MathtextBackend>()._draw(*this, x, y, angle);
   } else {
     // Need to set the current point (otherwise later texts will just follow,
@@ -1274,7 +1273,8 @@ GraphicsContextRenderer::get_text_width_height_descent(
   if (ismath.cast<bool>()) {
     // NOTE: Agg reports nonzero descents for seemingly zero-descent cases.
     return
-      mathtext_parser_.attr("parse")(s, get_additional_state().dpi, prop)
+      py::module::import("mplcairo")
+      .attr("_mathtext_parse")(s, get_additional_state().dpi, prop)
       .cast<MathtextBackend>().get_text_width_height_descent();
   } else {
     cairo_save(cr_);
@@ -1514,9 +1514,11 @@ PYBIND11_MODULE(_mplcairo, m)
 
   detail::PIXEL_MARKER =
     py::module::import("matplotlib.markers").attr("MarkerStyle")(",");
-  GraphicsContextRenderer::mathtext_parser_ =
+  // Making the mathtext parser live in a Python module works around
+  // FIXME[pybind11]'s failure to call the destructor (#1493).
+  py::module::import("mplcairo").attr("_mathtext_parse") =
     py::module::import("matplotlib.mathtext")
-    .attr("MathTextParser")("mplcairo");
+    .attr("MathTextParser")("mplcairo").attr("parse");
 
   py::module::import("atexit").attr("register")(
     py::cpp_function{
@@ -1530,7 +1532,6 @@ PYBIND11_MODULE(_mplcairo, m)
         // late in the shutdown sequence.)
         detail::UNIT_CIRCLE = {};
         detail::PIXEL_MARKER = {};
-        GraphicsContextRenderer::mathtext_parser_ = {};
       }
     }
   );
