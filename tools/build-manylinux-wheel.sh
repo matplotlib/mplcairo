@@ -5,7 +5,7 @@
 set -eo pipefail
 set -x
 
-if [[ ! "$MANYLINUX" ]]; then
+if [[ "$MPLCAIRO_BUILD_TYPE" != manylinux ]]; then
     toplevel="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
     tmpdir="$(mktemp -d)"
@@ -13,7 +13,7 @@ if [[ ! "$MANYLINUX" ]]; then
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...
     docker run -it \
-        -e MANYLINUX=1 \
+        -e MPLCAIRO_BUILD_TYPE=manylinux \
         --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
         quay.io/pypa/manylinux1_x86_64 \
         "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"

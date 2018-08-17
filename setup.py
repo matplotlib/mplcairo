@@ -1,3 +1,19 @@
+"""
+mplcairo build
+==============
+
+Environment variables:
+
+MPLCAIRO_BUILD_TYPE
+    - Set to "distro" to build a package for a Linux distribution: do not
+      compile with ``-march=native`` and do not declare pybind11 as
+      ``install_requires`` (it needs to be manually provided by the packager
+      instead).
+    - Set to "manylinux" to build a manylinux wheel: all of the above;
+      moreover, pkg-config is shimmed and libstdc++ is statically linked.
+"""
+
+from enum import Enum
 import functools
 import json
 import os
@@ -26,8 +42,17 @@ MIN_RAQM_VERSION = "0.2.0"
 RAQM_TAG = "v0.5.0"
 
 
+class BuildType(Enum):
+    Default = None
+    Distro = "distro"
+    Manylinux = "manylinux"
+
+
+BUILD_TYPE = BuildType(os.environ.get("MPLCAIRO_BUILD_TYPE"))
+
+
 def get_pkg_config(info, lib):
-    if os.environ.get("MANYLINUX"):
+    if BUILD_TYPE is BuildType.Manylinux:
         if info.startswith("--atleast-version"):
             if lib == "raqm":
                 raise FileNotFoundError  # Trigger the header download.
@@ -108,12 +133,12 @@ class build_ext(build_ext):
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 ["-flto"])
-            if os.environ.get("MANYLINUX"):
-                ext.extra_link_args += (
-                    ["-static-libgcc", "-static-libstdc++"])
-            else:
+            if BUILD_TYPE is BuildType.Default:
                 ext.extra_compile_args += (
                     ["-march=native"])
+            if BUILD_TYPE is BuildType.Manylinux:
+                ext.extra_link_args += (
+                    ["-static-libgcc", "-static-libstdc++"])
 
         elif sys.platform == "darwin":
             import cairo
@@ -231,7 +256,7 @@ setup(
     },
     install_requires=[
         "matplotlib>=2.2",
-        "pybind11>=2.2.4",
         "pycairo>=1.16.0; os_name == 'posix'",
-    ],
+    ]
+    + (["pybind11>=2.2.4"] if BUILD_TYPE is BuildType.Default else []),
 )

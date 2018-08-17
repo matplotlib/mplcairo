@@ -1,6 +1,8 @@
 next
 ====
 
+- Add the ``MPLCAIRO_BUILD_TYPE`` environment variable for controlling the
+  build.
 - Support all Qt bindings.
 - Improved error messages.
 - ``copy_from_bbox`` now rounds boundaries inwards, to avoid overspilling the
