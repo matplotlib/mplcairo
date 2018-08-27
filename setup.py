@@ -103,7 +103,7 @@ class build_ext(build_ext):
             ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += (
                 ["-std=c++1z", "-fvisibility=hidden", "-flto",
-                 "-Wextra", "-Wpedantic"]
+                 "-Wall", "-Wextra", "-Wpedantic"]
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 ["-flto"])
@@ -133,7 +133,8 @@ class build_ext(build_ext):
                 # Windows conda path for FreeType.
                 [str(Path(sys.prefix, "Library/include"))])
             ext.extra_compile_args += (
-                ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES"])
+                ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
+                 "/wd4244", "/wd4267"])  # cf. gcc -Wconversion.
             ext.libraries += (
                 ["cairo", "freetype"])
             ext.library_dirs += (
