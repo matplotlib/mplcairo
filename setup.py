@@ -21,7 +21,7 @@ if sys.platform == "darwin":
 from setupext import Extension, build_ext, find_packages, setup
 
 
-MIN_CAIRO_VERSION = "1.11.4"
+MIN_CAIRO_VERSION = "1.11.4"  # Also in _feature_tests.cpp.
 MIN_RAQM_VERSION = "0.2.0"
 RAQM_TAG = "v0.5.0"
 
@@ -71,7 +71,8 @@ class build_ext(build_ext):
             "src/_raqm.cpp",
         ]
         ext.depends += [
-            "setup.py", "src/_macros.h",
+            "setup.py",
+            "src/_macros.h",
             "src/_mplcairo.h",
             "src/_os.h",
             "src/_util.h",
