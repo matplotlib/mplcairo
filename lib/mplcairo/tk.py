@@ -18,12 +18,15 @@ class FigureCanvasTkCairo(FigureCanvasCairo, FigureCanvasTk):
     def draw(self):
         super().draw()
         buf = self.get_renderer()._get_buffer()
-        height, width, _ = buf.shape
         buf = _util.to_premultiplied_rgba8888(buf)
         _tk_blit(self._tkphoto, buf)
         self._master.update_idletasks()
 
-    blit = draw
+    def blit(self, bbox=None):
+        buf = self.get_renderer()._get_buffer()
+        buf = _util.to_premultiplied_rgba8888(buf)
+        _tk_blit(self._tkphoto, buf, bbox=bbox)
+        self._master.update_idletasks()
 
 
 @_BackendTk.export
