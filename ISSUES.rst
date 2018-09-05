@@ -68,6 +68,8 @@ Matplotlib's software alpha compositor is incorrect (#8847). ::
 
    test_image::test_image_composite_alpha[pdf,svg]
 
+Matplotlib's draw_path_collection has inconsistent semantics across backends
+(#12021).  (No test.)
 
 Issues with cairo
 -----------------
