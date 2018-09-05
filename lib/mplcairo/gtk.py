@@ -19,6 +19,10 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
         ctx.set_source_surface(image, 0, 0)
         ctx.paint()
 
+    def blit(self, bbox=None):  # FIXME: flickering.
+        super().blit(bbox=bbox)
+        self.queue_draw()
+
 
 @_BackendGTK3.export
 class _BackendGTKCairo(_BackendGTK3):
