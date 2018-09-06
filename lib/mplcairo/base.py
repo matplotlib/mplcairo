@@ -42,8 +42,7 @@ def _get_tex_font_map():
 
 
 def _get_drawn_subarray_and_bounds(img):
-    """Return the drawn region of a buffer and its ``(l, b, w, h)`` bounds.
-    """
+    """Return the drawn region of a buffer and its ``(l, b, w, h)`` bounds."""
     drawn = img[..., 3] != 0
     x_nz, = drawn.any(axis=0).nonzero()
     y_nz, = drawn.any(axis=1).nonzero()

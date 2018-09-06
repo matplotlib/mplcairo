@@ -8,7 +8,8 @@ from .base import GraphicsContextRendererCairo, _LOCK
 
 
 class MultiPage:
-    """Multi-page output, for backends that support them.
+    """
+    Multi-page output, for formats that support it.
 
     Usage is similar to `matplotlib.backends.backend_pdf.PdfPages`::
 
@@ -16,9 +17,9 @@ class MultiPage:
             mp.savefig(fig1)
             mp.savefig(fig2)
 
-    (Note that no other methods of `PdfPages` are implemented, and that empty
-    files are not created -- as if the *keep_empty* argument to `PdfPages` was
-    always True.)
+    Note that the only other method of `PdfPages` that is implemented is
+    `close`, and that empty files are not created -- as if the *keep_empty*
+    argument to `PdfPages` was always False.
     """
 
     def __init__(self, path_or_stream=None, format=None, *, metadata=None):

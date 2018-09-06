@@ -333,10 +333,10 @@ rcparam validation, using, e.g.
 The ``text.antialiased`` rcparam can likewise be set to any
 ``cairo_antialias_t`` enum value, or ``True`` (the default, which maps to
 ``SUBPIXEL`` -- ``GRAY`` is not sufficient to benefit from Raqm_'s subpixel
-positioning; see also `cairo bug #99021 <cairo-99021_>`_) or ``False`` (which
-maps to ``NONE``).
+positioning; see also `cairo bug #152 <cairo-152_>`_) or ``False`` (which maps
+to ``NONE``).
 
-.. _cairo-99021: https://bugs.freedesktop.org/show_bug.cgi?id=99021
+.. _cairo-152: https://gitlab.freedesktop.org/cairo/cairo/issues/152
 
 Fast drawing
 ------------
@@ -353,21 +353,19 @@ Simplification threshold
 ------------------------
 
 The ``path.simplify_threshold`` rcparam is used to control the accuracy of
-marker stamping, down to an arbitrarily chosen threshold of 1/16px.  Values
-lower than that will use the exact (slower) marker drawing path.  Marker
-stamping is also implemented for scatter plots (which can have multiple
-colors).  Likewise, markers of different sizes get mapped into markers of
-discretized sizes, with an error bounded by the threshold.
-
-**NOTE**: "Pixel" markers (``","``) **must** be drawn snapped.  This is
-currently not implemented.
+marker stamping, down to an arbitrarily chosen threshold of 1/16px.  If the
+threshold is set to a lower value, the exact (slower) marker drawing path will
+be used.  Marker stamping is also implemented for scatter plots (which can have
+multiple colors).  Likewise, markers of different sizes get mapped into markers
+of discretized sizes, with an error bounded by the threshold.
 
 **NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
 where the facets join each other.  This is because these functions internally
 use a ``PathCollection``, thus triggering the approximate stamping.
-``pcolor`` should be deprecated in favor of ``pcolormesh`` (internally using
-a ``QuadMesh``), and ``plot_surface`` should likewise instead represent the
-surface using ``QuadMesh``, which is drawn without such artefacts.
+``pcolormesh`` (which internally uses a ``QuadMesh``) should generally be
+preferred over ``pcolor`` anyways. ``plot_surface`` should likewise instead
+represent the surface using ``QuadMesh``, which is drawn without such
+artefacts.
 
 Font formats
 ------------
@@ -405,12 +403,11 @@ The API is similar:
 
    fig1 = ...
    fig2 = ...
-   with MultiPage(path_or_stream) as mp:
+   with MultiPage(path_or_stream, metadata=...) as mp:
        mp.savefig(fig1)
        mp.savefig(fig2)
 
-(Note that no other methods of PdfPages are currently implemented, and that is
-is compulsory to use the context manager form.)
+See the class' docstring for additional information.
 
 ``cairo-script`` output
 -----------------------
@@ -423,9 +420,9 @@ rendering path used (e.g., whether marker stamping is used at all).  This may
 be helpful for troubleshooting purposes.
 
 Note that this may crash the process after the file is written, due to `cairo
-bug #104410 <cairo-104410_>`_.
+bug #277 <cairo-277_>`_.
 
-.. _cairo-104410: https://bugs.freedesktop.org/show_bug.cgi?id=104410
+.. _cairo-277: https://gitlab.freedesktop.org/cairo/cairo/issues/277
 
 Markers at Bézier control points
 --------------------------------
