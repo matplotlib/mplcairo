@@ -1330,17 +1330,22 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter_get_buffer()
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
 {
-  // Use ints to avoid a bunch of warnings below.
   auto const& state = get_additional_state();
+  // Use ints to avoid a bunch of warnings below.
+  // Clipping out partial pixels on the edges (using ceil/floor instead of
+  // floor/ceil) helps avoiding invalid_argument being thrown below due to
+  // floating point inaccuracies.
   auto const
-    & x0 = int(std::floor(bbox.attr("x0").cast<double>())),
-    & x1 = int(std::ceil(bbox.attr("x1").cast<double>())),
+    & x0 = int(std::ceil(bbox.attr("x0").cast<double>())),
+    & x1 = int(std::floor(bbox.attr("x1").cast<double>())),
     // Invert y-axis.
-    & y0 = int(std::floor(state.height - bbox.attr("y1").cast<double>())),
-    & y1 = int(std::ceil(state.height - bbox.attr("y0").cast<double>()));
+    & y0 = int(std::ceil(state.height - bbox.attr("y1").cast<double>())),
+    & y1 = int(std::floor(state.height - bbox.attr("y0").cast<double>()));
   if (!(0 <= x0 && x0 <= x1 && x1 <= state.width
         && 0 <= y0 && y0 <= y1 && y1 <= state.height)) {
-    throw std::invalid_argument("Invalid bbox");
+    throw std::invalid_argument(
+      "Cannot copy\n{}\nfrom canvas of width {} and height {}"_format(
+        bbox, state.width, state.height).cast<std::string>());
   }
   auto const& width = x1 - x0, height = y1 - y0;
   // 4 bytes per pixel throughout.

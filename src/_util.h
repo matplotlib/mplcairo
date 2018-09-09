@@ -104,6 +104,7 @@ struct AdditionalState {
   double get_hatch_linewidth();
 };
 
+py::object operator""_format(char const* fmt, std::size_t size);
 bool py_eq(py::object obj1, py::object obj2);
 py::object rc_param(std::string key);
 rgba_t to_rgba(py::object color, std::optional<double> alpha = {});

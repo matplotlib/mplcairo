@@ -73,6 +73,10 @@ double AdditionalState::get_hatch_linewidth() {
   return *hatch_linewidth;
 }
 
+py::object operator""_format(char const* fmt, std::size_t size) {
+  return py::str(fmt, size).attr("format");
+}
+
 bool py_eq(py::object obj1, py::object obj2) {
   return py::module::import("operator").attr("eq")(obj1, obj2).cast<bool>();
 }
