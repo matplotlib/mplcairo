@@ -192,7 +192,8 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
 {
   if (!py::isinstance(
         ctx, py::handle(reinterpret_cast<PyObject*>(&PycairoContext_Type)))) {
-    throw std::invalid_argument("Argument is not a cairo.Context");
+    throw std::invalid_argument(
+      "{} is not a cairo.Context"_format(ctx).cast<std::string>());
   }
   auto const& cr = PycairoContext_GET(ctx.ptr());
   CAIRO_CHECK(cairo_status, cr);
@@ -240,8 +241,8 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       }
     }();
   if (!surface_create_for_stream) {
-    throw std::runtime_error(
-      "cairo was built without support for the requested file format");
+    throw std::runtime_error(  // FIXME[pybind11]: .name (pybind11 2.3).
+      "cairo was built without {} support"_format(type).cast<std::string>());
   }
   auto const& cb =
     [](void* closure, unsigned char const* data, unsigned int length)
@@ -385,7 +386,7 @@ void GraphicsContextRenderer::_set_size(
   state.height = height;
   state.dpi = dpi;
   auto const& surface = cairo_get_target(cr_);
-  switch (cairo_surface_get_type(surface)) {
+  switch (auto const& type = cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_PDF:
       detail::cairo_pdf_surface_set_size(surface, width, height);
       break;
@@ -393,8 +394,9 @@ void GraphicsContextRenderer::_set_size(
       detail::cairo_ps_surface_set_size(surface, width, height);
       break;
     default:
-      throw std::invalid_argument(
-        "_set_size only supports PDF and PS surfaces");
+      throw std::invalid_argument(  // FIXME[pybind11]: .name (pybind11 2.3).
+        "_set_size only supports PDF and PS surfaces, not {}"_format(type)
+        .cast<std::string>());
   }
 }
 
@@ -406,8 +408,11 @@ void GraphicsContextRenderer::_show_page()
 py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
 {
   auto const& surface = cairo_get_target(cr_);
-  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error("_get_buffer only supports image surfaces");
+  if (auto const& type = cairo_surface_get_type(surface);
+      type != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error(
+      "_get_buffer only supports image surfaces, not {}"_format(type)
+      .cast<std::string>());
   }
   cairo_surface_reference(surface);
   cairo_surface_flush(surface);
@@ -450,7 +455,7 @@ void GraphicsContextRenderer::set_capstyle(std::string capstyle)
   } else if (capstyle == "projecting") {
     cairo_set_line_cap(cr_, CAIRO_LINE_CAP_SQUARE);
   } else {
-    throw std::invalid_argument("Invalid capstyle: " + capstyle);
+    throw std::invalid_argument("invalid capstyle: " + capstyle);
   }
 }
 
@@ -487,7 +492,7 @@ void GraphicsContextRenderer::set_dashes(
 {
   if (dash_list) {
     if (!dash_offset) {
-      throw std::invalid_argument("Missing dash offset");
+      throw std::invalid_argument("missing dash offset");
     }
     auto const& dashes_raw = dash_list->unchecked<1>();
     auto const& n = dashes_raw.size();
@@ -530,7 +535,7 @@ void GraphicsContextRenderer::set_joinstyle(std::string joinstyle)
   } else if (joinstyle == "bevel") {
     cairo_set_line_join(cr_, CAIRO_LINE_JOIN_BEVEL);
   } else {
-    throw std::invalid_argument("Invalid joinstyle: " + joinstyle);
+    throw std::invalid_argument("invalid joinstyle: " + joinstyle);
   }
 }
 
@@ -624,7 +629,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   py::object transform)
 {
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
   auto matrix =
@@ -635,7 +640,10 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   if (col_raw.shape(0) != n
       || tri_raw.shape(1) != 3 || tri_raw.shape(2) != 2
       || col_raw.shape(1) != 3 || col_raw.shape(2) != 4) {
-    throw std::invalid_argument("Non-matching shapes");
+    throw std::invalid_argument(
+      "shapes of triangles {.shape} and colors {.shape} are mismatched"_format(
+        triangles, colors)
+      .cast<std::string>());
   }
   auto const& pattern = cairo_pattern_create_mesh();
   for (auto i = 0; i < n; ++i) {
@@ -660,13 +668,15 @@ void GraphicsContextRenderer::draw_image(
   GraphicsContextRenderer& gc, double x, double y, py::array_t<uint8_t> im)
 {
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
   auto const& im_raw = im.unchecked<3>();
   auto const& height = im_raw.shape(0), width = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
-    throw std::invalid_argument("RGBA array must have shape (m, n, 4)");
+    throw std::invalid_argument(
+      "RGBA array must have shape (m, n, 4), not {.shape}"_format(im)
+      .cast<std::string>());
   }
   // Let cairo manage the surface memory; as some backends only write the image
   // at flush time.
@@ -709,7 +719,7 @@ void GraphicsContextRenderer::draw_markers(
   std::optional<py::object> fc)
 {
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
 
@@ -912,7 +922,7 @@ void GraphicsContextRenderer::draw_path(
   std::optional<py::object> fc)
 {
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
   auto path_loaded = false;
@@ -1021,7 +1031,7 @@ void GraphicsContextRenderer::draw_path_collection(
   }
 
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
   auto const& old_snap = get_additional_state().snap;
@@ -1048,7 +1058,9 @@ void GraphicsContextRenderer::draw_path_collection(
   }
   auto const& offsets_raw = offsets.unchecked<2>();
   if (offsets_raw.shape(1) != 2) {
-    throw std::invalid_argument("Invalid offsets shape");
+    throw std::invalid_argument(
+      "offsets must have shape (n, 2), not {.shape}"_format(offsets)
+      .cast<std::string>());
   }
   auto const& offset_matrix = matrix_from_transform(offset_transform);
   auto const& convert_colors = [&](py::object colors) -> py::array_t<double> {
@@ -1135,7 +1147,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
   py::array_t<double> ecs)
 {
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
   auto const& matrix =
@@ -1148,12 +1160,17 @@ void GraphicsContextRenderer::draw_quad_mesh(
       || fcs_raw.shape(0) != mesh_height * mesh_width
       || fcs_raw.shape(1) != 4
       || ecs_raw.shape(1) != 4) {
-    throw std::invalid_argument("Non-matching shapes");
+    throw std::invalid_argument(
+      "shapes of coordinates {.shape}, facecolors {.shape}, and "
+      "edgecolors {.shape} do not match"_format(coordinates, fcs, ecs)
+      .cast<std::string>());
   }
   if (offsets.ndim() != 2
       || offsets.shape(0) != 1 || offsets.shape(1) != 2
       || *offsets.data(0, 0) != 0 || *offsets.data(0, 1) != 0) {
-    throw std::invalid_argument("Non-trivial offsets not supported");
+    throw std::invalid_argument(
+      "non-trivial offset\n{}\nis not supported"_format(offsets)
+      .cast<std::string>());
   }
   auto coords_raw_keepref =  // Let numpy manage the buffer.
     coordinates.attr("copy")().cast<py::array_t<double>>();
@@ -1229,7 +1246,7 @@ void GraphicsContextRenderer::draw_text(
   bool ismath, py::object /* mtext */)
 {
   if (&gc != this) {
-    throw std::invalid_argument("Non-matching GraphicsContext");
+    throw std::invalid_argument("non-matching GraphicsContext");
   }
   auto const& ac = additional_context();
   if (ismath) {
@@ -1344,15 +1361,18 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
   if (!(0 <= x0 && x0 <= x1 && x1 <= state.width
         && 0 <= y0 && y0 <= y1 && y1 <= state.height)) {
     throw std::invalid_argument(
-      "Cannot copy\n{}\nfrom canvas of width {} and height {}"_format(
+      "cannot copy\n{}\nfrom canvas of width {} and height {}"_format(
         bbox, state.width, state.height).cast<std::string>());
   }
   auto const& width = x1 - x0, height = y1 - y0;
   // 4 bytes per pixel throughout.
   auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[4 * width * height]};
   auto const& surface = cairo_get_target(cr_);
-  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error("copy_from_bbox only supports image surfaces");
+  if (auto const& type = cairo_surface_get_type(surface);
+      type != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error(  // FIXME[pybind11]: .name (pybind11 2.3).
+      "copy_from_bbox only supports image surfaces, not {}"_format(type)
+      .cast<std::string>());
   }
   auto const& raw = cairo_image_surface_get_data(surface);
   auto const& stride = cairo_image_surface_get_stride(surface);
@@ -1371,8 +1391,11 @@ void GraphicsContextRenderer::restore_region(Region& region)
   auto const& [x0, y0, width, height] = bbox;
   auto const& /* x1 = x0 + width, */ y1 = y0 + height;
   auto const& surface = cairo_get_target(cr_);
-  if (cairo_surface_get_type(surface) != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error("restore_region only supports image surfaces");
+  if (auto const& type = cairo_surface_get_type(surface);
+      type != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error(  // FIXME[pybind11]: .name (pybind11 2.3).
+      "restore_region only supports image surfaces, not {}"_format(type)
+      .cast<std::string>());
   }
   auto const& raw = cairo_image_surface_get_data(surface);
   auto const& stride = cairo_image_surface_get_stride(surface);
@@ -1630,7 +1653,9 @@ PYBIND11_MODULE(_mplcairo, m)
         }
       }
       if (py::bool_(kwargs)) {
-        throw std::runtime_error("Unknown options passed to set_options");
+        throw std::runtime_error(
+          "unknown options passed to set_options: {}"_format(kwargs)
+          .cast<std::string>());
       }
     }, R"__doc__(
 Set mplcairo options.
@@ -1681,10 +1706,11 @@ options.
     .def(
       py::pickle(
         [](GraphicsContextRenderer const& gcr) -> py::tuple {
-          if (cairo_surface_get_type(cairo_get_target(gcr.cr_))
-              != CAIRO_SURFACE_TYPE_IMAGE) {
+          if (auto const& type = cairo_surface_get_type(cairo_get_target(gcr.cr_));
+              type != CAIRO_SURFACE_TYPE_IMAGE) {
             throw std::runtime_error(
-              "Only renderers to image surfaces are picklable");
+              "only renderers to image (not {}) surfaces are picklable"_format(
+                type).cast<std::string>());
           }
           auto const& state = gcr.get_additional_state();
           return py::make_tuple(state.width, state.height, state.dpi);
