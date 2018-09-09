@@ -1,3 +1,14 @@
+next
+====
+
+- Improved error messages.
+- ``copy_from_bbox`` now rounds boundaries inwards, to avoid overspilling the
+  canvas in presence of floating point inaccuracies.
+- Fixes to shutdown sequence and to blitting.
+- Matplotlib tests can be selected with ``--pyargs``.
+- MultiPage now provides more of Matplotlib's API, and behaves as if
+  *keep_empty* is False.
+
 v0.1
 ====
 
