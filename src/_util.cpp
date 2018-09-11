@@ -542,10 +542,7 @@ cairo_font_face_t* font_face_from_path(std::string path)
     cairo_font_face_set_user_data,
     font_face, &detail::FT_KEY, ft_face,
     [](void* ptr) -> void {
-      if (auto const& error = FT_Done_Face(reinterpret_cast<FT_Face>(ptr))) {
-        PyErr_SetString(
-          PyExc_RuntimeError, mplcairo::detail::ft_errors.at(error).c_str());
-      };
+      FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr));
     });
   return font_face;
 }

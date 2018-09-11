@@ -215,7 +215,8 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6"
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
     ],
     cmdclass={"build_ext": build_ext},
     packages=find_packages("lib"),
@@ -230,7 +231,7 @@ setup(
     },
     install_requires=[
         "matplotlib>=2.2",
-        "pybind11>=2.2.3",
+        "pybind11>=2.2.4",
         "pycairo>=1.16.0; os_name == 'posix'",
     ],
 )
