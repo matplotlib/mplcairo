@@ -1,3 +1,6 @@
+import ctypes
+
+from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
 import numpy as np
 
@@ -12,14 +15,16 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
         buf = self.get_renderer(_draw_if_new=True)._get_buffer()
-        address, _ = buf.__array_interface__["data"]
         height, width, _ = buf.shape
         # The image buffer is not necessarily contiguous, but the padding in
         # the ARGB32 case (each scanline is 32-bit aligned) happens to match
         # what QImage requires.
-        qimage = QtGui.QImage(address, width, height,
+        qimage = QtGui.QImage(buf, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
-        qimage.setDevicePixelRatio(self._dpi_ratio)
+        getattr(qimage, "setDevicePixelRatio", lambda _: None)(self._dpi_ratio)
+        # FIXME[PySide{,2}]: https://bugreports.qt.io/browse/PYSIDE-140
+        if qt_compat.QT_API.startswith("PySide"):
+            ctypes.c_long.from_address(id(buf)).value -= 1
         painter = QtGui.QPainter(self)
         painter.eraseRect(self.rect())
         painter.drawImage(0, 0, qimage)

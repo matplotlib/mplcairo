@@ -1,6 +1,7 @@
 next
 ====
 
+- Support all Qt bindings.
 - Improved error messages.
 - ``copy_from_bbox`` now rounds boundaries inwards, to avoid overspilling the
   canvas in presence of floating point inaccuracies.

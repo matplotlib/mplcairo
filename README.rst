@@ -221,8 +221,9 @@ specifically, the following backends are provided:
   surface),
 - ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
   native surface; does not and cannot support blitting),
-- ``module://mplcairo.qt`` (Qt5 widget, copying data from a cairo image
-  surface),
+- ``module://mplcairo.qt`` (Qt4/5 widget, copying data from a cairo image
+  surface -- select the binding to use by importing it before mplcairo, or by
+  setting the ``QT_API`` environment variable),
 - ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
   surface),
 - ``module://mplcairo.wx`` (wx widget, copying data from a cairo image
@@ -465,11 +466,10 @@ Possible optimizations
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's
   side.
 
-What about the already existing cairo (gtk3/qt5/wx/tk/...cairo) backends?
-=========================================================================
+What about the already existing cairo (gtk3/qt4/qt5/wx/tk/...cairo) backends?
+=============================================================================
 
-They are slow (try running `examples/mplot3d/wire3d_animation.py`_), buggy (try
-calling ``imshow``, especially with an alpha channel), and renders math poorly
-(try ``title(r"$\sqrt{2}$")``).
+They are very slow (try running `examples/mplot3d/wire3d_animation.py`_) and
+render math poorly (try ``title(r"$\sqrt{2}$")``).
 
 .. _examples/mplot3d/wire3d_animation.py: examples/mplot3d/wire3d_animation.py
