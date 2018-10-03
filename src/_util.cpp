@@ -250,7 +250,7 @@ void load_path_exact(
   auto const& vertices_keepref =
     path.attr("vertices").cast<py::array_t<double>>();
   auto const& codes_keepref =
-    path.attr("codes").cast<std::optional<py::array_t<int>>>();
+    path.attr("codes").cast<std::optional<py::array_t<uint8_t>>>();
   auto const& n = vertices_keepref.shape(0);
   if (vertices_keepref.shape(1) != 2) {
     throw std::invalid_argument(
