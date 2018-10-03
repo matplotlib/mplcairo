@@ -228,6 +228,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
     def draw(self):
+        self._last_renderer_call = None, None  # Draw on a clean canvas.
         with _LOCK:
             self.figure.draw(self.get_renderer())
         super().draw()
