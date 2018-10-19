@@ -60,10 +60,10 @@ As usual, install using pip::
 
    python -mpip install mplcairo
 
-mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.  Refer to
-the instructions on that project's website for installation on Linux and OSX.
-You may want to look at https://github.com/HOST-Oman/libraqm-cmake for Windows
-build scripts.
+mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.
+Refer to the instructions on that project's website for installation on Linux
+and OSX.  You may want to look at https://github.com/HOST-Oman/libraqm-cmake
+for Windows build scripts.
 
 .. [#] pybind11 is actually only a build-time requirement, but doesn't play
    well with ``setup_requires``.
@@ -83,6 +83,10 @@ build scripts.
 
    (cairo 1.15.4 added support for PDF metadata and links; the presence of this
    feature is detected at runtime.)
+
+On Fedora, the package is available as python-mplcairo_.
+
+.. _python-mplcairo: https://apps.fedoraproject.org/packages/python-mplcairo
 
 Building
 ========
