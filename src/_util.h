@@ -25,10 +25,8 @@ extern FT_Library ft_library;
 // Copy-pasted from cairo.h.
 #define CAIRO_TAG_DEST "cairo.dest"
 #define CAIRO_TAG_LINK "Link"
-using tag_begin_t = void (*)(cairo_t*, char const*, char const*);
-using tag_end_t = void (*)(cairo_t*, char const*);
-extern tag_begin_t cairo_tag_begin;
-extern tag_end_t   cairo_tag_end;
+extern void (*cairo_tag_begin)(cairo_t*, char const*, char const*);
+extern void (*cairo_tag_end)(cairo_t*, char const*);
 
 // Optional parts of cairo.
 // Copy-pasted from cairo-pdf.h.
@@ -41,24 +39,30 @@ typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_CREATE_DATE,
     CAIRO_PDF_METADATA_MOD_DATE,
 } cairo_pdf_metadata_t;
-using surface_create_for_stream_t =
-  cairo_surface_t* (*)(cairo_write_func_t, void*, double, double);
-using surface_set_size_t =
-  void (*)(cairo_surface_t*, double, double);
-using pdf_surface_set_metadata_t =
-  void (*)(cairo_surface_t*, cairo_pdf_metadata_t, char const*);
-using ps_surface_set_eps_t =
-  void (*)(cairo_surface_t*, cairo_bool_t);
-using ps_surface_dsc_comment_t =
-  void (*)(cairo_surface_t*, char const*);
-extern surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
-                                   cairo_ps_surface_create_for_stream,
-                                   cairo_svg_surface_create_for_stream;
-extern surface_set_size_t          cairo_pdf_surface_set_size,
-                                   cairo_ps_surface_set_size;
-extern pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
-extern ps_surface_set_eps_t        cairo_ps_surface_set_eps;
-extern ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
+extern cairo_surface_t* (*cairo_pdf_surface_create_for_stream)(
+  cairo_write_func_t, void*, double, double);
+extern cairo_surface_t* (*cairo_ps_surface_create_for_stream)(
+  cairo_write_func_t, void*, double, double);
+extern cairo_surface_t* (*cairo_svg_surface_create_for_stream)(
+  cairo_write_func_t, void*, double, double);
+extern void (*cairo_pdf_surface_set_size)(cairo_surface_t*, double, double);
+extern void (*cairo_ps_surface_set_size)(cairo_surface_t*, double, double);
+extern void (*cairo_pdf_surface_set_metadata)(
+  cairo_surface_t*, cairo_pdf_metadata_t, char const*);
+extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
+extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
+
+#define ITER_CAIRO_OPTIONAL_API(_) \
+  _(cairo_tag_begin) \
+  _(cairo_tag_end) \
+  _(cairo_pdf_surface_create_for_stream) \
+  _(cairo_ps_surface_create_for_stream) \
+  _(cairo_svg_surface_create_for_stream) \
+  _(cairo_pdf_surface_set_size) \
+  _(cairo_ps_surface_set_size) \
+  _(cairo_pdf_surface_set_metadata) \
+  _(cairo_ps_surface_set_eps) \
+  _(cairo_ps_surface_dsc_comment)
 
 // Other useful values.
 extern cairo_user_data_key_t const

@@ -215,7 +215,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   double width, double height, double dpi)
 {
   auto surface_create_for_stream =
-    [&]() -> detail::surface_create_for_stream_t {
+    [&]() -> cairo_surface_t* (*)(cairo_write_func_t, void*, double, double) {
       switch (type) {
         case StreamSurfaceType::PDF:
           return detail::cairo_pdf_surface_create_for_stream;
@@ -227,7 +227,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
         case StreamSurfaceType::Script:
           return
             [](cairo_write_func_t write, void* closure,
-              double width, double height) -> cairo_surface_t* {
+               double width, double height) -> cairo_surface_t* {
               auto const& script =
                 cairo_script_create_for_stream(write, closure);
               auto const& surface =
@@ -1523,18 +1523,9 @@ PYBIND11_MODULE(_mplcairo, m)
         py::getattr(dll, name, py::int_(0)), ctypes.attr("c_void_p"))
       .attr("value").cast<std::optional<uintptr_t>>().value_or(0);
   };
-#define LOAD_PTR(name) \
-  detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name))
-  LOAD_PTR(cairo_tag_begin);
-  LOAD_PTR(cairo_tag_end);
-  LOAD_PTR(cairo_pdf_surface_create_for_stream);
-  LOAD_PTR(cairo_ps_surface_create_for_stream);
-  LOAD_PTR(cairo_svg_surface_create_for_stream);
-  LOAD_PTR(cairo_pdf_surface_set_size);
-  LOAD_PTR(cairo_ps_surface_set_size);
-  LOAD_PTR(cairo_pdf_surface_set_metadata);
-  LOAD_PTR(cairo_ps_surface_set_eps);
-  LOAD_PTR(cairo_ps_surface_dsc_comment);
+#define LOAD_API(name) \
+  detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name));
+  ITER_CAIRO_OPTIONAL_API(LOAD_API)
 #undef LOAD_PTR
 #endif
 

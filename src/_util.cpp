@@ -26,18 +26,9 @@ std::unordered_map<FT_Error, std::string> ft_errors =
 ;
 FT_Library ft_library{};
 
-// Optional parts of cairo, backported from 1.15.
-tag_begin_t                 cairo_tag_begin;
-tag_end_t                   cairo_tag_end;
-// Optional parts of cairo.
-surface_create_for_stream_t cairo_pdf_surface_create_for_stream,
-                            cairo_ps_surface_create_for_stream,
-                            cairo_svg_surface_create_for_stream;
-surface_set_size_t          cairo_pdf_surface_set_size,
-                            cairo_ps_surface_set_size;
-pdf_surface_set_metadata_t  cairo_pdf_surface_set_metadata;
-ps_surface_set_eps_t        cairo_ps_surface_set_eps;
-ps_surface_dsc_comment_t    cairo_ps_surface_dsc_comment;
+#define DEFINE_API(name) decltype(name) name;
+ITER_CAIRO_OPTIONAL_API(DEFINE_API)
+#undef DEFINE_API
 
 // Other useful values.
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
