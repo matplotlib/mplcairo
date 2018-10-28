@@ -72,8 +72,13 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     cairo_clip(cr);
   }
   if (auto const& url = state.url; url && detail::cairo_tag_begin) {
-    detail::cairo_tag_begin(
-      cr, CAIRO_TAG_LINK, ("uri='" + *url + "'").c_str());
+    if (detail::cairo_tag_begin) {
+      detail::cairo_tag_begin(
+        cr, CAIRO_TAG_LINK, ("uri='" + *url + "'").c_str());
+    } else {
+        py::module::import("warnings").attr("warn")(
+          "cairo_tag_begin requires cairo>=1.15.4");
+    }
   }
 }
 
