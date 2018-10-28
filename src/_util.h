@@ -126,6 +126,7 @@ void fill_and_stroke_exact(
   cairo_t* cr, py::object path, cairo_matrix_t const* matrix,
   std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
 cairo_font_face_t* font_face_from_path(std::string path);
+cairo_font_face_t* font_face_from_path(py::object path);
 cairo_font_face_t* font_face_from_prop(py::object prop);
 long get_hinting_flag();
 std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>

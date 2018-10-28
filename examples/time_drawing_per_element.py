@@ -1,6 +1,4 @@
-"""
-Profile drawing methods as a function of input size and rcparams.
-"""
+"""Profile drawing methods as a function of input size and rcparams."""
 
 from argparse import (
     ArgumentParser, ArgumentDefaultsHelpFormatter, RawTextHelpFormatter)

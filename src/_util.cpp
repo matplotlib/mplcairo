@@ -538,14 +538,22 @@ cairo_font_face_t* font_face_from_path(std::string path)
   return font_face;
 }
 
+#if PY_VERSION_HEX >= 0x03060000
+cairo_font_face_t* font_face_from_path(py::object path) {
+  return
+    font_face_from_path(
+      py::reinterpret_steal<py::object>(PyOS_FSPath(path.ptr()))
+      .cast<std::string>());
+}
+#endif
+
 cairo_font_face_t* font_face_from_prop(py::object prop)
 {
   // It is probably not worth implementing an additional layer of caching here
   // as findfont already has its cache and object equality needs would also
   // need to go through Python anyways.
   auto const& path =
-    py::module::import("matplotlib.font_manager").attr("findfont")(prop)
-    .cast<std::string>();
+    py::module::import("matplotlib.font_manager").attr("findfont")(prop);
   return font_face_from_path(path);
 }
 

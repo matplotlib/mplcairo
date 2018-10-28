@@ -11,6 +11,7 @@ next
 - Matplotlib tests can be selected with ``--pyargs``.
 - MultiPage now provides more of Matplotlib's API, and behaves as if
   *keep_empty* is False.
+- Support `pathlib.Path` arguments to `FontProperties` on Python≥3.6.
 
 v0.1
 ====
