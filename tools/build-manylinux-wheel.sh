@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # Build script for the manylinux wheel.  Depends on git and docker.
+# Set the PY_VERS environment variable to a space-separated list of dotted
+# Python versions (e.g. '3.4 3.5 3.6 3.7') to build the wheels only for these
+# versions.
 
 set -eo pipefail
 set -x
@@ -13,7 +16,7 @@ if [[ "$MPLCAIRO_BUILD_TYPE" != manylinux ]]; then
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...
     docker run -it \
-        -e MPLCAIRO_BUILD_TYPE=manylinux \
+        -e MPLCAIRO_BUILD_TYPE=manylinux -e PY_VERS="${PY_VERS:-3.4 3.5 3.6 3.7}" \
         --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
         quay.io/pypa/manylinux1_x86_64 \
         "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"
@@ -30,9 +33,6 @@ else
     export CFLAGS="-I/toolchain/include $MFLAG"
     export CXXFLAGS="-I/toolchain/include $MFLAG"
     export LD_LIBRARY_PATH="/toolchain/lib64:/toolchain/lib:$LD_LIBRARY_PATH"
-    export PY_MAJOR=3
-    export PY_MINOR=6
-    export PY_PREFIX="/opt/python/cp${PY_MAJOR}${PY_MINOR}-cp$PY_MAJOR${PY_MINOR}m"
 
     cd /
     mkdir workdir
@@ -60,18 +60,22 @@ else
         done
         # Provide a shim to access pycairo's header.
         mv "$(find python-cairo -name py3cairo.h)" /usr/include
+    )
+
+    for PY_VER in $PY_VERS; do
+        PY_VER_ABI_TAG="cp${PY_VER/./}-cp${PY_VER/./}m"
+        PY_PREFIX="/opt/python/$PY_VER_ABI_TAG"
+        echo "Building the wheel for Python $PY_VER."
+        # Provide a shim to access pycairo's header.
         echo 'def get_include(): return "/dev/null"' \
-            >"$PY_PREFIX/lib/python$PY_MAJOR.$PY_MINOR/site-packages/cairo.py"
-    )
-
-    echo 'Building the wheel.'
-    (
-        cd /io/mplcairo
-        "$PY_PREFIX/bin/pip" install pybind11
-        # Force a rebuild of the extension.
-        "$PY_PREFIX/bin/python" setup.py bdist_wheel
-        auditwheel -v repair -wdist \
-            dist/mplcairo-"$("$PY_PREFIX/bin/python" setup.py --version)"-*
-    )
-
+            >"$PY_PREFIX/lib/python$PY_VER/site-packages/cairo.py"
+        (
+            cd /io/mplcairo
+            "$PY_PREFIX/bin/pip" install pybind11
+            # Force a rebuild of the extension.
+            "$PY_PREFIX/bin/python" setup.py bdist_wheel
+            auditwheel -v repair -wdist \
+                "dist/mplcairo-$("$PY_PREFIX/bin/python" setup.py --version)-$PY_VER_ABI_TAG-"*".whl"
+        )
+    done
 fi

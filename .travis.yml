@@ -17,8 +17,8 @@ cache:
 
 matrix:
   include:
-  - dist: trusty
-    sudo: false
+  - dist: xenial
+    sudo: true
     language: python
     python: '3.6'
   - os: osx
@@ -31,7 +31,7 @@ install: |
   # begin-syntax: sh
   case "$TRAVIS_OS_NAME" in
   linux)
-    sudo tools/build-manylinux-wheel.sh &&
+    sudo PY_VERS="$TRAVIS_PYTHON_VERSION" tools/build-manylinux-wheel.sh &&
       pip install dist/*-manylinux*.whl
     ;;
   osx)

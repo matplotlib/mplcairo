@@ -107,7 +107,10 @@ class build_ext(build_ext):
         ext.language = "c++"
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
-        tmp_include_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            tmp_include_dir.mkdir(parents=True)
+        except FileExistsError:  # Py3.4 compat.
+            pass
         ext.include_dirs += (
             [tmp_include_dir,
              pybind11.get_include(user=True), pybind11.get_include()])
