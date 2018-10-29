@@ -1,5 +1,6 @@
 #include "_mplcairo.h"
 
+#include "_os.h"
 #include "_pattern_cache.h"
 #include "_raqm.h"
 #include "_util.h"
@@ -1528,11 +1529,15 @@ PYBIND11_MODULE(_mplcairo, m)
         py::getattr(dll, name, py::int_(0)), ctypes.attr("c_void_p"))
       .attr("value").cast<std::optional<uintptr_t>>().value_or(0);
   };
+#else
+  auto const& load_ptr = [&](char const* name) -> os::symbol_t {
+    return os::dlsym(name);
+  };
+#endif
 #define LOAD_API(name) \
   detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name));
   ITER_CAIRO_OPTIONAL_API(LOAD_API)
-#undef LOAD_PTR
-#endif
+#undef LOAD_API
 
   FT_CHECK(FT_Init_FreeType, &detail::ft_library);
 

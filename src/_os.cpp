@@ -2,7 +2,11 @@
 
 #if defined __linux__ || defined __APPLE__
 #include <dlfcn.h>
-#else
+#elif defined _WIN32
+#include <memory>
+
+#define NOMINMAX
+#include <psapi.h>
 #include <Windows.h>
 #endif
 
@@ -28,7 +32,7 @@ char const* dlerror() {
   return ::dlerror();
 }
 
-#elif _WIN32
+#elif defined _WIN32
 using library_t = HMODULE;
 using symbol_t = FARPROC;
 
@@ -42,6 +46,22 @@ bool dlclose(library_t handle) {
 
 symbol_t dlsym(library_t handle, char const* symbol) {
   return GetProcAddress(handle, symbol);
+}
+
+symbol_t dlsym(char const* symbol) {
+  auto hProcess = GetCurrentProcess();
+  auto cbNeeded = DWORD{};
+  EnumProcessModules(hProcess, nullptr, 0, &cbNeeded);
+  auto n_modules = cbNeeded / sizeof(HMODULE);
+  auto lphModule = std::unique_ptr<HMODULE[]>(new HMODULE[n_modules]);
+  if (EnumProcessModules(hProcess, lphModule.get(), cbNeeded, &cbNeeded)) {
+    for (auto i = 0; i < n_modules; ++i) {
+      if (auto proc = GetProcAddress(lphModule[i], symbol)) {
+        return proc;
+      }
+    }
+  }
+  return nullptr;
 }
 
 char const* dlerror() {

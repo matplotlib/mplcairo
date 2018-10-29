@@ -162,7 +162,7 @@ class build_ext(build_ext):
                 ["/std:c++17", "/EHsc", "/D_USE_MATH_DEFINES",
                  "/wd4244", "/wd4267"])  # cf. gcc -Wconversion.
             ext.libraries += (
-                ["cairo", "freetype"])
+                ["psapi", "cairo", "freetype"])
             ext.library_dirs += (
                 # Windows conda path for FreeType.
                 [str(Path(sys.prefix, "Library/lib"))])
