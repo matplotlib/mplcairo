@@ -40,7 +40,7 @@ else
     echo 'Setting up gcc.'
     (
         cd workdir
-        curl -L https://github.com/Noctem/pogeo-toolchain/releases/download/v1.4/gcc-7.2-binutils-2.29-centos5-x86-64.tar.bz2 -o toolchain.tar.bz2
+        curl -L https://github.com/Noctem/pogeo-toolchain/releases/download/v1.5/gcc-7.3-centos5-x86-64.tar.bz2 -o toolchain.tar.bz2
         tar -C / -xf toolchain.tar.bz2
     )
 
