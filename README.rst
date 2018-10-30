@@ -8,7 +8,7 @@ A (new) cairo backend for Matplotlib
    image:: https://img.shields.io/pypi/v/mplcairo.svg
    :target: https://pypi.python.org/pypi/mplcairo
 .. |Travis|
-   image:: https://travis-ci.org/anntzer/mplcairo.svg?branch=master
+   image:: https://img.shields.io/travis/anntzer/mplcairo.svg?logo=travis
    :target: https://travis-ci.org/anntzer/mplcairo
 .. |AppVeyor|
    image:: https://ci.appveyor.com/api/projects/status/github/anntzer/mplcairo?svg=true
@@ -23,6 +23,7 @@ UI, or non-interactively (i.e., to save figure to various file formats).
 Noteworthy points include:
 
 .. ... sadly, currently not true.
+
    - Speed (the backend can be up to ~10× faster than Agg, e.g., when stamping
      circular markers of variable colors).
 
@@ -56,9 +57,16 @@ mplcairo requires
   ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
 
-As usual, install using pip::
+As usual, install using pip:
 
-   python -mpip install mplcairo
+.. code-block:: sh
+
+   $ pip install mplcairo  # from PyPI
+   $ pip install git+https://github.com/anntzer/mplcairo  # from Github
+
+Note that wheels are not available for OSX, because no OSX version ships a
+recent-enough libc++ by default and vendoring of libc++ appears to be fragile.
+Help for packaging would be welcome.
 
 mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.
 Refer to the instructions on that project's website for installation on Linux
@@ -193,7 +201,7 @@ The (standard) |CL|_ and |LINK|_ environment variables (which always get
 prepended respectively to the invocations of the compiler and the linker)
 should be set as follows::
 
-   set CL=/IC:\path\to\dir\containing\cairo.h /IC:/same/for/ft2build.h
+   set CL=/IC:\path\to\dir\containing\cairo.h /IC:\same\for\ft2build.h
    set LINK=/LIBPATH:C\path\to\dir\containing\cairo.lib /LIBPATH:C\same\for\freetype.lib
 
 Moreover, we also need to find ``cairo.dll`` and ``freetype.dll`` and copy
@@ -205,10 +213,14 @@ in the ``LINK`` environment variable and copy the first ``cairo.dll`` and
 The PowerShell script ``tools/build-windows-wheel.ps1`` automates the retrieval
 of the cairo and FreeType and the wheel build.
 
+Unfortunately, the cairo build linked above appears to generate blank PDFs.
+The PyPI Windows wheels are instead kindly provided by `Christoph Gohlke`_.
+
 .. |CL| replace:: ``CL``
 .. _CL: https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables
 .. |LINK| replace:: ``LINK``
 .. _LINK: https://docs.microsoft.com/en-us/cpp/build/reference/link-environment-variables
+.. _Christoph Gohlke: https://www.lfd.uci.edu/~gohlke/pythonlibs/#mplcairo
 
 Use
 ===
@@ -240,12 +252,14 @@ Matplotlib** due to incompatibilities associated with the use of a recent
 libc++.  As such, the most practical option is to import mplcairo, then call
 e.g. ``matplotlib.use("module//mplcairo.macosx")``.
 
-To use cairo rendering in Jupyter's ``inline`` mode, patch
+.. ... doesn't work now.
 
-.. code-block:: python
+   To use cairo rendering in Jupyter's ``inline`` mode, patch
 
-   ipykernel.pylab.backnd_inline.new_figure_manager = \
-       mplcairo.base.new_figure_manager
+   .. code-block:: python
+
+      ipykernel.pylab.backend_inline.new_figure_manager = \
+          mplcairo.base.new_figure_manager
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
