@@ -913,6 +913,7 @@ void GraphicsContextRenderer::draw_markers(
       auto x = vertices(i, 0), y = vertices(i, 1);
       cairo_matrix_transform_point(&matrix, &x, &y);
       if (!(std::isfinite(x) && std::isfinite(y))) {
+        cairo_restore(cr_);
         continue;
       }
       draw_one_marker(cr_, x, y);
