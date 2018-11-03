@@ -2,7 +2,7 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
-|PyPI| |Travis| |AppVeyor|
+|PyPI| |Travis| |AppVeyor| |Azure Pipelines|
 
 .. |PyPI|
    image:: https://img.shields.io/pypi/v/mplcairo.svg
@@ -13,6 +13,9 @@ A (new) cairo backend for Matplotlib
 .. |AppVeyor|
    image:: https://ci.appveyor.com/api/projects/status/github/anntzer/mplcairo?svg=true
    :target: https://ci.appveyor.com/project/anntzer/mplcairo
+.. |Azure Pipelines|
+   image:: https://dev.azure.com/anntzer/mplcairo/_apis/build/status/anntzer.mplcairo
+   :target: https://dev.azure.com/anntzer/mplcairo/_build/latest?definitionId=1
 
 .. contents:: :local:
 

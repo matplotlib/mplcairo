@@ -538,14 +538,16 @@ cairo_font_face_t* font_face_from_path(std::string path)
   return font_face;
 }
 
-#if PY_VERSION_HEX >= 0x03060000
 cairo_font_face_t* font_face_from_path(py::object path) {
   return
     font_face_from_path(
+#if PY_VERSION_HEX >= 0x03060000
       py::reinterpret_steal<py::object>(PyOS_FSPath(path.ptr()))
+#else
+      path
+#endif
       .cast<std::string>());
 }
-#endif
 
 cairo_font_face_t* font_face_from_prop(py::object prop)
 {

@@ -26,5 +26,6 @@ $Env:CL = `
 $Env:LINK = `
     "/LIBPATH:$(Get-Location)\build\$cairo_name\lib\x64 " `
   + "/LIBPATH:$(Get-Location)\build\$freetype_name\win64"
-python -mpip install --upgrade pybind11
+python -mpip install --upgrade pip wheel pybind11
+$Env:MPLCAIRO_BUILD_TYPE = "package"
 python setup.py bdist_wheel

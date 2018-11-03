@@ -5,7 +5,7 @@ mplcairo build
 Environment variables:
 
 MPLCAIRO_BUILD_TYPE
-    - Set to "distro" to build a package for a Linux distribution: do not
+    - Set to "package" to build a wheel or Linux distribution package: do not
       compile with ``-march=native`` and do not declare pybind11 as
       ``install_requires`` (it needs to be manually provided by the packager
       instead).
@@ -44,7 +44,7 @@ RAQM_TAG = "v0.5.0"
 
 class BuildType(Enum):
     Default = None
-    Distro = "distro"
+    Package = "package"
     Manylinux = "manylinux"
 
 
@@ -122,7 +122,7 @@ class build_ext(build_ext):
             with urllib.request.urlopen(
                     "https://raw.githubusercontent.com/HOST-Oman/libraqm/"
                     "{}/src/raqm.h".format(RAQM_TAG)) as request, \
-                    (tmp_include_dir / "raqm.h").open("wb") as file:
+                 (tmp_include_dir / "raqm.h").open("wb") as file:
                 file.write(request.read())
 
         if sys.platform == "linux":
