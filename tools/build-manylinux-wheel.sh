@@ -15,7 +15,7 @@ if [[ "$MPLCAIRO_BUILD_TYPE" != manylinux ]]; then
     trap 'rm -rf "$tmpdir"' EXIT INT TERM
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...
-    docker run -it \
+    docker run \
         -e MPLCAIRO_BUILD_TYPE=manylinux -e PY_VERS="${PY_VERS:-3.4 3.5 3.6 3.7}" \
         --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
         quay.io/pypa/manylinux1_x86_64 \

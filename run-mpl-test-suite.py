@@ -15,6 +15,8 @@ from subprocess import CalledProcessError
 import sys
 import warnings
 
+os.environ["MPLBACKEND"] = "agg"  # Avoid irrelevant framework issues on OSX.
+
 import mplcairo.base  # Need to come before matplotlib import on OSX.
 
 import matplotlib as mpl
@@ -81,10 +83,9 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
 
     plt.switch_backend("agg")
 
-    return pytest.main([
-        "--rootdir", str(Path(mpl.__file__).parents[1]),
-        "-p", "__main__",
-        *rest])
+    return pytest.main(
+        ["--rootdir", str(Path(mpl.__file__).parents[1]), "-p", "__main__"]
+        + rest)  # Py3.4 compat.
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -113,6 +114,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_agg.py::test_repeated_save_with_alpha",
                 "test_artist.py::test_cull_markers",
                 "test_axes.py::test_log_scales[png]",
+                "test_backend_bases.py::test_non_gui_warning",
                 "test_backend_pdf.py::test_composite_image",
                 "test_backend_pdf.py::test_multipage_keep_empty",
                 "test_backend_pdf.py::test_multipage_pagecount",
@@ -137,6 +139,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_figure.py::test_align_labels[pdf]",
                 "test_figure.py::test_align_labels[png]",
                 "test_figure.py::test_align_labels[svg]",
+                "test_figure.py::test_tightbbox",
             ])
         ]
         for nodeid in nodeids

@@ -1,0 +1,175 @@
+jobs:
+
+- job: 'Linux'
+  pool:
+    vmImage: 'ubuntu-16.04'
+  strategy:
+    matrix:
+      Python34:
+        python.version: '3.4'
+      Python35:
+        python.version: '3.5'
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+    maxParallel: 4
+
+  steps:
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+      architecture: 'x64'
+
+  - bash: |
+      set -e
+      pip install -U pip
+      sudo PY_VERS="$PYTHON_VERSION" tools/build-manylinux-wheel.sh
+      pip install dist/*-manylinux*.whl
+      # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
+      # sphinx needed before matplotlib#11360 (matplotlib<3.0).
+      pip install 'pytest<3.8' sphinx
+      ./tools/ensure-mpl-test-data.py
+    displayName: 'Build & install'
+
+  - bash: |
+      ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
+    displayName: 'Test'
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/test-results.xml'
+      testRunTitle: 'Python $(python.version)'
+    condition: succeededOrFailed()
+
+  - task: CopyFiles@2
+    inputs:
+      contents: 'dist/*.whl'
+      targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      artifactName: 'wheels'
+
+- job: 'macOS'
+  pool:
+    vmImage: 'macOS-10.13'
+  strategy:
+    matrix:
+      Python34:
+        python.version: '3.4'
+      Python35:
+        python.version: '3.5'
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+    maxParallel: 4
+
+  steps:
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+      architecture: 'x64'
+
+  - bash: |
+      set -e
+      pip install -U pip
+      brew update >/dev/null
+      brew install cairo ccache llvm pkg-config
+      (
+        export PATH="/usr/local/opt/llvm/bin:$PATH"
+        export CPPFLAGS=-L/usr/local/opt/llvm/include
+        export LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib'
+        export CC='ccache clang'
+        export CXX='ccache clang'  # Due to weird manipulations by distutils.
+        tools/build-osx-wheel.sh
+      )
+      pip install dist/*.whl
+      # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
+      # sphinx needed before matplotlib#11360 (matplotlib<3.0).
+      pip install 'pytest<3.8' sphinx
+      ./tools/ensure-mpl-test-data.py
+    displayName: 'Build & install'
+
+  - bash: |
+      ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
+    displayName: 'Test'
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/test-results.xml'
+      testRunTitle: 'Python $(python.version)'
+    condition: succeededOrFailed()
+
+  - task: CopyFiles@2
+    inputs:
+      contents: 'dist/*.whl'
+      targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      artifactName: 'wheels'
+
+- job: 'Windows'
+  pool:
+    vmImage: 'vs2017-win2016'
+  strategy:
+    matrix:
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+    maxParallel: 2
+
+  steps:
+
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+      architecture: 'x64'
+
+  - powershell: |
+      python -mpip install -U pip
+      .\tools\build-windows-wheel.ps1
+      python -mpip install $(Get-Item dist\*.whl)
+      # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
+      # sphinx needed before matplotlib#11360 (matplotlib<3.0).
+      pip install 'pytest<3.8' sphinx
+      python tools\ensure-mpl-test-data.py
+    displayName: 'Build & install'
+
+  - powershell: |
+      python run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
+    displayName: 'Test'
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/test-results.xml'
+      testRunTitle: 'Python $(python.version)'
+    condition: succeededOrFailed()
+
+  - task: CopyFiles@2
+    inputs:
+      contents: 'dist/*.whl'
+      targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      artifactName: 'wheels'
+
+- job: 'PublishWheels'
+  dependsOn:
+  - Linux
+  - macOS
+  - Windows
+
+  steps:
+
+  - checkout: none
+
+  - task: DownloadBuildArtifacts@0
+    inputs:
+      artifactName: 'wheels'
