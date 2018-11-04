@@ -183,9 +183,14 @@ The following additional dependencies are required:
 - cairo headers and import and dynamic libraries (``cairo.lib`` and
   ``cairo.dll``) *with FreeType support*.  Note that this excludes, in
   particular, the Anaconda and conda-forge builds: they do not include
-  FreeType support.  One place from where such a build is available is
-  https://github.com/preshing/cairo-windows/releases: download the zip file and
-  unpack it.
+  FreeType support.
+
+  I am in fact not aware of any such build available online, with the exception
+  of https://github.com/preshing/cairo-windows/releases; however, this specific
+  build appears to `misrender pdfs`.  Instead, a solution is to get the headers
+  e.g. from a Linux distribution package, the DLL from Christoph Gohlke's
+  cairocffi_ build, and generate the import library oneself using ``dumpbin``
+  and ``lib``.
 
 - FreeType headers and import and dynamic libraries (``freetype.lib`` and
   ``freetype.dll``), which can be retrieved from
@@ -193,6 +198,9 @@ The following additional dependencies are required:
   using conda::
 
      conda install -y freetype
+
+.. _misrender pdfs: https://preshing.com/20170529/heres-a-standalone-cairo-dll-for-windows/#IDComment1047546463
+.. _cairocffi: https://www.lfd.uci.edu/~gohlke/pythonlibs/#cairocffi
 
 The (standard) |CL|_ and |LINK|_ environment variables (which always get
 prepended respectively to the invocations of the compiler and the linker)
@@ -207,17 +215,14 @@ typically found next to import libraries, we search the ``/LIBPATH:`` entries
 in the ``LINK`` environment variable and copy the first ``cairo.dll`` and
 ``freetype.dll`` found there.
 
-The PowerShell script ``tools/build-windows-wheel.ps1`` automates the retrieval
-of the cairo and FreeType and the wheel build.
-
-Unfortunately, the cairo build linked above appears to generate blank PDFs.
-The PyPI Windows wheels are instead kindly provided by `Christoph Gohlke`_.
+The script ``tools/build-windows-wheel.py`` automates the retrieval of the
+cairo (assuming that a Gohlke cairocffi is already installed) and FreeType and
+the wheel build.
 
 .. |CL| replace:: ``CL``
 .. _CL: https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables
 .. |LINK| replace:: ``LINK``
 .. _LINK: https://docs.microsoft.com/en-us/cpp/build/reference/link-environment-variables
-.. _Christoph Gohlke: https://www.lfd.uci.edu/~gohlke/pythonlibs/#mplcairo
 
 Use
 ===
