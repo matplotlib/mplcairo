@@ -30,8 +30,8 @@ class MultiPage:
             stream = self._stack.enter_context(
                 cbook.open_file_cm(path_or_stream, "wb"))
             fmt = (format
-                or Path(getattr(stream, "name", "")).suffix[1:]
-                or rcParams["savefig.format"]).lower()
+                   or Path(getattr(stream, "name", "")).suffix[1:]
+                   or rcParams["savefig.format"]).lower()
             renderer_cls = {
                 "pdf": GraphicsContextRendererCairo._for_pdf_output,
                 "ps": GraphicsContextRendererCairo._for_ps_output,

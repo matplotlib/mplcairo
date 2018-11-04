@@ -21,7 +21,6 @@
 # __ https://github.com/ubawurinna/freetype-windows-binaries
 
 from distutils import ccompiler
-import importlib
 import os
 from pathlib import Path
 import shutil

@@ -9,9 +9,6 @@ Matplotlib's agg backend.
 from argparse import ArgumentParser
 import os
 from pathlib import Path
-import shutil
-import subprocess
-from subprocess import CalledProcessError
 import sys
 import warnings
 

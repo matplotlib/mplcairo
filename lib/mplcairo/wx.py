@@ -1,5 +1,5 @@
 from matplotlib.backends.backend_wx import (
-    _BackendWx, _FigureCanvasWxBase, FigureFrameWx, NavigationToolbar2Wx)
+    _BackendWx, _FigureCanvasWxBase, FigureFrameWx)
 import wx
 
 from . import base

@@ -7,7 +7,6 @@ import sys
 import time
 
 from matplotlib import backends, pyplot as plt
-from matplotlib.axes import Axes
 import numpy as np
 
 

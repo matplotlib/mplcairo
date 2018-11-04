@@ -249,7 +249,7 @@ setup(
     cmdclass={"build_ext": build_ext},
     packages=find_packages("lib"),
     package_dir={"": "lib"},
-    ext_modules = [Extension("mplcairo._mplcairo", [])],
+    ext_modules=[Extension("mplcairo._mplcairo", [])],
     python_requires=">=3.4",
     setup_requires=["setuptools_scm"],
     use_scm_version={  # xref __init__.py

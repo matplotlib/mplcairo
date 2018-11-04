@@ -22,7 +22,6 @@ from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
 from matplotlib.backends import backend_ps
-from matplotlib.font_manager import FontProperties
 from matplotlib.mathtext import MathTextParser
 
 from . import _mplcairo, _util

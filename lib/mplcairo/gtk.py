@@ -1,7 +1,7 @@
 import cairo
 from matplotlib.backends.backend_gtk3 import _BackendGTK3, FigureCanvasGTK3
 
-from .base import FigureCanvasCairo, GraphicsContextRendererCairo
+from .base import FigureCanvasCairo
 
 
 class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):

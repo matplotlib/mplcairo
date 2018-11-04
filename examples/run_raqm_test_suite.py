@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 import ast
 from pathlib import Path
+import sys
 
 from matplotlib import pyplot as plt
 from matplotlib.font_manager import FontProperties

@@ -1,7 +1,6 @@
 from functools import partial
 
 from matplotlib.backends._backend_tk import _BackendTk, FigureCanvasTk
-import numpy as np
 
 from . import _util
 from .base import FigureCanvasCairo

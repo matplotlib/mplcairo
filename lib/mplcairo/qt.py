@@ -2,7 +2,6 @@ import ctypes
 
 from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
-import numpy as np
 
 from .base import FigureCanvasCairo
 
