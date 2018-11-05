@@ -25,7 +25,7 @@ jobs:
   - bash: |
       pip install -U pip setuptools &&
         sudo PY_VERS="$PYTHON_VERSION" tools/build-manylinux-wheel.sh &&
-        pip install dist/*-manylinux*.whl &&
+        pip install dist/*.whl &&
         # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
         # sphinx needed before matplotlib#11360 (matplotlib<3.0).
         pip install 'pytest<3.8' sphinx &&

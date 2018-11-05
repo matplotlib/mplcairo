@@ -24,7 +24,7 @@ if [[ "$MPLCAIRO_BUILD_TYPE" != manylinux ]]; then
     user="${SUDO_USER:-$USER}"
     chown "$user:$(id -gn "$user")" -R "$tmpdir/mplcairo/build"
     mkdir -p "$toplevel/dist"
-    mv "$tmpdir/mplcairo/dist/"*.whl "$toplevel/dist"
+    mv "$tmpdir/mplcairo/dist/"*-manylinux*.whl "$toplevel/dist"
 
 else
 
