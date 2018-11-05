@@ -1,3 +1,7 @@
+# Notes:
+# The OSX build does not install inkscape as building it from source is a bit
+# silly.
+
 jobs:
 
 - job: 'Linux'
@@ -26,10 +30,11 @@ jobs:
       pip install -U pip setuptools &&
         sudo PY_VERS="$PYTHON_VERSION" tools/build-manylinux-wheel.sh &&
         pip install dist/*.whl &&
+        ./tools/ensure-mpl-test-data.py &&
         # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
         # sphinx needed before matplotlib#11360 (matplotlib<3.0).
         pip install 'pytest<3.8' sphinx &&
-        ./tools/ensure-mpl-test-data.py
+        sudo apt install ghostscript inkscape
     displayName: 'Build & install'
 
   - bash: |
@@ -39,7 +44,7 @@ jobs:
   - task: PublishTestResults@2
     inputs:
       testResultsFiles: '**/test-results.xml'
-      testRunTitle: 'Python $(python.version)'
+      testRunTitle: 'Python $(python.version) / Linux'
     condition: succeededOrFailed()
 
   - bash: |
@@ -84,10 +89,11 @@ jobs:
           CXX='ccache clang' \
           tools/build-osx-wheel.sh &&
         pip install dist/*.whl &&
+        ./tools/ensure-mpl-test-data.py &&
         # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
         # sphinx needed before matplotlib#11360 (matplotlib<3.0).
         pip install 'pytest<3.8' sphinx &&
-        ./tools/ensure-mpl-test-data.py
+        brew install ghostscript
     displayName: 'Build & install'
 
   - bash: |
@@ -97,7 +103,7 @@ jobs:
   - task: PublishTestResults@2
     inputs:
       testResultsFiles: '**/test-results.xml'
-      testRunTitle: 'Python $(python.version)'
+      testRunTitle: 'Python $(python.version) / macOS'
     condition: succeededOrFailed()
 
   - bash: |
@@ -132,10 +138,11 @@ jobs:
         python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
         python tools/build-windows-wheel.py &&
         python -mpip install dist/*.whl &&
+        python tools/ensure-mpl-test-data.py &&
         # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
         # sphinx needed before matplotlib#11360 (matplotlib<3.0).
         pip install 'pytest<3.8' sphinx &&
-        python tools/ensure-mpl-test-data.py
+        choco install ghostscript inkscape
     displayName: 'Build & install'
 
   - bash: |
@@ -145,7 +152,7 @@ jobs:
   - task: PublishTestResults@2
     inputs:
       testResultsFiles: '**/test-results.xml'
-      testRunTitle: 'Python $(python.version)'
+      testRunTitle: 'Python $(python.version) / Windows'
     condition: succeededOrFailed()
 
   - bash: |
