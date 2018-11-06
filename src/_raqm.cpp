@@ -32,7 +32,7 @@ void load_raqm() {
       #endif
     raqm::_handle = os::dlopen(filename);
     if (!raqm::_handle) {
-      throw std::runtime_error(os::dlerror());
+      os::throw_dlerror();
     }
     #define LOAD_API(name) \
       if (!(raqm::name = \
@@ -40,7 +40,7 @@ void load_raqm() {
                 os::dlsym(raqm::_handle, "raqm_" #name)))) { \
         os::dlclose(raqm::_handle); \
         raqm::_handle = nullptr; \
-        throw std::runtime_error(os::dlerror()); \
+        os::throw_dlerror(); \
       }
     ITER_RAQM_API(LOAD_API)
     #undef DLLOAD_API
@@ -52,7 +52,7 @@ void unload_raqm() {
     auto const& error = os::dlclose(raqm::_handle);
     raqm::_handle = nullptr;
     if (error) {
-      throw std::runtime_error(os::dlerror());
+      os::throw_dlerror();
     }
   }
 }

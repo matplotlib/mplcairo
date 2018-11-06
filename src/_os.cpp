@@ -10,7 +10,11 @@
 #include <Windows.h>
 #endif
 
+#include <pybind11/pybind11.h>
+
 namespace mplcairo::os {
+
+namespace py = pybind11;
 
 #if defined __linux__ || defined __APPLE__
 using library_t = void*;
@@ -28,8 +32,9 @@ symbol_t dlsym(library_t handle, char const* symbol) {
   return ::dlsym(handle, symbol);
 }
 
-char const* dlerror() {
-  return ::dlerror();
+void throw_dlerror() {
+  PyErr_SetString(PyExc_OSError, ::dlerror());
+  throw py::error_already_set{};
 }
 
 #elif defined _WIN32
@@ -64,8 +69,9 @@ symbol_t dlsym(char const* symbol) {
   return nullptr;
 }
 
-char const* dlerror() {
-  return "";  // FIXME
+void throw_dlerror() {
+  PyErr_SetFromWindowsErr(0);
+  throw py::error_already_set{};
 }
 
 #endif

@@ -28,5 +28,5 @@ __all__ = ["antialias_t", "operator_t", "get_options", "set_options"]
 set_options(cairo_circles=True)
 try:
     set_options(raqm=True)
-except RuntimeError:
+except OSError:
     pass

@@ -20,6 +20,6 @@ symbol_t dlsym(char const* symbol);
 library_t dlopen(char const* filename);
 bool dlclose(library_t handle);
 symbol_t dlsym(library_t handle, char const* symbol);
-char const* dlerror();
+void throw_dlerror();
 
 }
