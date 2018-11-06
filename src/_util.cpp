@@ -585,6 +585,12 @@ std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
   return {options, cairo_font_options_destroy};
 }
 
+void warn_on_missing_glyph() {
+  if (PyErr_WarnEx(nullptr, "Requested glyph missing from current font.", 1)) {
+    throw py::error_already_set{};
+  }
+}
+
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
   text_to_glyphs(cairo_t* cr, std::string s)
 {

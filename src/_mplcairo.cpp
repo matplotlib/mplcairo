@@ -1275,6 +1275,13 @@ void GraphicsContextRenderer::draw_text(
     auto const& options = get_font_options();
     cairo_set_font_options(cr_, options.get());
     auto const& [glyphs, count] = text_to_glyphs(cr_, s);
+    if (!std::all_of(glyphs.get(), glyphs.get() + count,
+                     [](auto& glyph) {return glyph.index;})) {
+      // While this warning perhaps belongs logically to text_to_glyphs, we
+      // don't want to also emit the warning in get_text_width_height_descent,
+      // so put it here.
+      warn_on_missing_glyph();
+    }
     cairo_show_glyphs(cr_, glyphs.get(), count);
   }
 }
@@ -1493,6 +1500,9 @@ void MathtextBackend::_draw(
         static_cast<FT_Face>(
           cairo_font_face_get_user_data(font_face, &detail::FT_KEY)),
         glyph.index);
+    if (!index) {
+      warn_on_missing_glyph();
+    }
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};
     cairo_show_glyphs(cr, &raw_glyph, 1);
   }

@@ -131,6 +131,7 @@ cairo_font_face_t* font_face_from_prop(py::object prop);
 long get_hinting_flag();
 std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
   get_font_options();
+void warn_on_missing_glyph();
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
   text_to_glyphs(cairo_t* cr, std::string s);
 
