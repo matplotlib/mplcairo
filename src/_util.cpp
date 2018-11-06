@@ -542,7 +542,7 @@ cairo_font_face_t* font_face_from_path(py::object path) {
   return
     font_face_from_path(
 #if PY_VERSION_HEX >= 0x03060000
-      py::reinterpret_steal<py::object>(PyOS_FSPath(path.ptr()))
+      py::reinterpret_steal<py::object>(PY_CHECK(PyOS_FSPath, path.ptr()))
 #else
       path
 #endif
@@ -586,9 +586,8 @@ std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
 }
 
 void warn_on_missing_glyph() {
-  if (PyErr_WarnEx(nullptr, "Requested glyph missing from current font.", 1)) {
-    throw py::error_already_set{};
-  }
+  PY_CHECK(
+    PyErr_WarnEx, nullptr, "Requested glyph missing from current font.", 1);
 }
 
 std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>

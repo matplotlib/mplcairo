@@ -36,3 +36,14 @@
         "with error: " + mplcairo::detail::ft_errors.at(error_)}; \
   } \
 } (void)0
+
+// Technically could just be a function, but keeping things symmetric...
+#define PY_CHECK(func, ...) \
+  [&]() { \
+    auto const value_ = func(__VA_ARGS__); \
+    if (PyErr_Occurred()) { \
+      throw pybind11::error_already_set{}; \
+    } else { \
+      return value_; \
+    } \
+  }()
