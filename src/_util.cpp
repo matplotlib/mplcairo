@@ -65,6 +65,11 @@ double AdditionalState::get_hatch_linewidth() {
   return *hatch_linewidth;
 }
 
+GlyphsAndClusters::~GlyphsAndClusters() {
+  cairo_glyph_free(glyphs);
+  cairo_text_cluster_free(clusters);
+}
+
 py::object operator""_format(char const* fmt, std::size_t size) {
   return py::str(fmt, size).attr("format");
 }
@@ -593,17 +598,19 @@ std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
   return {options, cairo_font_options_destroy};
 }
 
-void warn_on_missing_glyph() {
+void warn_on_missing_glyph(std::string s) {
   PY_CHECK(
-    PyErr_WarnEx, nullptr, "Requested glyph missing from current font.", 1);
+    PyErr_WarnEx,
+    nullptr,
+    "Requested glyph ({!r}) missing from current font."_format(s)
+    .cast<std::string>().c_str(),
+    1);
 }
 
-std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
-  text_to_glyphs(cairo_t* cr, std::string s)
+GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
 {
   auto const& scaled_font = cairo_get_scaled_font(cr);
-  cairo_glyph_t* glyphs = {};
-  auto count = size_t{};
+  auto gac = GlyphsAndClusters{};
   if (has_raqm()) {
     auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
     auto const& scaled_font_unlock_cleanup =
@@ -623,29 +630,50 @@ std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
     TRUE_CHECK(raqm::set_text_utf8, rq, s.c_str(), s.size());
     TRUE_CHECK(raqm::set_freetype_face, rq, ft_face);
     TRUE_CHECK(raqm::layout, rq);
-    auto const& rq_glyphs = raqm::get_glyphs(rq, &count);
-    glyphs = cairo_glyph_allocate(count);
+    auto num_glyphs = size_t{};
+    auto const& rq_glyphs = raqm::get_glyphs(rq, &num_glyphs);
+    gac.num_glyphs = num_glyphs;
+    gac.glyphs = cairo_glyph_allocate(gac.num_glyphs);
     auto x = 0., y = 0.;
-    for (auto i = 0u; i < count; ++i) {
+    for (auto i = 0; i < gac.num_glyphs; ++i) {
       auto const& rq_glyph = rq_glyphs[i];
-      glyphs[i].index = rq_glyph.index;
-      glyphs[i].x = x + rq_glyph.x_offset / 64.;
+      gac.glyphs[i].index = rq_glyph.index;
+      gac.glyphs[i].x = x + rq_glyph.x_offset / 64.;
       x += rq_glyph.x_advance / 64.;
-      glyphs[i].y = y + rq_glyph.y_offset / 64.;
+      gac.glyphs[i].y = y + rq_glyph.y_offset / 64.;
       y += rq_glyph.y_advance / 64.;
     }
+    auto prev_cluster = size_t(-1);
+    for (auto i = 0; i < gac.num_glyphs; ++i) {
+      auto const& rq_glyph = rq_glyphs[i];
+      if (rq_glyph.cluster != prev_cluster) {
+        prev_cluster = rq_glyph.cluster;
+        ++gac.num_clusters;
+      }
+    }
+    gac.clusters = cairo_text_cluster_allocate(gac.num_clusters);
+    auto cluster = &gac.clusters[-1];
+    prev_cluster = -1;
+    for (auto i = 0; i < gac.num_glyphs; ++i) {
+      auto const& rq_glyph = rq_glyphs[i];
+      if (rq_glyph.cluster != prev_cluster) {
+        ++cluster;
+        cluster->num_bytes = cluster->num_glyphs = 0;
+      }
+      cluster->num_bytes +=
+        (i + 1 < gac.num_glyphs ? rq_glyphs[i + 1].cluster : s.size())
+        - rq_glyph.cluster;
+      cluster->num_glyphs += 1;
+      prev_cluster = rq_glyph.cluster;
+    }
   } else {
-    auto _count = int{};
     CAIRO_CHECK(
       cairo_scaled_font_text_to_glyphs,
       scaled_font, 0, 0, s.c_str(), s.size(),
-      &glyphs, &_count, nullptr, nullptr, nullptr);
-    count = _count;
+      &gac.glyphs, &gac.num_glyphs,
+      &gac.clusters, &gac.num_clusters, &gac.cluster_flags);
   }
-  auto ptr =
-    std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>{
-      glyphs, cairo_glyph_free};
-  return {std::move(ptr), count};
+  return gac;
 }
 
 }

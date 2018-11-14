@@ -108,6 +108,16 @@ struct AdditionalState {
   double get_hatch_linewidth();
 };
 
+struct GlyphsAndClusters {
+  cairo_glyph_t* glyphs{};
+  int num_glyphs{};
+  cairo_text_cluster_t* clusters{};
+  int num_clusters{};
+  cairo_text_cluster_flags_t cluster_flags{};
+
+  ~GlyphsAndClusters();
+};
+
 py::object operator""_format(char const* fmt, std::size_t size);
 bool py_eq(py::object obj1, py::object obj2);
 py::object rc_param(std::string key);
@@ -131,8 +141,7 @@ cairo_font_face_t* font_face_from_prop(py::object prop);
 long get_hinting_flag();
 std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
   get_font_options();
-void warn_on_missing_glyph();
-std::tuple<std::unique_ptr<cairo_glyph_t, decltype(&cairo_glyph_free)>, size_t>
-  text_to_glyphs(cairo_t* cr, std::string s);
+void warn_on_missing_glyph(std::string s);
+GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s);
 
 }

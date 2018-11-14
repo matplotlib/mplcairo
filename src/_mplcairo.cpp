@@ -1274,15 +1274,34 @@ void GraphicsContextRenderer::draw_text(
     cairo_set_font_size(cr_, font_size);
     auto const& options = get_font_options();
     cairo_set_font_options(cr_, options.get());
-    auto const& [glyphs, count] = text_to_glyphs(cr_, s);
-    if (!std::all_of(glyphs.get(), glyphs.get() + count,
-                     [](auto& glyph) {return glyph.index;})) {
-      // While this warning perhaps belongs logically to text_to_glyphs, we
-      // don't want to also emit the warning in get_text_width_height_descent,
-      // so put it here.
-      warn_on_missing_glyph();
+    auto const& gac = text_to_glyphs_and_clusters(cr_, s);
+    // While the warning below perhaps belongs logically to
+    // text_to_glyphs_and_clusters, we don't want to also emit the warning in
+    // get_text_width_height_descent, so put it here.
+    auto bytes_pos = 0, glyphs_pos = 0;
+    for (auto i = 0; i < gac.num_clusters; ++i) {
+      auto const& cluster = gac.clusters[i];
+      auto const& next_bytes_pos = bytes_pos + cluster.num_bytes,
+                  next_glyphs_pos = glyphs_pos + cluster.num_glyphs;
+      for (auto j = glyphs_pos; j < next_glyphs_pos; ++j) {
+        if (!gac.glyphs[j].index) {
+          auto missing =
+            py::cast(s.substr(bytes_pos, cluster.num_bytes))
+#if PY_VERSION_HEX >= 0x03050000
+            .attr("encode")("ascii", "namereplace");
+#else
+            .attr("encode")("ascii", "backslashreplace");
+#endif
+          warn_on_missing_glyph(missing.cast<std::string>());
+        }
+      }
+      bytes_pos = next_bytes_pos;
+      glyphs_pos = next_glyphs_pos;
     }
-    cairo_show_glyphs(cr_, glyphs.get(), count);
+    cairo_show_text_glyphs(
+      cr_, s.c_str(), s.size(),
+      gac.glyphs, gac.num_glyphs,
+      gac.clusters, gac.num_clusters, gac.cluster_flags);
   }
 }
 
@@ -1316,8 +1335,8 @@ GraphicsContextRenderer::get_text_width_height_descent(
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
     cairo_text_extents_t extents;
-    auto const& [glyphs, count] = text_to_glyphs(cr_, s);
-    cairo_glyph_extents(cr_, glyphs.get(), count, &extents);
+    auto const& gac = text_to_glyphs_and_clusters(cr_, s);
+    cairo_glyph_extents(cr_, gac.glyphs, gac.num_glyphs, &extents);
     cairo_restore(cr_);
     return {
       extents.width + extents.x_bearing,
@@ -1501,7 +1520,9 @@ void MathtextBackend::_draw(
           cairo_font_face_get_user_data(font_face, &detail::FT_KEY)),
         glyph.index);
     if (!index) {
-      warn_on_missing_glyph();
+      warn_on_missing_glyph(
+        py::module::import("builtins").attr("chr")(glyph.index)
+        .cast<std::string>());
     }
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};
     cairo_show_glyphs(cr, &raw_glyph, 1);
