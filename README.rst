@@ -400,15 +400,17 @@ filename directly:
    ax.text(.5, .5, "hello, world", fontproperties=FontProperties(fname="..."))
 
 mplcairo still relies on Matplotlib's font cache, so fonts unsupported by
-Matplotlib remain unavailable by other means.  Matplotlib's current FreeType
-wrapper also limits the use of ttc collections to the first font in the
-collection.
+Matplotlib remain unavailable by other means.
 
-Note that Matplotlib's (default) Agg backend will handle such fonts equally
-well (ultimately, both backends relies on FreeType for rasterization).  It
-is Matplotlib's vector backends (PS, PDF, and, for pfb fonts, SVG) that do
-not support these fonts, whereas mplcairo support these fonts in all output
-formats.
+For ttc fonts (and, more generally, font formats that include multiple font
+faces in a single file), the *n*\th font (*n*\≥0) can be selected by appending
+``#n`` to the filename (e.g., ``fname="/path/to/font.ttc#1"``).
+
+Note that Matplotlib's (default) Agg backend will handle most (single-face)
+fonts equally well (ultimately, both backends relies on FreeType for
+rasterization).  It is Matplotlib's vector backends (PS, PDF, and, for pfb
+fonts, SVG) that do not support these fonts, whereas mplcairo support these
+fonts in all output formats.
 
 Multi-page output
 -----------------
