@@ -176,9 +176,9 @@ Windows
 
 The following additional dependencies are required:
 
-- a "recent enough" version of MSVC (19.13.26128 is sufficient).  (This is the
-  reason for restricting support to Python 3.6 on Windows: distutils is able to
-  use MSVC 2017 only since Python 3.6.4.)
+- MSVC≥19.14, which corresponds to VS2017≥15.7.  (This is the reason for
+  restricting support to Python 3.6 on Windows: distutils is able to use such a
+  recent MSVC only since Python 3.6.4.)
 
 - cairo headers and import and dynamic libraries (``cairo.lib`` and
   ``cairo.dll``) *with FreeType support*.  Note that this excludes, in
