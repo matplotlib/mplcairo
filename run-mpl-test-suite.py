@@ -133,6 +133,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_simplification.py::test_throw_rendering_complexity_exceeded",
             ]),
             (textfail_message, [
+                "test_axes.py::test_gettightbbox_ignoreNaN",
                 "test_figure.py::test_align_labels[pdf]",
                 "test_figure.py::test_align_labels[png]",
                 "test_figure.py::test_align_labels[svg]",
