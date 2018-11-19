@@ -252,7 +252,7 @@ specifically, the following backends are provided:
 On OSX, **it is necessary to explicitly import mplcairo before importing
 Matplotlib** due to incompatibilities associated with the use of a recent
 libc++.  As such, the most practical option is to import mplcairo, then call
-e.g. ``matplotlib.use("module//mplcairo.macosx")``.
+e.g. ``matplotlib.use("module://mplcairo.macosx")``.
 
 .. ... doesn't work now.
 
