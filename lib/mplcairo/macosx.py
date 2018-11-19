@@ -3,7 +3,7 @@ import re
 from matplotlib.backends import _macosx
 from matplotlib.backends.backend_macosx import _BackendMac, FigureCanvasMac
 
-from . import base
+from . import _util, base
 from .base import FigureCanvasCairo
 
 
@@ -27,7 +27,8 @@ class FigureCanvasMacCairo(FigureCanvasCairo, _macosx.FigureCanvas):
     def _draw(self):
         if self.figure.stale:
             self._last_renderer_call = None, None
-        self._renderer = self.get_renderer(_draw_if_new=True)._get_buffer()
+        self._renderer = _util.to_unmultiplied_rgba8888(
+            self.get_renderer(_draw_if_new=True)._get_buffer())
         return self
 
 
