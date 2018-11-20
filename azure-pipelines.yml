@@ -17,7 +17,6 @@ jobs:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-    maxParallel: 4
 
   steps:
 
@@ -27,13 +26,14 @@ jobs:
       architecture: 'x64'
 
   - bash: |
-      pip install -U pip setuptools &&
+      pip install --upgrade pip setuptools &&
         sudo PY_VERS="$PYTHON_VERSION" tools/build-manylinux-wheel.sh &&
         pip install dist/*.whl &&
         ./tools/ensure-mpl-test-data.py &&
         # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
         # sphinx needed before matplotlib#11360 (matplotlib<3.0).
         pip install 'pytest<3.8' sphinx &&
+        sudo apt update &&
         sudo apt install ghostscript inkscape
     displayName: 'Build & install'
 
@@ -68,7 +68,6 @@ jobs:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-    maxParallel: 4
 
   steps:
 
@@ -78,7 +77,7 @@ jobs:
       architecture: 'x64'
 
   - bash: |
-      pip install -U pip setuptools &&
+      pip install --upgrade pip setuptools &&
         brew update >/dev/null &&
         brew install cairo ccache llvm pkg-config &&
         # CXX must be set due to weird manipulations by distutils.
@@ -123,7 +122,6 @@ jobs:
         python.version: '3.6'
       Python37:
         python.version: '3.7'
-    maxParallel: 2
 
   steps:
 
@@ -133,7 +131,7 @@ jobs:
       architecture: 'x64'
 
   - bash: |
-      python -mpip install -U pip setuptools &&
+      python -mpip install --upgrade pip setuptools &&
         git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
         python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
         python tools/build-windows-wheel.py &&
