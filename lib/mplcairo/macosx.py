@@ -3,7 +3,7 @@ import re
 from matplotlib.backends import _macosx
 from matplotlib.backends.backend_macosx import _BackendMac, FigureCanvasMac
 
-from . import _util, base
+from . import _util
 from .base import FigureCanvasCairo
 
 
@@ -20,7 +20,7 @@ class FigureCanvasMacCairo(FigureCanvasCairo, _macosx.FigureCanvas):
         # inheritance (basically, we want that __init__, and only __init__,
         # inserts FigureCanvasMac in the inheritance chain between
         # FigureCanvasCairo and _macosx.FigureCanvasMac).
-        base._fix_ipython_backend2gui()
+        _util.fix_ipython_backend2gui()
         FigureCanvasMac.__init__(self, figure)
 
     # A bit hackish, but that's what _macosx.FigureCanvas wants...

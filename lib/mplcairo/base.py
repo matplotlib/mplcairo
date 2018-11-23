@@ -163,36 +163,6 @@ class GraphicsContextRendererCairo(
         return img.tobytes(), bounds
 
 
-@functools.lru_cache(1)
-def _fix_ipython_backend2gui():
-    # Fix hard-coded module -> toolkit mapping in IPython (used for `ipython
-    # --auto`).  This cannot be done at import time due to ordering issues (so
-    # we do it when creating a canvas) and should only be done once (hence the
-    # `lru_cache(1)`).
-    if "IPython" not in sys.modules:
-        return
-    import IPython
-    ip = IPython.get_ipython()
-    if not ip:
-        return
-    from IPython.core import pylabtools as pt
-    pt.backend2gui.update({
-        "module://mplcairo.gtk": "gtk3",
-        "module://mplcairo.qt": "qt",
-        "module://mplcairo.tk": "tk",
-        "module://mplcairo.wx": "wx",
-        "module://mplcairo.macosx": "osx",
-    })
-    # Work around pylabtools.find_gui_and_backend always reading from
-    # rcParamsOrig.
-    orig_origbackend = mpl.rcParamsOrig["backend"]
-    try:
-        mpl.rcParamsOrig["backend"] = mpl.rcParams["backend"]
-        ip.enable_matplotlib()
-    finally:
-        mpl.rcParamsOrig["backend"] = orig_origbackend
-
-
 class FigureCanvasCairo(FigureCanvasBase):
     # Although this attribute should semantically be set from __init__ (it is
     # purely an instance attribute), initializing it at the class level helps
@@ -201,7 +171,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     _last_renderer_call = None, None
 
     def __init__(self, *args, **kwargs):
-        _fix_ipython_backend2gui()
+        _util.fix_ipython_backend2gui()
         super().__init__(*args, **kwargs)
 
     def _get_cached_or_new_renderer(

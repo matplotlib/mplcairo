@@ -2,7 +2,7 @@ from matplotlib.backends.backend_wx import (
     _BackendWx, _FigureCanvasWxBase, FigureFrameWx)
 import wx
 
-from . import base
+from . import _util
 from .base import FigureCanvasCairo
 
 
@@ -16,7 +16,7 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
         # Inline the call to FigureCanvasCairo.__init__ as _FigureCanvasWxBase
         # has a different signature and thus we cannot use cooperative
         # inheritance.
-        base._fix_ipython_backend2gui()
+        _util.fix_ipython_backend2gui()
         _FigureCanvasWxBase.__init__(self, parent, id, figure)
 
     def draw(self, drawDC=None):
