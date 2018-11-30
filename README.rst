@@ -2,14 +2,21 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
-|PyPI| |Azure Pipelines|
+|PyPI| |Fedora Rawhide|
+
+|Azure Pipelines|
 
 .. |PyPI|
    image:: https://img.shields.io/pypi/v/mplcairo.svg
    :target: https://pypi.python.org/pypi/mplcairo
+.. |Fedora Rawhide|
+   image:: https://repology.org/badge/version-for-repo/fedora_rawhide/python:mplcairo.svg
+   :target: fedora-package_
 .. |Azure Pipelines|
    image:: https://dev.azure.com/anntzer/mplcairo/_apis/build/status/anntzer.mplcairo
    :target: https://dev.azure.com/anntzer/mplcairo/_build/latest?definitionId=1
+
+.. _fedora-package: https://apps.fedoraproject.org/packages/python-mplcairo
 
 .. contents:: :local:
 
@@ -89,9 +96,7 @@ for Windows build scripts.
    (cairo 1.15.4 added support for PDF metadata and links; the presence of this
    feature is detected at runtime.)
 
-On Fedora, the package is available as python-mplcairo_.
-
-.. _python-mplcairo: https://apps.fedoraproject.org/packages/python-mplcairo
+On Fedora, the package is available as `python-mplcairo <fedora-package_>`_.
 
 Building
 ========
