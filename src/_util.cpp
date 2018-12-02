@@ -602,7 +602,7 @@ void warn_on_missing_glyph(std::string s) {
   PY_CHECK(
     PyErr_WarnEx,
     nullptr,
-    "Requested glyph ({!r}) missing from current font."_format(s)
+    "Requested glyph ({}) missing from current font."_format(s)
     .cast<std::string>().c_str(),
     1);
 }

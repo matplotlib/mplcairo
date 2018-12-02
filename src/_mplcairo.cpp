@@ -1441,8 +1441,9 @@ void GraphicsContextRenderer::restore_region(Region& region)
 }
 
 MathtextBackend::Glyph::Glyph(
-  std::string path, double size, unsigned long index, double x, double y) :
-  path{path}, size{size}, index{index}, x{x}, y{y}
+  std::string path, double size,
+  std::variant<std::string, FT_ULong> name_or_code, double x, double y) :
+  path{path}, size{size}, name_or_code{name_or_code}, x{x}, y{y}
 {}
 
 MathtextBackend::MathtextBackend() :
@@ -1471,15 +1472,15 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
   glyphs_.emplace_back(
     info.attr("font").attr("fname").cast<std::string>(),
     info.attr("fontsize").cast<double>(),
-    info.attr("num").cast<unsigned long>(),
+    info.attr("symbol_name").cast<std::string>(),
     ox, oy);
 }
 
 void MathtextBackend::_render_usetex_glyph(
   double ox, double oy, std::string filename, double size,
-  unsigned long index)
+  std::variant<std::string, FT_ULong> name_or_code)
 {
-  glyphs_.emplace_back(filename, size, index, ox, oy);
+  glyphs_.emplace_back(filename, size, name_or_code, ox, oy);
 }
 
 void MathtextBackend::render_rect_filled(
@@ -1514,16 +1515,41 @@ void MathtextBackend::_draw(
     cairo_set_font_size(cr, glyph.size * dpi / 72);
     auto const& options = get_font_options();
     cairo_set_font_options(cr, options.get());
-    auto const& index =
-      FT_Get_Char_Index(
-        static_cast<FT_Face>(
-          cairo_font_face_get_user_data(font_face, &detail::FT_KEY)),
-        glyph.index);
-    if (!index) {
-      warn_on_missing_glyph(
-        py::module::import("builtins").attr("chr")(glyph.index)
-        .cast<std::string>());
-    }
+    auto ft_face =
+      static_cast<FT_Face>(
+        cairo_font_face_get_user_data(font_face, &detail::FT_KEY));
+    auto index = FT_UInt{};
+    std::visit([&](auto const& name_or_code) -> void {
+      using name_or_code_t = std::decay_t<decltype(name_or_code)>;
+      if constexpr(std::is_same_v<name_or_code_t, std::string>) {
+        auto name = std::get<std::string>(glyph.name_or_code);
+        index = FT_Get_Name_Index(ft_face, name.data());
+        if (!index) {
+          warn_on_missing_glyph("#" + name);
+        }
+      } else if constexpr (std::is_same_v<name_or_code_t, FT_ULong>) {
+        auto found = false;
+        for (auto i = 0; i < ft_face->num_charmaps; ++i) {
+          if (ft_face->charmaps[i]->encoding != FT_ENCODING_UNICODE) {
+            if (found) {
+              throw std::runtime_error{"multiple non-unicode charmaps found"};
+            }
+            FT_CHECK(FT_Set_Charmap, ft_face, ft_face->charmaps[i]);
+            found = true;
+          }
+        }
+        if (!found) {
+          throw std::runtime_error{"no builtin charmap found"};
+        }
+        auto const& code = std::get<unsigned long>(glyph.name_or_code);
+        index = FT_Get_Char_Index(ft_face, code);
+        if (!index) {
+          warn_on_missing_glyph("#" + std::to_string(index));
+        }
+      } else {
+        static_assert(always_false<name_or_code_t>::value);
+      }
+    }, glyph.name_or_code);
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};
     cairo_show_glyphs(cr, &raw_glyph, 1);
   }
@@ -1929,6 +1955,7 @@ Backend rendering mathtext to a cairo recording surface.
     .def(py::init<>())
     .def("set_canvas_size", &MathtextBackend::set_canvas_size)
     .def("render_glyph", &MathtextBackend::render_glyph)
+    .def("_render_usetex_glyph", &MathtextBackend::_render_usetex_glyph)
     .def("_render_usetex_glyph", &MathtextBackend::_render_usetex_glyph)
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)

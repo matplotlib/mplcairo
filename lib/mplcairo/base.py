@@ -25,6 +25,7 @@ from matplotlib.backends import backend_ps
 from matplotlib.mathtext import MathTextParser
 
 from . import _mplcairo, _util
+from ._backports import get_glyph_name
 from ._mplcairo import _StreamSurfaceType
 
 
@@ -115,15 +116,16 @@ class GraphicsContextRendererCairo(
         with dviread.Dvi(dvifile, self.dpi) as dvi:
             page = next(iter(dvi))
         mb = _mplcairo.MathtextBackendCairo()
-        for x1, y1, dvifont, glyph, width in page.text:
-            texfont = _get_tex_font_map()[dvifont.texname]
+        for text in page.text:
+            texfont = _get_tex_font_map()[text.font.texname]
             if texfont.filename is None:
                 # Not TypeError:
                 # :mpltest:`test_backend_svg.test_missing_psfont`.
                 raise ValueError("No font file found for {} ({!a})"
                                  .format(texfont.psname, texfont.texname))
-            mb._render_usetex_glyph(
-                x1, -y1, texfont.filename, dvifont.size, glyph)
+            mb._render_usetex_glyph(text.x, -text.y,
+                                    texfont.filename, text.font.size,
+                                    get_glyph_name(text) or text.glyph)
         for x1, y1, h, w in page.boxes:
             mb.render_rect_filled(x1, -y1, x1 + w, -(y1 + h))
         mb._draw(self, x, y, angle)

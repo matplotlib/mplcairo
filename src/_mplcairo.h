@@ -152,11 +152,13 @@ class MathtextBackend {
     // that will wait for the ft2 rewrite in Matplotlib itself.
     std::string path;
     double size;
-    unsigned long index;
+    std::variant<std::string, FT_ULong> name_or_code;
     double x, y;
 
     Glyph(
-      std::string path, double size, unsigned long index,
+      std::string path,
+      double size,
+      std::variant<std::string, FT_ULong> name_or_code,
       double x, double y);
   };
 
@@ -171,7 +173,7 @@ class MathtextBackend {
   void render_glyph(double ox, double oy, py::object info);
   void _render_usetex_glyph(
     double ox, double oy, std::string filename, double size,
-    unsigned long index);
+    std::variant<std::string, FT_ULong> name_or_code);
   void render_rect_filled(double x1, double y1, double x2, double y2);
   // FIXME[matplotlib]: The base class fails to document the second argument.
   MathtextBackend& get_results(py::object box, py::object used_characters);
