@@ -54,14 +54,6 @@ def _get_drawn_subarray_and_bounds(img):
         return np.zeros((0, 0, 4), dtype=np.uint8), (0, 0, 0, 0)
 
 
-_mplcairo._Region.to_string_argb = (
-    # For spoofing BackendAgg.BufferRegion.
-    lambda self:
-    _util.to_unmultiplied_rgba8888(self._get_buffer())[
-        ..., [2, 1, 0, 3] if sys.byteorder == "little" else [3, 0, 1, 2]]
-    .tobytes())
-
-
 class GraphicsContextRendererCairo(
         _mplcairo.GraphicsContextRendererCairo,
         # Fill in the missing methods.
@@ -153,11 +145,12 @@ class GraphicsContextRendererCairo(
 
     # "Undocumented" APIs needed to patch Agg.
 
-    _renderer = property(lambda self: self._get_buffer())  # Needed for tkagg.
     lock = _LOCK  # Needed for webagg_core; fixed by matplotlib#10708.
 
     def buffer_rgba(self):  # Needed for webagg_core.
         return _util.to_unmultiplied_rgba8888(self._get_buffer())
+
+    _renderer = property(buffer_rgba)  # Needed for tkagg.
 
     def tostring_rgba_minimized(self):  # Needed for MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(

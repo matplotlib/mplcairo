@@ -11,10 +11,12 @@ enum class StreamSurfaceType {
 };
 
 struct Region {
-  cairo_rectangle_int_t bbox;
-  std::unique_ptr<uint8_t[]> buf;
+  cairo_rectangle_int_t const bbox;
+  std::unique_ptr<uint8_t const[]> buffer;  // Not const, to allow move()ing.
 
-  Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf);
+  Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t const[]> buffer);
+  py::array_t<uint8_t> get_st_rgba8888_array();
+  py::bytes get_st_argb32_bytes();
 };
 
 class GraphicsContextRenderer {

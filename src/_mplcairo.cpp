@@ -19,9 +19,58 @@ namespace mplcairo {
 
 using namespace pybind11::literals;
 
-Region::Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t[]> buf) :
-  bbox{bbox}, buf{std::move(buf)}
+Region::Region(
+    cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t const[]> buffer) :
+  bbox{bbox}, buffer{std::move(buffer)}
 {}
+
+py::array_t<uint8_t> Region::get_st_rgba8888_array() {
+  auto const& [x0, y0, width, height] = bbox;
+  auto st_rgba8888_array = py::array_t<uint8_t>{{height, width, 4}};
+  auto st_rgba8888_ptr =
+    st_rgba8888_array.mutable_unchecked<3>().mutable_data(0, 0, 0);
+  for (auto y = 0; y < height; ++y) {
+    for (auto x = 0; x < width; ++x) {
+      auto argb32 =
+        *(reinterpret_cast<uint32_t const*>(buffer.get()) + y * width + x);
+      auto const& a = (argb32 & 0xff000000) >> 24,
+                & r = (argb32 & 0x00ff0000) >> 16,
+                & g = (argb32 & 0x0000ff00) >> 8,
+                & b = (argb32 & 0x000000ff) >> 0;
+      *(st_rgba8888_ptr++) = (r * 0xff + a / 2) / a;
+      *(st_rgba8888_ptr++) = (g * 0xff + a / 2) / a;
+      *(st_rgba8888_ptr++) = (b * 0xff + a / 2) / a;
+      *(st_rgba8888_ptr++) = a;
+    }
+  }
+  return st_rgba8888_array;
+}
+
+py::bytes Region::get_st_argb32_bytes() {
+  auto const& [x0, y0, width, height] = bbox;
+  auto st_argb32_bytes = py::bytes{nullptr, size_t(height * width * 4)};
+  uint32_t* st_argb32_ptr = {};
+  auto len = ssize_t{};
+  PY_CHECK(
+    PyBytes_AsStringAndSize,
+    st_argb32_bytes.ptr(), reinterpret_cast<char**>(&st_argb32_ptr), &len);
+  for (auto y = 0; y < height; ++y) {
+    for (auto x = 0; x < width; ++x) {
+      auto argb32 =
+        *(reinterpret_cast<uint32_t const*>(buffer.get()) + y * width + x);
+      auto const& a = (argb32 & 0xff000000) >> 24,
+                & r = (argb32 & 0x00ff0000) >> 16,
+                & g = (argb32 & 0x0000ff00) >> 8,
+                & b = (argb32 & 0x000000ff) >> 0;
+      *(st_argb32_ptr++) =
+        (uint8_t(a) << 24)
+        | (uint8_t((r * 0xff + a / 2) / a) << 16)
+        | (uint8_t((g * 0xff + a / 2) / a) << 8)
+        | (uint8_t((b * 0xff + a / 2) / a) << 0);
+    }
+  }
+  return st_argb32_bytes;
+}
 
 GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   GraphicsContextRenderer* gcr) :
@@ -701,8 +750,10 @@ void GraphicsContextRenderer::draw_image(
                 & b = im_raw(i, j, 2),
                 & a = im_raw(i, j, 3);
       *(ptr++) =
-        (uint8_t(a) << 24) | (uint8_t(a / 255. * r) << 16)
-        | (uint8_t(a / 255. * g) << 8) | (uint8_t(a / 255. * b));
+        (uint8_t(a) << 24)
+        | (uint8_t(a / 255. * r) << 16)
+        | (uint8_t(a / 255. * g) << 8)
+        | (uint8_t(a / 255. * b) << 0);
     }
   }
   cairo_surface_mark_dirty(surface);
@@ -1365,11 +1416,11 @@ py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter_get_buffer()
   cairo_paint(raster_cr);
   cairo_destroy(raster_cr);
   cairo_surface_flush(raster_surface);
-  return
-    {{cairo_image_surface_get_height(raster_surface),
-      cairo_image_surface_get_width(raster_surface),
-      4},
-     {cairo_image_surface_get_stride(raster_surface), 4, 1},
+  return {
+    {cairo_image_surface_get_height(raster_surface),
+     cairo_image_surface_get_width(raster_surface),
+     4},
+    {cairo_image_surface_get_stride(raster_surface), 4, 1},
      cairo_image_surface_get_data(raster_surface),
      py::capsule(
        raster_surface,
@@ -1410,18 +1461,15 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
   auto const& raw = cairo_image_surface_get_data(surface);
   auto const& stride = cairo_image_surface_get_stride(surface);
   for (auto y = y0; y < y1; ++y) {
-    std::memcpy(
+    std::memcpy(  // Inverted y, directly usable when restoring.
       buf.get() + (y - y0) * 4 * width, raw + y * stride + 4 * x0, 4 * width);
   }
-  return
-    {{x0, y0, width, height},  // Inverted y, directly usable when restoring.
-     std::move(buf)};
+  return {{x0, y0, width, height}, std::move(buf)};
 }
 
 void GraphicsContextRenderer::restore_region(Region& region)
 {
-  auto const& [bbox, buf] = region;
-  auto const& [x0, y0, width, height] = bbox;
+  auto const& [x0, y0, width, height] = region.bbox;
   auto const& /* x1 = x0 + width, */ y1 = y0 + height;
   auto const& surface = cairo_get_target(cr_);
   if (auto const& type = cairo_surface_get_type(surface);
@@ -1435,7 +1483,8 @@ void GraphicsContextRenderer::restore_region(Region& region)
   cairo_surface_flush(surface);
   for (auto y = y0; y < y1; ++y) {
     std::memcpy(  // 4 bytes per pixel.
-      raw + y * stride + 4 * x0, buf.get() + (y - y0) * 4 * width, 4 * width);
+      raw + y * stride + 4 * x0,
+      region.buffer.get() + (y - y0) * 4 * width, 4 * width);
   }
   cairo_surface_mark_dirty_rectangle(surface, x0, y0, width, height);
 }
@@ -1743,15 +1792,17 @@ options.
 
   // Export classes.
 
-  py::class_<Region>(m, "_Region")
-    // Only for patching Agg.
+  // Exposed only for patching Agg (but internally used for copy_from_bbox /
+  // restore_region).
+  py::class_<Region>(m, "_Region", py::buffer_protocol())
+    .def_buffer(  // mpl 3+
+      [](Region& r) -> py::buffer_info {
+        return r.get_st_rgba8888_array().request();
+      })
     .def(
-      "_get_buffer",
-      [](Region& r) -> py::array_t<uint8_t> {
-        return
-          {{r.bbox.height, r.bbox.width, 4},
-          {r.bbox.width * 4, 4, 1},
-          r.buf.get()};
+      "to_string_argb",  // mpl 2.2
+      [](Region& r) -> py::bytes {
+        return r.get_st_argb32_bytes();
       });
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
@@ -1786,7 +1837,7 @@ options.
       "_has_vector_surface",
       [](GraphicsContextRenderer& gcr) -> bool {
         return has_vector_surface(gcr.cr_);
-    })
+      })
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
