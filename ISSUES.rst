@@ -74,8 +74,8 @@ Matplotlib's draw_path_collection has inconsistent semantics across backends
 Issues with cairo
 -----------------
 
-Precision is lost when roundtripping between unmultiplied and premultiplied
-alpha. ::
+Precision is lost when roundtripping between straight and premultiplied alpha.
+::
 
    test_agg::test_repeated_save_with_alpha
 

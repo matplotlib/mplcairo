@@ -123,7 +123,7 @@ class GraphicsContextRendererCairo(
         mb._draw(self, x, y, angle)
 
     def stop_filter(self, filter_func):
-        img = _util.to_unmultiplied_rgba8888(self._stop_filter_get_buffer())
+        img = _util.to_straight_rgba8888(self._stop_filter_get_buffer())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         if not (w and h):
             return
@@ -148,13 +148,13 @@ class GraphicsContextRendererCairo(
     lock = _LOCK  # Needed for webagg_core; fixed by matplotlib#10708.
 
     def buffer_rgba(self):  # Needed for webagg_core.
-        return _util.to_unmultiplied_rgba8888(self._get_buffer())
+        return _util.to_straight_rgba8888(self._get_buffer())
 
     _renderer = property(buffer_rgba)  # Needed for tkagg.
 
     def tostring_rgba_minimized(self):  # Needed for MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(
-            _util.to_unmultiplied_rgba8888(self._get_buffer()))
+            _util.to_straight_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
 
 
@@ -272,7 +272,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     print_ps = partialmethod(_print_ps_impl, False)
     print_eps = partialmethod(_print_ps_impl, True)
 
-    def _get_fresh_unmultiplied_rgba8888(self):
+    def _get_fresh_straight_rgba8888(self):
         # Swap out the cache, as savefig may be playing with the background
         # color.
         last_renderer_call = self._last_renderer_call
@@ -280,14 +280,14 @@ class FigureCanvasCairo(FigureCanvasBase):
         with _LOCK:
             renderer = self.get_renderer(_draw_if_new=True)
         self._last_renderer_call = last_renderer_call
-        return _util.to_unmultiplied_rgba8888(renderer._get_buffer())
+        return _util.to_straight_rgba8888(renderer._get_buffer())
 
     def print_rgba(
             self, path_or_stream, *, metadata=None,
             # These arguments are already taken care of by print_figure().
             dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
-        img = self._get_fresh_unmultiplied_rgba8888()
+        img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
@@ -300,7 +300,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             # These arguments are already taken care of by print_figure().
             dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
             dryrun=False, bbox_inches_restore=None):
-        img = self._get_fresh_unmultiplied_rgba8888()
+        img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
         full_metadata = OrderedDict(
@@ -320,13 +320,13 @@ class FigureCanvasCairo(FigureCanvasBase):
                 dryrun=False, bbox_inches_restore=None,
                 # Remaining kwargs are passed to PIL.
                 **kwargs):
-            buf = self._get_fresh_unmultiplied_rgba8888()
+            buf = self._get_fresh_straight_rgba8888()
             if dryrun:
                 return
             img = Image.frombuffer(
                 "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
             # Composite against the background (actually we could just skip the
-            # conversion to unpremultiplied RGBA earlier).
+            # conversion to straight RGBA earlier).
             # NOTE: Agg composites against rcParams["savefig.facecolor"].
             background = tuple(
                 (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
@@ -343,7 +343,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 # These arguments are already taken care of by print_figure().
                 dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
                 dryrun=False, bbox_inches_restore=None):
-            buf = self._get_fresh_unmultiplied_rgba8888()
+            buf = self._get_fresh_straight_rgba8888()
             if dryrun:
                 return
             (Image.frombuffer(

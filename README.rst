@@ -271,11 +271,11 @@ e.g. ``matplotlib.use("module://mplcairo.macosx")``.
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
 throughout Matplotlib.  However, this approach is inefficient (due to the need
-of copies and conversions between premultiplied ARGB32 and non-premultiplied
-RGBA8888 buffers); additionally, it does not work with the wx and macosx
-backends due to peculiarities of the corresponding canvas classes.  On the
-other hand, this is currently the only way in which the webagg-based backends
-(e.g., Jupyter's inline widget) are supported.
+of copies and conversions between premultiplied ARGB32 and straight RGBA8888
+buffers); additionally, it does not work with the wx and macosx backends due
+to peculiarities of the corresponding canvas classes.  On the other hand, this
+is currently the only way in which the webagg-based backends (e.g., Jupyter's
+inline widget) are supported.
 
 At import-time, mplcairo will attempt to load Raqm_.  The use of that library
 can be controlled and checked using the ``set_options`` and ``get_options``

@@ -12,10 +12,10 @@ def to_premultiplied_rgba8888(buf):
         [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0], axis=2)
 
 
-def to_unmultiplied_rgba8888(buf):
-    """Convert a buffer from premultiplied ARGB32 to unmultiplied RGBA8888."""
+def to_straight_rgba8888(buf):
+    """Convert a buffer from premultiplied ARGB32 to straight RGBA8888."""
     rgba = to_premultiplied_rgba8888(buf)
-    # Un-premultiply alpha.  The formula is the same as in cairo-png.c.
+    # The straightening formula is from cairo-png.c.
     rgb = rgba[..., :-1]
     alpha = rgba[..., -1]
     mask = alpha != 0
