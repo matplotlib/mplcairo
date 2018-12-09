@@ -1985,7 +1985,7 @@ options.
     .def("_stop_filter_get_buffer",
          &GraphicsContextRenderer::_stop_filter_get_buffer)
 
-    // FIXME[matplotlib]: Needed for webagg_core.
+    // FIXME[matplotlib]: Needed for webagg_core, although we also use it.
     .def(
       "clear",
       [](GraphicsContextRenderer& gcr) -> void {

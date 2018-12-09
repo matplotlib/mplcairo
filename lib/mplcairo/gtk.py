@@ -12,7 +12,7 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
-        buf = self.get_renderer(_draw_if_new=True)._get_buffer()
+        buf = self.get_renderer(_ensure_drawn=True)._get_buffer()
         height, width, _ = buf.shape
         image = cairo.ImageSurface.create_for_data(
             buf, cairo.FORMAT_ARGB32, width, height)

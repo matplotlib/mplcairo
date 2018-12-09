@@ -170,35 +170,43 @@ class FigureCanvasCairo(FigureCanvasBase):
         super().__init__(*args, **kwargs)
 
     def _get_cached_or_new_renderer(
-            self, func, *args, _draw_if_new=False, **kwargs):
+            self, func, *args,
+            _ensure_cleared=False, _ensure_drawn=False,
+            **kwargs):
         last_call, last_renderer = self._last_renderer_call
         if (func, args, kwargs) == last_call:
+            if _ensure_cleared:
+                # This API is present (rather than just throwing away the
+                # renderer and creating a new one) so to avoid invalidating the
+                # Text._get_layout cache.
+                last_renderer.clear()
+                if _ensure_drawn:
+                    with _LOCK:
+                        self.figure.draw(last_renderer)
             return last_renderer
         else:
             renderer = func(*args, **kwargs)
             self._last_renderer_call = (func, args, kwargs), renderer
-            if _draw_if_new:
+            if _ensure_drawn:
                 with _LOCK:
                     self.figure.draw(renderer)
             return renderer
 
     # NOTE: Needed for tight_layout() (and we use it too).
-    def get_renderer(self, *, _draw_if_new=False):
+    def get_renderer(self, *, _ensure_cleared=False, _ensure_drawn=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
             self.figure.bbox.width, self.figure.bbox.height, self.figure.dpi,
-            _draw_if_new=_draw_if_new)
+            _ensure_cleared=_ensure_cleared, _ensure_drawn=_ensure_drawn)
 
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
     def draw(self):
-        self._last_renderer_call = None, None  # Draw on a clean canvas.
-        with _LOCK:
-            self.figure.draw(self.get_renderer())
+        self.get_renderer(_ensure_cleared=True, _ensure_drawn=True)
         super().draw()
 
     def copy_from_bbox(self, bbox):
-        return self.get_renderer(_draw_if_new=True).copy_from_bbox(bbox)
+        return self.get_renderer(_ensure_drawn=True).copy_from_bbox(bbox)
 
     def restore_region(self, region):
         with _LOCK:
@@ -278,7 +286,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         last_renderer_call = self._last_renderer_call
         self._last_renderer_call = (None, None)
         with _LOCK:
-            renderer = self.get_renderer(_draw_if_new=True)
+            renderer = self.get_renderer(_ensure_drawn=True)
         self._last_renderer_call = last_renderer_call
         return _util.to_straight_rgba8888(renderer._get_buffer())
 

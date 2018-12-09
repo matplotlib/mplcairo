@@ -13,7 +13,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
-        buf = self.get_renderer(_draw_if_new=True)._get_buffer()
+        buf = self.get_renderer(_ensure_drawn=True)._get_buffer()
         height, width, _ = buf.shape
         # The image buffer is not necessarily contiguous, but the padding in
         # the ARGB32 case (each scanline is 32-bit aligned) happens to match
