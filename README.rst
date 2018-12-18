@@ -212,7 +212,7 @@ prepended respectively to the invocations of the compiler and the linker)
 should be set as follows::
 
    set CL=/IC:\path\to\dir\containing\cairo.h /IC:\same\for\ft2build.h
-   set LINK=/LIBPATH:C\path\to\dir\containing\cairo.lib /LIBPATH:C\same\for\freetype.lib
+   set LINK=/LIBPATH:C:\path\to\dir\containing\cairo.lib /LIBPATH:C:\same\for\freetype.lib
 
 Moreover, we also need to find ``cairo.dll`` and ``freetype.dll`` and copy
 them next to ``mplcairo``'s extension module.  As the dynamic libraries are
