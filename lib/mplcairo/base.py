@@ -6,7 +6,6 @@ import logging
 import os
 from pathlib import Path
 import shutil
-import sys
 from tempfile import TemporaryDirectory
 from threading import RLock
 
@@ -52,6 +51,17 @@ def _get_drawn_subarray_and_bounds(img):
         return img[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
     else:
         return np.zeros((0, 0, 4), dtype=np.uint8), (0, 0, 0, 0)
+
+
+def get_raw_buffer(canvas):
+    """
+    Get the canvas' raw internal buffer.
+
+    Currently, this is a uint8 buffer of shape ``(m, n, 4)`` in ARGB32 order,
+    but **this may change** if e.g. cairo starts providing floating point
+    buffers.
+    """
+    return canvas._get_buffer()
 
 
 class GraphicsContextRendererCairo(

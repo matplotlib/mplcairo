@@ -13,14 +13,14 @@ next
   *keep_empty* is False.
 - Support `pathlib.Path` arguments to `FontProperties` on Python≥3.6.
 - Improved usetex support.
+- Added `get_raw_buffer` to access the raw internal buffer.
 
 v0.1
 ====
 
 - Integration with libraqm now occurs via dlopen() rather than being selected
   at compile-time.
-- Add ``set_option``, ``get_option`` for controlling certain rendering
-  parameters.
+- Add `set_option`, `get_option` for controlling certain rendering parameters.
 - Various rendering and performance improvements.
 - On Travis, we now run Matplotlib's test suite with mplcairo patching the
   default Agg renderer.

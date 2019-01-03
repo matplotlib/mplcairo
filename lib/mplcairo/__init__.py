@@ -25,8 +25,13 @@ import matplotlib
 
 from . import _mplcairo
 from ._mplcairo import antialias_t, operator_t, get_options, set_options
+from .base import get_raw_buffer
 
-__all__ = ["antialias_t", "operator_t", "get_options", "set_options"]
+__all__ = [
+    "antialias_t", "operator_t",
+    "get_options", "set_options",
+    "get_raw_buffer",
+]
 
 set_options(cairo_circles=True)
 try:
