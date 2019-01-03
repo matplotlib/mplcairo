@@ -18,6 +18,8 @@ def to_straight_rgba8888(buf):
     # The straightening formula is from cairo-png.c.
     rgb = rgba[..., :-1]
     alpha = rgba[..., -1]
+    if alpha.max() == 255:  # Special-case fully-opaque buffers for speed.
+        return rgba
     mask = alpha != 0
     for channel in np.rollaxis(rgb, -1):
         channel[mask] = (

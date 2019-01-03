@@ -192,10 +192,10 @@ The following additional dependencies are required:
 
   I am in fact not aware of any such build available online, with the exception
   of https://github.com/preshing/cairo-windows/releases; however, this specific
-  build appears to `misrender pdfs`.  Instead, a solution is to get the headers
-  e.g. from a Linux distribution package, the DLL from Christoph Gohlke's
-  cairocffi_ build, and generate the import library oneself using ``dumpbin``
-  and ``lib``.
+  build appears to `misrender pdfs`_.  Instead, a solution is to get the
+  headers e.g. from a Linux distribution package, the DLL from Christoph
+  Gohlke's cairocffi_ build, and generate the import library oneself using
+  ``dumpbin`` and ``lib``.
 
 - FreeType headers and import and dynamic libraries (``freetype.lib`` and
   ``freetype.dll``), which can be retrieved from
