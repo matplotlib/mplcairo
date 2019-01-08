@@ -11,6 +11,11 @@ MPLCAIRO_BUILD_TYPE
       instead).
     - Set to "manylinux" to build a manylinux wheel: all of the above;
       moreover, pkg-config is shimmed and libstdc++ is statically linked.
+
+MPLCAIRO_NO_UNITY_BUILD
+    - Set to compile the various cpp files separately, instead of as a single
+      compilation unit.  Unity builds tend to be faster even when using ccache,
+      because linking is rather time-consuming.
 """
 
 from enum import Enum
@@ -49,6 +54,7 @@ class BuildType(Enum):
 
 
 BUILD_TYPE = BuildType(os.environ.get("MPLCAIRO_BUILD_TYPE"))
+UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
 
 def get_pkg_config(info, lib):
@@ -87,23 +93,16 @@ class build_ext(build_ext):
 
         ext, = self.distribution.ext_modules
 
-        ext.sources += [
-            "src/_feature_tests.cpp",
-            "src/_mplcairo.cpp",
-            "src/_os.cpp",
-            "src/_util.cpp",
-            "src/_pattern_cache.cpp",
-            "src/_raqm.cpp",
-        ]
-        ext.depends += [
-            "setup.py",
-            "src/_macros.h",
-            "src/_mplcairo.h",
-            "src/_os.h",
-            "src/_util.h",
-            "src/_pattern_cache.h",
-            "src/_raqm.cpp",
-        ]
+        ext.depends += (
+            ["setup.py"]
+            + list(map(str, Path("src").glob("*.h")))
+            + list(map(str, Path("src").glob("*.cpp")))
+        )
+        if UNITY_BUILD:
+            ext.sources += ["src/_unity_build.cpp"]
+        else:
+            ext.sources += list(map(str, Path("src").glob("*.cpp")))
+            ext.sources.remove("src/_unity_build.cpp")
         ext.language = "c++"
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
