@@ -21,7 +21,8 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
 
     def draw(self, drawDC=None):
         super().draw()
-        buf = self.get_renderer()._get_buffer()
+        buf = _util.cairo_to_premultiplied_argb32(
+            self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
         self.bitmap = wx.Bitmap(width, height, 32)
         self.bitmap.CopyFromBuffer(buf, wx.BitmapBufferFormat_ARGB32)

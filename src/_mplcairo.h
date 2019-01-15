@@ -59,7 +59,7 @@ class GraphicsContextRenderer {
   void _set_metadata(std::optional<py::dict> metadata);
   void _set_size(double width, double height, double dpi);
   void _show_page();
-  py::array_t<uint8_t> _get_buffer();
+  py::array _get_buffer();
   void _finish();
 
   void set_alpha(std::optional<double> alpha);
@@ -142,7 +142,7 @@ class GraphicsContextRenderer {
     std::string s, py::object prop, py::object ismath);
 
   void start_filter();
-  py::array_t<uint8_t> _stop_filter_get_buffer();
+  py::array _stop_filter_get_buffer();
 
   Region copy_from_bbox(py::object bbox);
   void restore_region(Region& region);

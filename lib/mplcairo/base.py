@@ -57,9 +57,10 @@ def get_raw_buffer(canvas):
     """
     Get the canvas' raw internal buffer.
 
-    Currently, this is a uint8 buffer of shape ``(m, n, 4)`` in ARGB32 order,
-    but **this may change** if e.g. cairo starts providing floating point
-    buffers.
+    This is normally a uint8 buffer of shape ``(m, n, 4)`` in
+    ARGB32 order, unless the canvas was created after calling
+    ``set_options(float_surfaces=True)`` in which case this is
+    a float32 buffer of shape ``(m, n, 4)`` in RGBA128F order.
     """
     return canvas._get_buffer()
 
@@ -133,7 +134,7 @@ class GraphicsContextRendererCairo(
         mb._draw(self, x, y, angle)
 
     def stop_filter(self, filter_func):
-        img = _util.to_straight_rgba8888(self._stop_filter_get_buffer())
+        img = _util.cairo_to_straight_rgba8888(self._stop_filter_get_buffer())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         if not (w and h):
             return
@@ -158,13 +159,13 @@ class GraphicsContextRendererCairo(
     lock = _LOCK  # Needed for webagg_core; fixed by matplotlib#10708.
 
     def buffer_rgba(self):  # Needed for webagg_core.
-        return _util.to_straight_rgba8888(self._get_buffer())
+        return _util.cairo_to_straight_rgba8888(self._get_buffer())
 
     _renderer = property(buffer_rgba)  # Needed for tkagg.
 
     def tostring_rgba_minimized(self):  # Needed for MixedModeRenderer.
         img, bounds = _get_drawn_subarray_and_bounds(
-            _util.to_straight_rgba8888(self._get_buffer()))
+            _util.cairo_to_straight_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
 
 
@@ -298,7 +299,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         with _LOCK:
             renderer = self.get_renderer(_ensure_drawn=True)
         self._last_renderer_call = last_renderer_call
-        return _util.to_straight_rgba8888(renderer._get_buffer())
+        return _util.cairo_to_straight_rgba8888(renderer._get_buffer())
 
     def print_rgba(
             self, path_or_stream, *, metadata=None,

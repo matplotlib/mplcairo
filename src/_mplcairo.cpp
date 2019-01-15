@@ -229,7 +229,7 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
 cairo_t* GraphicsContextRenderer::cr_from_image_args(int width, int height)
 {
   auto const& surface =
-    cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_image_surface_create(get_cairo_format(), width, height);
   auto const& cr = cairo_create(surface);
   cairo_surface_destroy(surface);
   return cr;
@@ -460,29 +460,9 @@ void GraphicsContextRenderer::_show_page()
   cairo_show_page(cr_);
 }
 
-py::array_t<uint8_t> GraphicsContextRenderer::_get_buffer()
+py::array GraphicsContextRenderer::_get_buffer()
 {
-  auto const& surface = cairo_get_target(cr_);
-  if (auto const& type = cairo_surface_get_type(surface);
-      type != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error(
-      "_get_buffer only supports image surfaces, not {}"_format(type)
-      .cast<std::string>());
-  }
-  cairo_surface_reference(surface);
-  cairo_surface_flush(surface);
-  return
-    py::array_t<uint8_t>{
-      {cairo_image_surface_get_height(surface),
-       cairo_image_surface_get_width(surface),
-       4},
-      {cairo_image_surface_get_stride(surface), 4, 1},
-      cairo_image_surface_get_data(surface),
-      py::capsule(
-        surface,
-        [](void* surface) -> void {
-          cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
-        })};
+  return image_surface_to_buffer(cairo_get_target(cr_));
 }
 
 void GraphicsContextRenderer::_finish()
@@ -848,7 +828,7 @@ void GraphicsContextRenderer::draw_markers(
     auto const& raster_gcr =
       make_pattern_gcr(
         cairo_surface_create_similar_image(
-          cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
+          cairo_get_target(cr_), get_cairo_format(),
           std::ceil(x1 - x0 + 1), std::ceil(y1 - y0 + 1)));
     auto const& raster_cr = raster_gcr.cr_;
     cairo_set_antialias(raster_cr, cairo_get_antialias(cr_));
@@ -907,7 +887,7 @@ void GraphicsContextRenderer::draw_markers(
       for (auto i = 0; i < detail::MARKER_THREADS; ++i) {
         auto const& surface =
           cairo_surface_create_similar_image(
-            cairo_get_target(cr_), CAIRO_FORMAT_ARGB32,
+            cairo_get_target(cr_), get_cairo_format(),
             get_additional_state().width, get_additional_state().height);
         auto const& ctx = cairo_create(surface);
         cairo_surface_destroy(surface);
@@ -1402,31 +1382,22 @@ void GraphicsContextRenderer::start_filter()
   new_gc();
 }
 
-py::array_t<uint8_t> GraphicsContextRenderer::_stop_filter_get_buffer()
+py::array GraphicsContextRenderer::_stop_filter_get_buffer()
 {
   restore();
   auto const& pattern = cairo_pop_group(cr_);
   auto const& state = get_additional_state();
   auto const& raster_surface =
     cairo_image_surface_create(
-      CAIRO_FORMAT_ARGB32, int(state.width), int(state.height));
+      get_cairo_format(), int(state.width), int(state.height));
   auto const& raster_cr = cairo_create(raster_surface);
   cairo_set_source(raster_cr, pattern);
   cairo_pattern_destroy(pattern);
   cairo_paint(raster_cr);
   cairo_destroy(raster_cr);
-  cairo_surface_flush(raster_surface);
-  return {
-    {cairo_image_surface_get_height(raster_surface),
-     cairo_image_surface_get_width(raster_surface),
-     4},
-    {cairo_image_surface_get_stride(raster_surface), 4, 1},
-     cairo_image_surface_get_data(raster_surface),
-     py::capsule(
-       raster_surface,
-       [](void* raster_surface) -> void {
-         cairo_surface_destroy(static_cast<cairo_surface_t*>(raster_surface));
-       })};
+  auto const& buffer = image_surface_to_buffer(raster_surface);
+  cairo_surface_destroy(raster_surface);
+  return buffer;
 }
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
@@ -1716,7 +1687,6 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("LIGHTEN", CAIRO_OPERATOR_LIGHTEN)
     .value("COLOR_DODGE", CAIRO_OPERATOR_COLOR_DODGE)
     .value("COLOR_BURN", CAIRO_OPERATOR_COLOR_BURN)
-    .value("HARD_LIGHT", CAIRO_OPERATOR_HARD_LIGHT)
     .value("SOFT_LIGHT", CAIRO_OPERATOR_SOFT_LIGHT)
     .value("DIFFERENCE", CAIRO_OPERATOR_DIFFERENCE)
     .value("EXCLUSION", CAIRO_OPERATOR_EXCLUSION)
@@ -1725,6 +1695,19 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR)
     .value("HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY);
 
+  py::enum_<cairo_format_t>(m, "_format_t")
+    .value("INVALID", CAIRO_FORMAT_INVALID)
+    .value("ARGB32", CAIRO_FORMAT_ARGB32)
+    .value("RGB24", CAIRO_FORMAT_RGB24)
+    .value("A8", CAIRO_FORMAT_A8)
+    .value("A1", CAIRO_FORMAT_A1)
+    .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
+    .value("RGB30", CAIRO_FORMAT_RGB30)
+#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 17, 1)
+    .value("RGB96F", CAIRO_FORMAT_RGB96F)
+    .value("RGBA128F", CAIRO_FORMAT_RGBA128F)
+#endif
+    ;
   py::enum_<StreamSurfaceType>(m, "_StreamSurfaceType")
     .value("PDF", StreamSurfaceType::PDF)
     .value("PS", StreamSurfaceType::PS)
@@ -1747,6 +1730,10 @@ PYBIND11_MODULE(_mplcairo, m)
           ? py::module::import("matplotlib.path").attr("Path")
             .attr("unit_circle")()
           : py::none{};
+      }
+      if (auto float_surface =
+          pop_option("float_surface").cast<std::optional<bool>>()) {
+        detail::FLOAT_SURFACE = *float_surface;
       }
       if (auto marker_threads =
           pop_option("marker_threads").cast<std::optional<int>>()) {
@@ -1773,6 +1760,9 @@ Parameters
 cairo_circles : bool
   Whether to use cairo's circle drawing algorithm, rather than Matplotlib's
   fixed spline approximation.
+float_surface : bool
+  Whether to use a floating point surface (more accurate, but uses more
+  memory).
 marker_threads : int
   Number of threads to use to render markers.
 raqm : bool
@@ -1783,6 +1773,7 @@ raqm : bool
     []() -> py::dict {
       return py::dict(
         "cairo_circles"_a=!detail::UNIT_CIRCLE.is_none(),
+        "float_surface"_a=detail::FLOAT_SURFACE,
         "marker_threads"_a=detail::MARKER_THREADS,
         "raqm"_a=has_raqm());
     }, R"__doc__(

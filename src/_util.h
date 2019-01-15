@@ -71,6 +71,7 @@ extern cairo_user_data_key_t const
   FT_KEY;    // cairo_font_face_t -> FT_Face.
 extern py::object UNIT_CIRCLE;
 extern py::object PIXEL_MARKER;
+extern bool FLOAT_SURFACE;
 extern int MARKER_THREADS;
 enum class MplcairoScriptSurface {
   None, Raster, Vector
@@ -121,6 +122,7 @@ struct GlyphsAndClusters {
 py::object operator""_format(char const* fmt, std::size_t size);
 bool py_eq(py::object obj1, py::object obj2);
 py::object rc_param(std::string key);
+cairo_format_t get_cairo_format();
 rgba_t to_rgba(py::object color, std::optional<double> alpha = {});
 cairo_matrix_t matrix_from_transform(py::object transform, double y0 = 0);
 cairo_matrix_t matrix_from_transform(
@@ -135,6 +137,7 @@ void load_path_exact(
 void fill_and_stroke_exact(
   cairo_t* cr, py::object path, cairo_matrix_t const* matrix,
   std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
+py::array image_surface_to_buffer(cairo_surface_t* surface);
 cairo_font_face_t* font_face_from_path(std::string path);
 cairo_font_face_t* font_face_from_path(py::object path);
 cairo_font_face_t* font_face_from_prop(py::object prop);

@@ -3,6 +3,7 @@ import ctypes
 from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
 
+from . import _util
 from .base import FigureCanvasCairo
 
 
@@ -13,11 +14,13 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
-        buf = self.get_renderer(_ensure_drawn=True)._get_buffer()
+        buf = _util.cairo_to_premultiplied_argb32(
+            self.get_renderer(_ensure_drawn=True)._get_buffer())
         height, width, _ = buf.shape
-        # The image buffer is not necessarily contiguous, but the padding in
-        # the ARGB32 case (each scanline is 32-bit aligned) happens to match
-        # what QImage requires.
+        # The image buffer is not necessarily contiguous, but the padding
+        # in the ARGB32 case (each scanline is 32-bit aligned) happens to
+        # match what QImage requires; in the RGBA128F case the documented Qt
+        # requirement does not seem necessary?
         qimage = QtGui.QImage(buf, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
         getattr(qimage, "setDevicePixelRatio", lambda _: None)(self._dpi_ratio)

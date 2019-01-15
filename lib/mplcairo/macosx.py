@@ -27,7 +27,7 @@ class FigureCanvasMacCairo(FigureCanvasCairo, _macosx.FigureCanvas):
     def _draw(self):
         if self.figure.stale:
             self._last_renderer_call = None, None
-        self._renderer = _util.to_straight_rgba8888(
+        self._renderer = _util.cairo_to_straight_rgba8888(
             self.get_renderer(_ensure_drawn=True)._get_buffer())
         return self
 

@@ -34,6 +34,7 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 // Other useful values.
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
+bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
 MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{
   []() -> MplcairoScriptSurface {
@@ -81,6 +82,18 @@ bool py_eq(py::object obj1, py::object obj2) {
 py::object rc_param(std::string key)
 {
   return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
+}
+
+cairo_format_t get_cairo_format() {
+#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 17, 1)
+  return detail::FLOAT_SURFACE ? CAIRO_FORMAT_RGBA128F : CAIRO_FORMAT_ARGB32;
+#else
+  if (detail::FLOAT_SURFACE) {
+    throw std::invalid_argument("Float surfaces require cairo>=1.17.1");
+  } else {
+    return CAIRO_FORMAT_ARGB32;
+  }
+#endif
 }
 
 rgba_t to_rgba(py::object color, std::optional<double> alpha)
@@ -526,6 +539,49 @@ void fill_and_stroke_exact(
     cairo_stroke_preserve(cr);
   }
   cairo_restore(cr);
+}
+
+py::array image_surface_to_buffer(cairo_surface_t* surface) {
+  if (auto const& type = cairo_surface_get_type(surface);
+      type != CAIRO_SURFACE_TYPE_IMAGE) {
+    throw std::runtime_error(
+      "_get_buffer only supports image surfaces, not {}"_format(type)
+      .cast<std::string>());
+  }
+  cairo_surface_reference(surface);
+  cairo_surface_flush(surface);
+  switch (auto const& fmt = cairo_image_surface_get_format(surface)) {
+    case CAIRO_FORMAT_ARGB32:
+      return py::array_t<uint8_t>{
+        {cairo_image_surface_get_height(surface),
+         cairo_image_surface_get_width(surface),
+         4},
+        {cairo_image_surface_get_stride(surface), 4, 1},
+         cairo_image_surface_get_data(surface),
+         py::capsule(
+           surface,
+           [](void* surface) -> void {
+             cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
+           })};
+#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 17, 1)
+    case CAIRO_FORMAT_RGBA128F:
+      return py::array_t<float>{
+        {cairo_image_surface_get_height(surface),
+         cairo_image_surface_get_width(surface),
+         4},
+        {cairo_image_surface_get_stride(surface), 16, 4},
+        reinterpret_cast<float*>(cairo_image_surface_get_data(surface)),
+        py::capsule(
+          surface,
+          [](void* surface) -> void {
+            cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
+          })};
+#endif
+    default:
+      throw std::invalid_argument(
+        "_get_buffer only supports images surfaces with ARGB32 and RGBA128F "
+        "formats, not {}"_format(fmt).cast<std::string>());
+  }
 }
 
 cairo_font_face_t* font_face_from_path(std::string path)

@@ -5,27 +5,60 @@ import matplotlib as mpl
 import numpy as np
 
 
-def to_premultiplied_rgba8888(buf):
-    """Convert a buffer from premultipled ARGB32 to premultiplied RGBA8888."""
+def cairo_to_premultiplied_argb32(buf):
+    """
+    Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
+    premultiplied ARGB32.
+    """
+    if buf.dtype == np.uint8:
+        return buf
+    elif buf.dtype == np.float32:
+        r, g, b, a = np.moveaxis(buf, -1, 0)
+        r *= a
+        g *= a
+        b *= a
+        r = (r * 255).astype(np.uint8).astype(np.uint32)
+        g = (g * 255).astype(np.uint8).astype(np.uint32)
+        b = (b * 255).astype(np.uint8).astype(np.uint32)
+        a = (a * 255).astype(np.uint8).astype(np.uint32)
+        return (((a << 24) + (r << 16) + (g << 8) + (b << 0))
+                .view(np.uint8).reshape(buf.shape))
+    else:
+        raise TypeError("Unexpected dtype: {}".format(buf.dtype))
+
+
+def cairo_to_premultiplied_rgba8888(buf):
+    """
+    Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
+    premultiplied RGBA8888.
+    """
     # Using .take() instead of indexing ensures C-contiguity of the result.
-    return buf.take(
+    return cairo_to_premultiplied_argb32(buf).take(
         [2, 1, 0, 3] if sys.byteorder == "little" else [1, 2, 3, 0], axis=2)
 
 
-def to_straight_rgba8888(buf):
-    """Convert a buffer from premultiplied ARGB32 to straight RGBA8888."""
-    rgba = to_premultiplied_rgba8888(buf)
-    # The straightening formula is from cairo-png.c.
-    rgb = rgba[..., :-1]
-    alpha = rgba[..., -1]
-    if alpha.max() == 255:  # Special-case fully-opaque buffers for speed.
+def cairo_to_straight_rgba8888(buf):
+    """
+    Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
+    straight RGBA8888.
+    """
+    if buf.dtype == np.uint8:
+        rgba = cairo_to_premultiplied_rgba8888(buf)
+        # The straightening formula is from cairo-png.c.
+        rgb = rgba[..., :-1]
+        alpha = rgba[..., -1]
+        if alpha.max() == 255:  # Special-case fully-opaque buffers for speed.
+            return rgba
+        mask = alpha != 0
+        for channel in np.rollaxis(rgb, -1):
+            channel[mask] = (
+                (channel[mask].astype(int) * 255 + alpha[mask] // 2)
+                // alpha[mask])
         return rgba
-    mask = alpha != 0
-    for channel in np.rollaxis(rgb, -1):
-        channel[mask] = (
-            (channel[mask].astype(int) * 255 + alpha[mask] // 2)
-            // alpha[mask])
-    return rgba
+    elif buf.dtype == np.float32:
+        return (buf * 255).astype(np.uint8)
+    else:
+        raise TypeError("Unexpected dtype: {}".format(buf.dtype))
 
 
 @functools.lru_cache(1)

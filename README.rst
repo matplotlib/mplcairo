@@ -32,7 +32,8 @@ Noteworthy points include:
      circular markers of variable colors).
 
 - Improved accuracy (e.g., with marker positioning, quad meshes, and text
-  kerning).
+  kerning; floating point surfaces are supported with cairo≥1.17.1 (currently
+  cairo master)).
 - Support for a wider variety of font formats, such as otf and pfb, for vector
   (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
 - Optional support for complex text layout (right-to-left languages, etc.)
@@ -93,8 +94,11 @@ for Windows build scripts.
 
 .. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
 
-   (cairo 1.15.4 added support for PDF metadata and links; the presence of this
-   feature is detected at runtime.)
+   cairo 1.15.4 added support for PDF metadata and links; the presence of this
+   feature is detected at runtime.
+
+   cairo 1.17.1 (currently cairo master) added support for floating point
+   surfaces, usable with ``mplcairo.set_options(float_surface=True)``.
 
 On Fedora, the package is available as `python-mplcairo <fedora-package_>`_.
 
