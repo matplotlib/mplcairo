@@ -81,8 +81,8 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
     plt.switch_backend("agg")
 
     return pytest.main(
-        ["--rootdir", str(Path(mpl.__file__).parents[1]), "-p", "__main__"]
-        + rest)  # Py3.4 compat.
+        ["--rootdir", str(Path(mpl.__file__).parents[1]), "-p", "__main__",
+         *rest])
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -149,9 +149,9 @@ def pytest_collection_modifyitems(session, config, items):
         if reason:
             xfails.append(item)
             item.add_marker(pytest.mark.xfail(reason=reason))
-    invalid_xfails = (  # Py3.4 compat.
-        (set(xfail_modules) - {item.module.__name__ for item in xfails})
-        | (set(xfail_nodeids) - {item.nodeid for item in xfails}))
+    invalid_xfails = (
+        ({*xfail_modules} - {item.module.__name__ for item in xfails})
+        | ({*xfail_nodeids} - {item.nodeid for item in xfails}))
     if invalid_xfails:
         warnings.warn("Unused xfails:\n    {}"
                       .format("\n    ".join(sorted(invalid_xfails))))

@@ -93,23 +93,20 @@ class build_ext(build_ext):
 
         ext, = self.distribution.ext_modules
 
-        ext.depends += (
-            ["setup.py"]
-            + list(map(str, Path("src").glob("*.h")))
-            + list(map(str, Path("src").glob("*.cpp")))
-        )
+        ext.depends += [
+            "setup.py",
+            *map(str, Path("src").glob("*.h")),
+            *map(str, Path("src").glob("*.cpp")),
+        ]
         if UNITY_BUILD:
             ext.sources += ["src/_unity_build.cpp"]
         else:
-            ext.sources += list(map(str, Path("src").glob("*.cpp")))
+            ext.sources += [*map(str, Path("src").glob("*.cpp"))]
             ext.sources.remove("src/_unity_build.cpp")
         ext.language = "c++"
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
-        try:
-            tmp_include_dir.mkdir(parents=True)
-        except FileExistsError:  # Py3.4 compat.
-            pass
+        tmp_include_dir.mkdir(parents=True, exist_ok=True)
         ext.include_dirs += (
             [tmp_include_dir,
              pybind11.get_include(user=True), pybind11.get_include()])
@@ -189,7 +186,7 @@ class build_ext(build_ext):
             for dll in ["cairo.dll", "freetype.dll"]:
                 for path in paths_from_link_libpaths():
                     if (path / dll).exists():
-                        shutil.copy2(str(path / dll),
+                        shutil.copy2(str(path / dll),  # Py3.5 compat.
                                      str(Path(self.build_lib, "mplcairo")))
                         break
 
@@ -199,7 +196,7 @@ class build_ext(build_ext):
             for dll in ["cairo.dll", "freetype.dll"]:
                 for path in paths_from_link_libpaths():
                     if (path / dll).exists():
-                        shutil.copy2(str(path / dll),
+                        shutil.copy2(str(path / dll),  # Py3.5 compat.
                                      self.get_finalized_command("build_py")
                                      .get_package_dir("mplcairo"))
                         break
@@ -241,7 +238,6 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
@@ -250,7 +246,7 @@ setup(
     packages=find_packages("lib"),
     package_dir={"": "lib"},
     ext_modules=[Extension("mplcairo._mplcairo", [])],
-    python_requires=">=3.4",
+    python_requires=">=3.5",
     setup_requires=["setuptools_scm"],
     use_scm_version={  # xref __init__.py
         "version_scheme": "post-release",

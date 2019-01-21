@@ -55,7 +55,7 @@ Installation
 
 mplcairo requires
 
-- Python 3 (3.6 on Windows),
+- Python≥3.5 (≥3.6 on Windows),
 - Matplotlib≥2.2 (declared as ``install_requires``),
 - pybind11≥2.2.4 [#]_ (declared as ``install_requires``),
 - on Linux and OSX, pycairo≥1.16.0 [#]_ (declared as conditional

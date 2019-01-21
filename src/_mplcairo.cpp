@@ -1318,11 +1318,7 @@ void GraphicsContextRenderer::draw_text(
         if (!gac.glyphs[j].index) {
           auto missing =
             py::cast(s.substr(bytes_pos, cluster.num_bytes))
-#if PY_VERSION_HEX >= 0x03050000
             .attr("encode")("ascii", "namereplace");
-#else
-            .attr("encode")("ascii", "backslashreplace");
-#endif
           warn_on_missing_glyph(missing.cast<std::string>());
         }
       }

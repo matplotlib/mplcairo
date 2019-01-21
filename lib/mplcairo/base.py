@@ -275,7 +275,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                                GraphicsContextRendererCairo._for_ps_output)
         if mpl.rcParams["ps.usedistiller"]:
             with TemporaryDirectory() as tmp_dirname:
-                tmp_name = str(Path(tmp_dirname, "tmp"))
+                tmp_name = str(Path(tmp_dirname, "tmp"))  # Py3.5 compat.
                 print_method(tmp_name, **kwargs)
                 # Assume we can get away without passing the bbox.
                 {"ghostscript": backend_ps.gs_distill,

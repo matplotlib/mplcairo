@@ -53,7 +53,7 @@ for archive_path, url in urls.items():
             archive_path.write_bytes(request.read())
     dest = archive_path.stem
     shutil.rmtree(dest, ignore_errors=True)
-    shutil.unpack_archive(str(archive_path), dest)  # Py3.6 compat.
+    shutil.unpack_archive(str(archive_path), dest)  # Py3.5 compat.
 
 # Get cairo.dll from cairocffi, and build the import library.
 # cffi appends ".lib" to the filename.

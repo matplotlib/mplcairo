@@ -9,8 +9,6 @@ jobs:
     vmImage: 'ubuntu-16.04'
   strategy:
     matrix:
-      Python34:
-        python.version: '3.4'
       Python35:
         python.version: '3.5'
       Python36:
@@ -60,8 +58,6 @@ jobs:
     vmImage: 'macOS-10.13'
   strategy:
     matrix:
-      Python34:
-        python.version: '3.4'
       Python35:
         python.version: '3.5'
       Python36:

@@ -2,7 +2,7 @@
 
 # Build script for the manylinux wheel.  Depends on git and docker.
 # Set the PY_VERS environment variable to a space-separated list of dotted
-# Python versions (e.g. '3.4 3.5 3.6 3.7') to build the wheels only for these
+# Python versions (e.g. '3.5 3.6 3.7') to build the wheels only for these
 # versions.
 
 set -eo pipefail
@@ -16,7 +16,7 @@ if [[ "$MPLCAIRO_BUILD_TYPE" != manylinux ]]; then
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...
     docker run \
-        -e MPLCAIRO_BUILD_TYPE=manylinux -e PY_VERS="${PY_VERS:-3.4 3.5 3.6 3.7}" \
+        -e MPLCAIRO_BUILD_TYPE=manylinux -e PY_VERS="${PY_VERS:-3.5 3.6 3.7}" \
         --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
         quay.io/pypa/manylinux1_x86_64 \
         "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"

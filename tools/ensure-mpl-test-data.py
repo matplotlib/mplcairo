@@ -23,7 +23,7 @@ except Exception:  # ImportError if patched out, IOError by mpl itself.
             file.write(request.read())
         shutil.unpack_archive(file.name, tmpdir)
         for pkg in [mpl, mpl_toolkits]:
-            shutil.rmtree(  # Py3.4 compat.
+            shutil.rmtree(  # Py3.5 compat.
                 str(Path(list(pkg.__path__)[0], "tests")), ignore_errors=True)
             shutil.move(
                 str(Path(tmpdir, "matplotlib-{}".format(mpl.__version__),
