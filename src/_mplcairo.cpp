@@ -1699,10 +1699,8 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("A1", CAIRO_FORMAT_A1)
     .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
     .value("RGB30", CAIRO_FORMAT_RGB30)
-#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 17, 1)
-    .value("RGB96F", CAIRO_FORMAT_RGB96F)
-    .value("RGBA128F", CAIRO_FORMAT_RGBA128F)
-#endif
+    .value("RGB96F", static_cast<cairo_format_t>(6))
+    .value("RGBA128F", static_cast<cairo_format_t>(7))
     ;
   py::enum_<StreamSurfaceType>(m, "_StreamSurfaceType")
     .value("PDF", StreamSurfaceType::PDF)
@@ -1729,6 +1727,9 @@ PYBIND11_MODULE(_mplcairo, m)
       }
       if (auto float_surface =
           pop_option("float_surface").cast<std::optional<bool>>()) {
+        if (cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 1)) {
+          throw std::invalid_argument("Float surfaces require cairo>=1.17.1");
+        }
         detail::FLOAT_SURFACE = *float_surface;
       }
       if (auto marker_threads =

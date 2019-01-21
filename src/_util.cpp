@@ -85,15 +85,9 @@ py::object rc_param(std::string key)
 }
 
 cairo_format_t get_cairo_format() {
-#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 17, 1)
-  return detail::FLOAT_SURFACE ? CAIRO_FORMAT_RGBA128F : CAIRO_FORMAT_ARGB32;
-#else
-  if (detail::FLOAT_SURFACE) {
-    throw std::invalid_argument("Float surfaces require cairo>=1.17.1");
-  } else {
-    return CAIRO_FORMAT_ARGB32;
-  }
-#endif
+  return
+    detail::FLOAT_SURFACE
+    ? static_cast<cairo_format_t>(7) : CAIRO_FORMAT_ARGB32;
 }
 
 rgba_t to_rgba(py::object color, std::optional<double> alpha)
