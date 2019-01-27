@@ -1,5 +1,5 @@
 # Notes:
-# The OSX build does not install inkscape as building it from source is a bit
+# The macOS build does not install inkscape as building it from source is a bit
 # silly.
 
 jobs:
@@ -82,7 +82,7 @@ jobs:
           LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib' \
           CC='ccache clang' \
           CXX='ccache clang' \
-          tools/build-osx-wheel.sh &&
+          tools/build-macos-wheel.sh &&
         pip install dist/*.whl &&
         ./tools/ensure-mpl-test-data.py &&
         # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Build script for the OSX wheel.  Depends on git, python, llvm, and cairo,
+# Build script for the macOS wheel.  Depends on git, python, llvm, and cairo,
 # e.g. from Homebrew.
 
 set -eo pipefail

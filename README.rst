@@ -58,7 +58,7 @@ mplcairo requires
 - Python≥3.5 (≥3.6 on Windows),
 - Matplotlib≥2.2 (declared as ``install_requires``),
 - pybind11≥2.2.4 [#]_ (declared as ``install_requires``),
-- on Linux and OSX, pycairo≥1.16.0 [#]_ (declared as conditional
+- on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as conditional
   ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
 
@@ -69,13 +69,13 @@ As usual, install using pip:
    $ pip install mplcairo  # from PyPI
    $ pip install git+https://github.com/anntzer/mplcairo  # from Github
 
-Note that wheels are not available for OSX, because no OSX version ships a
+Note that wheels are not available for macOS, because no macOS version ships a
 recent-enough libc++ by default and vendoring of libc++ appears to be fragile.
 Help for packaging would be welcome.
 
 mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.
 Refer to the instructions on that project's website for installation on Linux
-and OSX.  You may want to look at https://github.com/HOST-Oman/libraqm-cmake
+and macOS.  You may want to look at https://github.com/HOST-Oman/libraqm-cmake
 for Windows build scripts.
 
 .. [#] pybind11 is actually only a build-time requirement, but doesn't play
@@ -164,8 +164,8 @@ another one is to package it yourself using e.g. pypi2pkgbuild_.
 .. _conda-build-2523: https://github.com/conda/conda-build/issues/2523
 .. _pypi2pkgbuild: https://github.com/anntzer/pypi2pkgbuild
 
-OSX
-```
+macOS
+`````
 
 Clang≥5.0 can be installed from ``conda``'s ``anaconda`` channel (``conda
 install -c anaconda clangxx_osx-64``), or can also be installed with Homebrew
@@ -173,7 +173,7 @@ install -c anaconda clangxx_osx-64``), or can also be installed with Homebrew
 it requires manual modifications to the PATH and LDFLAGS (as documented by
 ``brew info llvm``).
 
-The OSX wheel is built using ``tools/build-osx-wheel.sh``, which relies on
+The macOS wheel is built using ``tools/build-macos-wheel.sh``, which relies on
 delocate-wheel_ (to vendor a recent version of libc++).  Currently, it can only
 be built from a Homebrew-clang wheel, not a conda-clang wheel (due to some path
 intricacies...).
@@ -249,7 +249,7 @@ specifically, the following backends are provided:
 - ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
   native surface; does not and cannot support blitting),
 - ``module://mplcairo.qt`` (Qt4/5 widget, copying data from a cairo image
-  surface -- select the binding to use by importing it before mplcairo, or by
+  surface — select the binding to use by importing it before mplcairo, or by
   setting the ``QT_API`` environment variable),
 - ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
   surface),
@@ -258,7 +258,7 @@ specifically, the following backends are provided:
 - ``module://mplcairo.macosx`` (macOS widget, copying data from a cairo image
   surface).
 
-On OSX, **it is necessary to explicitly import mplcairo before importing
+On macOS, **it is necessary to explicitly import mplcairo before importing
 Matplotlib** due to incompatibilities associated with the use of a recent
 libc++.  As such, the most practical option is to import mplcairo, then call
 e.g. ``matplotlib.use("module://mplcairo.macosx")``.
@@ -362,7 +362,7 @@ rcparam validation, using, e.g.
 
 The ``text.antialiased`` rcparam can likewise be set to any
 ``cairo_antialias_t`` enum value, or ``True`` (the default, which maps to
-``SUBPIXEL`` -- ``GRAY`` is not sufficient to benefit from Raqm_'s subpixel
+``SUBPIXEL`` — ``GRAY`` is not sufficient to benefit from Raqm_'s subpixel
 positioning; see also `cairo bug #152 <cairo-152_>`_) or ``False`` (which maps
 to ``NONE``).
 

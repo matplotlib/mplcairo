@@ -12,9 +12,9 @@ from pathlib import Path
 import sys
 import warnings
 
-os.environ["MPLBACKEND"] = "agg"  # Avoid irrelevant framework issues on OSX.
+os.environ["MPLBACKEND"] = "agg"  # Avoid irrelevant framework issues on macOS.
 
-import mplcairo.base  # Need to come before matplotlib import on OSX.
+import mplcairo.base  # Need to come before matplotlib import on macOS.
 
 import matplotlib as mpl
 import matplotlib.backends.backend_agg
