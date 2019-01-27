@@ -184,7 +184,7 @@ AdditionalState& get_additional_state(cairo_t* cr)
 // this behavior; instead, one should set the default linewidths appropriately
 // if desired.
 // FIXME[cairo]: cairo requires coordinates to fit within a 24-bit signed
-// integer (https://bugs.freedesktop.org/show_bug.cgi?id=20091 and
+// integer (https://gitlab.freedesktop.org/cairo/cairo/issues/252 and
 // :mpltest:`test_simplification.test_overflow`).  We simply clamp the
 // values in the general case (with codes) -- proper handling would involve
 // clipping of polygons and of Beziers -- and use a simple clippling algorithm
