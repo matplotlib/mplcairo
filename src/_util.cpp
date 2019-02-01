@@ -544,8 +544,10 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
   }
   cairo_surface_reference(surface);
   cairo_surface_flush(surface);
-  switch (auto const& fmt = cairo_image_surface_get_format(surface)) {
-    case CAIRO_FORMAT_ARGB32:
+  switch (auto const& fmt = cairo_image_surface_get_format(surface);
+          // Avoid "not in enumerated type" warning with CAIRO_FORMAT_RGBA_128F.
+          static_cast<int>(fmt)) {
+    case static_cast<int>(CAIRO_FORMAT_ARGB32):
       return py::array_t<uint8_t>{
         {cairo_image_surface_get_height(surface),
          cairo_image_surface_get_width(surface),
@@ -557,8 +559,7 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
            [](void* surface) -> void {
              cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
            })};
-#if CAIRO_VERSION >= CAIRO_VERSION_ENCODE(1, 17, 1)
-    case CAIRO_FORMAT_RGBA128F:
+    case 7:  // CAIRO_FORMAT_RGBA_128F.
       return py::array_t<float>{
         {cairo_image_surface_get_height(surface),
          cairo_image_surface_get_width(surface),
@@ -570,7 +571,6 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
           [](void* surface) -> void {
             cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
           })};
-#endif
     default:
       throw std::invalid_argument(
         "_get_buffer only supports images surfaces with ARGB32 and RGBA128F "

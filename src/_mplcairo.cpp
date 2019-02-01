@@ -987,8 +987,8 @@ void GraphicsContextRenderer::draw_path(
     cairo_restore(cr_);
   }
   if (auto const& hatch_path =
-        py::cast(this).attr("get_hatch_path")()
-        .cast<std::optional<py::object>>()) {
+      py::cast(this).attr("get_hatch_path")()
+      .cast<std::optional<py::object>>()) {
     cairo_save(cr_);
     auto const& dpi = int(get_additional_state().dpi);  // Truncating is good enough.
     auto const& hatch_surface =
@@ -1727,8 +1727,8 @@ PYBIND11_MODULE(_mplcairo, m)
       }
       if (auto float_surface =
           pop_option("float_surface").cast<std::optional<bool>>()) {
-        if (cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 1)) {
-          throw std::invalid_argument("Float surfaces require cairo>=1.17.1");
+        if (cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
+          throw std::invalid_argument("Float surfaces require cairo>=1.17.2");
         }
         detail::FLOAT_SURFACE = *float_surface;
       }
