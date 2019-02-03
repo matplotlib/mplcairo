@@ -164,9 +164,7 @@ void PatternCache::mask(
   // direction, then draw it directly, as doing otherwise would be highly
   // inaccurate (see e.g. :mpltest:`test_mplot3d.test_quiver3d`).
   auto const& bbox = it_bboxes->second;
-  // Here, gcc 7.2 fails to extend the lifetime of the temporaries whose
-  // references are bound to constant *references* (various issues on bugzilla;
-  // see also gotw#88); so bind values instead.
+  // Binding by reference results in dangling reference.
   auto const x_max = std::max(std::abs(bbox.x), std::abs(bbox.x + bbox.width)),
              y_max = std::max(std::abs(bbox.y), std::abs(bbox.y + bbox.height));
   if (x_max < threshold_ || y_max < threshold_) {
