@@ -87,11 +87,11 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   // Set antialiasing: if "true", then pick either CAIRO_ANTIALIAS_FAST or
   // CAIRO_ANTIALIAS_BEST, depending on the linewidth.  The threshold of 1/3
   // was determined empirically.
-  std::visit([&](auto const& aa) -> void {
-    using aa_t = std::decay_t<decltype(aa)>;
-    if constexpr (std::is_same_v<aa_t, cairo_antialias_t>) {
+  std::visit(overloaded {
+    [&](cairo_antialias_t aa) {
       cairo_set_antialias(cr, aa);
-    } else if constexpr (std::is_same_v<aa_t, bool>) {
+    },
+    [&](bool aa) {
       if (aa) {
         auto const& lw = cairo_get_line_width(cr);
         cairo_set_antialias(
@@ -101,8 +101,6 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
       } else {
         cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
       }
-    } else {
-      static_assert(always_false<aa_t>::value);
     }
   }, state.antialias);
   // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.
@@ -1535,15 +1533,14 @@ void MathtextBackend::_draw(
       static_cast<FT_Face>(
         cairo_font_face_get_user_data(font_face, &detail::FT_KEY));
     auto index = FT_UInt{};
-    std::visit([&](auto const& name_or_code) -> void {
-      using name_or_code_t = std::decay_t<decltype(name_or_code)>;
-      if constexpr(std::is_same_v<name_or_code_t, std::string>) {
-        auto name = std::get<std::string>(glyph.name_or_code);
+    std::visit(overloaded {
+      [&](std::string name) {
         index = FT_Get_Name_Index(ft_face, name.data());
         if (!index) {
           warn_on_missing_glyph("#" + name);
         }
-      } else if constexpr (std::is_same_v<name_or_code_t, FT_ULong>) {
+      },
+      [&](FT_ULong code) {
         auto found = false;
         for (auto i = 0; i < ft_face->num_charmaps; ++i) {
           if (ft_face->charmaps[i]->encoding != FT_ENCODING_UNICODE) {
@@ -1557,13 +1554,10 @@ void MathtextBackend::_draw(
         if (!found) {
           throw std::runtime_error{"no builtin charmap found"};
         }
-        auto const& code = std::get<unsigned long>(glyph.name_or_code);
         index = FT_Get_Char_Index(ft_face, code);
         if (!index) {
           warn_on_missing_glyph("#" + std::to_string(index));
         }
-      } else {
-        static_assert(always_false<name_or_code_t>::value);
       }
     }, glyph.name_or_code);
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};

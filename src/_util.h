@@ -10,7 +10,8 @@
 #include <pybind11/stl.h>
 
 // Helper for std::visit.
-template<class T> struct always_false : std::false_type {};
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 namespace mplcairo {
 
