@@ -78,6 +78,7 @@ jobs:
         brew install cairo ccache llvm pkg-config &&
         # CXX must be set due to weird manipulations by distutils.
         PATH="/usr/local/opt/llvm/bin:$PATH" \
+          PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig \
           CPPFLAGS=-L/usr/local/opt/llvm/include \
           LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib' \
           CC='ccache clang' \
