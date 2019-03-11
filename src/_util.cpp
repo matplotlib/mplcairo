@@ -32,6 +32,7 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 #undef DEFINE_API
 
 // Other useful values.
+std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE{};
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
 bool FLOAT_SURFACE{};
@@ -580,24 +581,29 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
 
 cairo_font_face_t* font_face_from_path(std::string path)
 {
-  auto face_index = 0;
-  if (auto match = std::smatch{};
-      std::regex_match(path, match, std::regex{"(.*)#(\\d+)"})) {
-    path = match[1];
-    face_index = std::stoi(match[2]);
+  auto& font_face = detail::FONT_CACHE[path];
+  if (font_face) {
+    cairo_font_face_reference(font_face);
+  } else {
+    auto face_index = 0;
+    if (auto match = std::smatch{};
+        std::regex_match(path, match, std::regex{"(.*)#(\\d+)"})) {
+      path = match[1];
+      face_index = std::stoi(match[2]);
+    }
+    FT_Face ft_face;
+    FT_CHECK(
+      FT_New_Face, detail::ft_library, path.c_str(), face_index, &ft_face);
+    font_face =
+      cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
+    CAIRO_CLEANUP_CHECK(
+      { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
+      cairo_font_face_set_user_data,
+      font_face, &detail::FT_KEY, ft_face,
+      [](void* ptr) -> void {
+        FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr));
+      });
   }
-  FT_Face ft_face;
-  FT_CHECK(
-    FT_New_Face, detail::ft_library, path.c_str(), face_index, &ft_face);
-  auto const& font_face =
-    cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
-  CAIRO_CLEANUP_CHECK(
-    { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
-    cairo_font_face_set_user_data,
-    font_face, &detail::FT_KEY, ft_face,
-    [](void* ptr) -> void {
-      FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr));
-    });
   return font_face;
 }
 

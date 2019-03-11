@@ -208,6 +208,9 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 
 GraphicsContextRenderer::~GraphicsContextRenderer()
 {
+  if (detail::FONT_CACHE.size() > 64) {  // font_manager._get_font cache size.
+    detail::FONT_CACHE.clear();  // Naive cache mechanism.
+  }
   try {
     cairo_destroy(cr_);
   } catch (std::exception const& e) {

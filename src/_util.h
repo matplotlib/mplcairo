@@ -66,6 +66,7 @@ extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
   _(cairo_ps_surface_dsc_comment)
 
 // Other useful values.
+extern std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE;
 extern cairo_user_data_key_t const
   REFS_KEY,  // cairo_t -> kept alive Python objects.
   STATE_KEY, // cairo_t -> additional state.
