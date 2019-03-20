@@ -201,11 +201,7 @@ struct LoadPathContext {
   cairo_t* const cr;
   cairo_matrix_t ctm;
   bool const snap;
-#ifndef _WIN32
   double (*snapper)(double);
-#else
-  std::function<double(double)> snapper;
-#endif
 
   public:
   LoadPathContext(cairo_t* cr) :
@@ -217,27 +213,16 @@ struct LoadPathContext {
     cairo_new_path(cr);
     auto const& lw = cairo_get_line_width(cr);
     snapper =
-    // MSVC doesn't realize that the lambdas have the same type so it gets to
-    // use a slower path.
-#ifndef _WIN32
       snap
       ? (0 < lw && (lw < 1 || std::lround(lw) % 2 == 1)
-         ? [](double x) -> double { return std::floor(x) + .5; }
-         : [](double x) -> double { return std::round(x); })
+         // MSVC doesn't support lambdas in ternary branches.
+         ? static_cast<decltype(snapper)>(
+           [](double x) -> double { return std::floor(x) + .5; })
+         : static_cast<decltype(snapper)>(&std::round))
       // Snap between pixels if lw is exactly zero 0 (in which case the edge is
       // defined by the fill) or if lw rounds to an even value other than 0
       // (minimizing the alpha due to antialiasing).
-      : [](double x) -> double { return x; };
-#else
-    [=](double x) -> double {
-      return
-        snap
-        ? (0 < lw && (lw < 1 || std::lround(lw) % 2 == 1)
-           ? std::floor(x) + .5
-           : std::round(x))
-        : x;
-    };
-#endif
+      : static_cast<decltype(snapper)>([](double x) -> double { return x; });
   }
   ~LoadPathContext()
   {
