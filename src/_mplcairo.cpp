@@ -360,7 +360,7 @@ GraphicsContextRenderer GraphicsContextRenderer::make_pattern_gcr(
 void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
 {
   if (!metadata) {
-    return;
+    metadata = py::dict{};  // So that SOURCE_DATE_EPOCH is handled.
   }
   auto const& surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
@@ -369,7 +369,7 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
         metadata->attr("setdefault")(
           "CreationDate",
           py::module::import("datetime").attr("datetime")
-          .attr("utcfromtimestamp")(std::atol(source_date_epoch)));
+          .attr("utcfromtimestamp")(std::stol(source_date_epoch)));
       }
       for (auto const& it: *metadata) {
         if (it.second.is_none()) {
