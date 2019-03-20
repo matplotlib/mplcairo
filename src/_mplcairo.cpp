@@ -1586,8 +1586,7 @@ PYBIND11_MODULE(_mplcairo, m)
 
 #ifndef _WIN32
   if (import_cairo() < 0) {
-      // FIXME[pybind11]: Throwing exceptions during init (#1113).
-      m.ptr() = nullptr;
+      m.ptr() = nullptr;  // FIXME[pybind11]: Exceptions set in init (#1734).
       return;
   }
 
