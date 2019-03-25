@@ -25,7 +25,6 @@ import matplotlib
 
 from . import _mplcairo
 from ._mplcairo import antialias_t, operator_t, get_options, set_options
-from .base import get_raw_buffer
 
 __all__ = [
     "antialias_t", "operator_t",
@@ -55,3 +54,28 @@ def get_versions():
         "freetype": _mplcairo.__freetype_version__,
         "pybind11": _mplcairo.__pybind11_version__,
     }
+
+
+def get_raw_buffer(canvas):
+    """
+    Get the canvas' raw internal buffer.
+
+    This is normally a uint8 buffer of shape ``(m, n, 4)`` in
+    ARGB32 order, unless the canvas was created after calling
+    ``set_options(float_surfaces=True)`` in which case this is
+    a float32 buffer of shape ``(m, n, 4)`` in RGBA128F order.
+    """
+    return canvas._get_buffer()
+
+
+def _operator_patch_artist(op, artist):
+    """Implementation of `operator_t.patch_artist`."""
+
+    def draw(renderer):
+        gc = renderer.new_gc()
+        gc.set_mplcairo_operator(op)
+        _base_draw(renderer)
+        gc.restore()
+
+    _base_draw = artist.draw
+    artist.draw = draw

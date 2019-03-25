@@ -1685,7 +1685,14 @@ PYBIND11_MODULE(_mplcairo, m)
     .value("HSL_HUE", CAIRO_OPERATOR_HSL_HUE)
     .value("HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION)
     .value("HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR)
-    .value("HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY);
+    .value("HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY)
+    .def(
+      "patch_artist",
+      [](cairo_operator_t op, py::object obj) -> void {
+        py::module::import("mplcairo").attr("_operator_patch_artist")(op, obj);
+      }, R"__doc__(
+Patch an artist to make it use this compositing operator for drawing.
+)__doc__");
 
   py::enum_<cairo_format_t>(m, "_format_t")
     .value("INVALID", CAIRO_FORMAT_INVALID)

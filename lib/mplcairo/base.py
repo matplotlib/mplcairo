@@ -53,18 +53,6 @@ def _get_drawn_subarray_and_bounds(img):
         return np.zeros((0, 0, 4), dtype=np.uint8), (0, 0, 0, 0)
 
 
-def get_raw_buffer(canvas):
-    """
-    Get the canvas' raw internal buffer.
-
-    This is normally a uint8 buffer of shape ``(m, n, 4)`` in
-    ARGB32 order, unless the canvas was created after calling
-    ``set_options(float_surfaces=True)`` in which case this is
-    a float32 buffer of shape ``(m, n, 4)`` in RGBA128F order.
-    """
-    return canvas._get_buffer()
-
-
 class GraphicsContextRendererCairo(
         _mplcairo.GraphicsContextRendererCairo,
         # Fill in the missing methods.

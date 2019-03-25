@@ -4,8 +4,9 @@ no support to set them from Matplotlib's side.  Thus, it is necessary to write
 custom artists to take advantage of this feature.
 
 One can either directly create artists of the given class (the ``OpCircle``
-example below), or replace the artist's class a posteriori with a dynamically
-generated subclass (the ``patch_class_with_operator`` example below).
+example below), or, more simply, use the `operator_t.patch_artist` method,
+which just patches the ``draw`` method of the artist (the ``patch_artist``
+example below).
 
 Note that for many operators other than the default OVER, it is necessary to
 set the figure's background to fully transparent (alpha=0) to avoid compositing
@@ -26,6 +27,8 @@ from mplcairo import operator_t
 
 ops = [*operator_t.__members__.values()]
 
+
+# Manually create an Artist subclass.
 
 class OpCircle(Circle):
     def __init__(self, *args, operator, **kwargs):
@@ -55,17 +58,7 @@ for op, ax in zip(ops, axs.flat):
 fig.tight_layout()
 
 
-def patch_class_with_operator(artist, op):
-
-    class OpArtist(type(artist)):
-        def draw(self, renderer):
-            gc = renderer.new_gc()
-            gc.set_mplcairo_operator(op)
-            super().draw(renderer)
-            gc.restore()
-
-    artist.__class__ = OpArtist
-
+# Rely on `operator_t.patch_artist`.
 
 fig, axs = plt.subplots(math.ceil(len(ops)**(1/2)), math.ceil(len(ops)**(1/2)))
 # The figure patch should be set to fully transparent to avoid compositing the
@@ -80,7 +73,7 @@ for op, ax in zip(ops, axs.flat):
         np.arange(4).reshape((2, 2)), alpha=.5, extent=(0, 4, 0, 4))
     im2 = ax.imshow(
         np.arange(4).reshape((2, 2)), alpha=.5, extent=(1, 5, 1, 5))
-    patch_class_with_operator(im2, op)
+    op.patch_artist(im2)
 fig.tight_layout()
 
 

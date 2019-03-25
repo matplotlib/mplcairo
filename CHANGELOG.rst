@@ -14,6 +14,8 @@ next
 - Support `pathlib.Path` arguments to `FontProperties` on Python≥3.6.
 - Improved usetex support.
 - Added `get_raw_buffer` to access the raw internal buffer.
+- Added `operator_t.patch_artist` to simplify usage of custom compositing
+  operators.
 
 v0.1
 ====
