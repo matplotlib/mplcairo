@@ -173,10 +173,17 @@ install -c anaconda clangxx_osx-64``), or can also be installed with Homebrew
 it requires manual modifications to the PATH and LDFLAGS (as documented by
 ``brew info llvm``).
 
+On macOS<10.14, it is additionally necessary to use clang<8.0 (e.g. with ``brew
+install llvm@7``) as clang 8.0 appears to believe that code relying on C++17
+can only be run on macOS≥10.14+.
+
 The macOS wheel is built using ``tools/build-macos-wheel.sh``, which relies on
 delocate-wheel_ (to vendor a recent version of libc++).  Currently, it can only
 be built from a Homebrew-clang wheel, not a conda-clang wheel (due to some path
 intricacies...).
+
+As I can personally only test the macOS build on CI, any help with the build
+and the packaging on that platform would be welcome.
 
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
 

@@ -18,11 +18,13 @@ MPLCAIRO_NO_UNITY_BUILD
       because linking is rather time-consuming.
 """
 
+from distutils.version import LooseVersion
 from enum import Enum
 import functools
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shlex
 import shutil
@@ -144,14 +146,21 @@ class build_ext(build_ext):
             get_pkg_config(
                 "--atleast-version={}".format(MIN_CAIRO_VERSION), "cairo")
             ext.include_dirs += [cairo.get_include()]
+            # On OSX<10.14, version-min=10.9 avoids deprecation warning wrt.
+            # libstdc++, but assumes that the build uses non-Xcode-provided
+            # LLVM.
+            # On OSX>=10.14, assume that the build uses the normal toolchain.
+            macosx_min_version = (
+                "10.14" if LooseVersion(platform.mac_ver()[0]) >= "10.14"
+                else "10.9")
             ext.extra_compile_args += (
-                # version-min=10.9 avoids deprecation warning wrt. libstdc++.
                 ["-std=c++1z", "-fvisibility=hidden", "-flto",
-                 "-mmacosx-version-min=10.9"]
+                 "-mmacosx-version-min={}".format(macosx_min_version)]
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 # version-min needs to be repeated to avoid a warning.
-                ["-flto", "-mmacosx-version-min=10.9"])
+                ["-flto",
+                 "-mmacosx-version-min={}".format(macosx_min_version)])
 
         elif sys.platform == "win32":
             ext.include_dirs += (
