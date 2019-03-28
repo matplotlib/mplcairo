@@ -1,24 +1,26 @@
-# Fetch dependencies and build a Windows wheel
-# ============================================
-#
-# This script depends on cairocffi being installed to provide cairo.dll.  Note
-# that in practice, the only cairocffi build whose cairo.dll includes FreeType
-# support that I am aware of is Christoph Gohlke's build__, for which I have
-# set up a mirror__.  (The only other freestanding cairo.dll that includes
-# FreeType support that I am aware of__ appears to misrender pdfs.)
-#
-# __ https://www.lfd.uci.edu/~gohlke/pythonlibs/#cairocffi
-# __ https://github.com/anntzer/cairocffi-windows-wheel
-# __ https://github.com/preshing/cairo-windows
-# __ https://preshing.com/20170529/heres-a-standalone-cairo-dll-for-windows/#IDComment1047546463
-#
-# The cairo headers (and their dependencies) are fetched from the Arch Linux
-# repositories (the official cairo release tarball contains unbuilt headers
-# (e.g. missing cairo-features.h) and is huge due to the presence of test
-# baseline images).  The FreeType headers and binary are fetched from the
-# "official" build__ listed on FreeType's website.
-#
-# __ https://github.com/ubawurinna/freetype-windows-binaries
+"""
+Fetch dependencies and build a Windows wheel
+============================================
+
+This script depends on cairocffi being installed to provide cairo.dll.  Note
+that in practice, the only cairocffi build whose cairo.dll includes FreeType
+support that I am aware of is Christoph Gohlke's build__, for which I have set
+up a mirror__.  (The only other freestanding cairo.dll that includes FreeType
+support that I am aware of__ appears to misrender pdfs.)
+
+__ https://www.lfd.uci.edu/~gohlke/pythonlibs/#cairocffi
+__ https://github.com/anntzer/cairocffi-windows-wheel
+__ https://github.com/preshing/cairo-windows
+__ https://preshing.com/20170529/heres-a-standalone-cairo-dll-for-windows/#IDComment1047546463
+
+The cairo headers (and their dependencies) are fetched from the Arch Linux
+repositories (the official cairo release tarball contains unbuilt headers (e.g.
+missing cairo-features.h) and is huge due to the presence of test baseline
+images).  The FreeType headers and binary are fetched from the "official"
+build__ listed on FreeType's website.
+
+__ https://github.com/ubawurinna/freetype-windows-binaries
+"""
 
 from distutils import ccompiler
 import os
