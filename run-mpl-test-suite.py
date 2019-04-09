@@ -7,6 +7,7 @@ Matplotlib's agg backend.
 """
 
 from argparse import ArgumentParser
+from distutils.version import LooseVersion
 import os
 from pathlib import Path
 import sys
@@ -113,7 +114,6 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_axes.py::test_log_scales[png]",
                 "test_backend_bases.py::test_non_gui_warning",
                 "test_backend_pdf.py::test_composite_image",
-                "test_backend_pdf.py::test_empty_rasterised",  # Only in 2.2.4.
                 "test_backend_pdf.py::test_multipage_keep_empty",
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
@@ -143,6 +143,18 @@ def pytest_collection_modifyitems(session, config, items):
         ]
         for nodeid in nodeids
     }
+    if LooseVersion(mpl.__version__) < "3.0":
+        xfail_modules.update({
+            "matplotlib.sphinxext.test_tinypages": irrelevant_message,  # matplotlib#11360.
+        })
+        xfail_nodeids.update({
+            "matplotlib/tests" + nodeid: message
+            for message, nodeids in [
+                (irrelevant_message, [
+                    "test_backend_pdf.py::test_empty_rasterised",
+                ])
+            ]
+        })
     xfails = []
     for item in items:
         reason = (xfail_modules.get(item.module.__name__)
