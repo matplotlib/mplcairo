@@ -12,7 +12,7 @@ next
 - MultiPage now provides more of Matplotlib's API, and behaves as if
   *keep_empty* is False.
 - Support `pathlib.Path` arguments to `FontProperties` on Python≥3.6.
-- Improved usetex support.
+- Improved mathtext alignment and usetex support.
 - Added `get_raw_buffer` to access the raw internal buffer.
 - Added `operator_t.patch_artist` to simplify usage of custom compositing
   operators.

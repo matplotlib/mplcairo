@@ -1466,7 +1466,13 @@ MathtextBackend::Glyph::Glyph(
 {}
 
 MathtextBackend::MathtextBackend() :
-  glyphs_{}, rectangles_{}, bearing_y_{}, xmin_{}, ymin_{}, xmax_{}, ymax_{}
+  glyphs_{},
+  rectangles_{},
+  bearing_y_{},
+  xmin_{std::numeric_limits<double>::infinity()},
+  ymin_{std::numeric_limits<double>::infinity()},
+  xmax_{-std::numeric_limits<double>::infinity()},
+  ymax_{-std::numeric_limits<double>::infinity()}
 {}
 
 void MathtextBackend::set_canvas_size(
@@ -1480,14 +1486,16 @@ void MathtextBackend::set_canvas_size(
 
 void MathtextBackend::render_glyph(double ox, double oy, py::object info)
 {
+  // oy is downwards relative to the upper-left canvas origin, but ymin, ymax
+  // are upwards relative to the baseline.
   auto const& metrics = info.attr("metrics");
   oy -= info.attr("offset").cast<double>();
   xmin_ = std::min(xmin_, ox + metrics.attr("xmin").cast<double>());
-  ymin_ = std::min(ymin_, oy - metrics.attr("ymin").cast<double>());
+  ymin_ = std::min(ymin_, bearing_y_ - oy + metrics.attr("ymin").cast<double>());
   // TODO: Perhaps use advance here instead?  Keep consistent with
   // cairo_glyph_extents (which ignores whitespace) in non-mathtext mode.
   xmax_ = std::max(xmax_, ox + metrics.attr("xmax").cast<double>());
-  ymax_ = std::max(ymax_, oy - metrics.attr("ymax").cast<double>());
+  ymax_ = std::max(ymax_, bearing_y_ - oy + metrics.attr("ymax").cast<double>());
   glyphs_.emplace_back(
     info.attr("font").attr("fname").cast<std::string>(),
     info.attr("fontsize").cast<double>(),
@@ -1577,7 +1585,7 @@ void MathtextBackend::_draw(
 std::tuple<double, double, double>
 MathtextBackend::get_text_width_height_descent() const
 {
-  return {xmax_ - xmin_, ymax_ - ymin_, ymax_ - bearing_y_};
+  return {xmax_ - xmin_, ymax_ - ymin_, -ymin_};
 }
 
 PYBIND11_MODULE(_mplcairo, m)

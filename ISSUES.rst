@@ -24,16 +24,6 @@ test_image
    test_jpeg_alpha
       Not respecting savefig.facecolor.
 
-test_text
-   test_multiline
-      Bad multiline rendering.
-
-   test_text_alignment
-      Bad alignment.
-
-text_labels_and_annotations/usetex_baseline_test, axisartist/demo_curvelinear_grid, axisartist/demo_floating_axes
-   Bad layout of mathtext.
-
 We appear to be leaking memory per memleak.py.
 
 Upstream issues
