@@ -429,8 +429,10 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
       }
       break;
     default:
-      py::module::import("warnings").attr("warn")(
-        "Metadata support is not implemented for the current surface type");
+      if (metadata->size()) {
+        py::module::import("warnings").attr("warn")(
+          "Metadata support is not implemented for the current surface type");
+      }
   }
 }
 
