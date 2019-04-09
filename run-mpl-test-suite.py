@@ -113,6 +113,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_axes.py::test_log_scales[png]",
                 "test_backend_bases.py::test_non_gui_warning",
                 "test_backend_pdf.py::test_composite_image",
+                "test_backend_pdf.py::test_empty_rasterised",  # Only in 2.2.4.
                 "test_backend_pdf.py::test_multipage_keep_empty",
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
