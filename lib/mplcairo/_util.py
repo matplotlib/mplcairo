@@ -62,7 +62,7 @@ def cairo_to_straight_rgba8888(buf):
 
 
 @functools.lru_cache(1)
-def fix_ipython_backend2gui():
+def fix_ipython_backend2gui():  # aka. matplotlib#12637 (matplotlib<3.1).
     # Fix hard-coded module -> toolkit mapping in IPython (used for `ipython
     # --auto`).  This cannot be done at import time due to ordering issues (so
     # we do it when creating a canvas) and should only be done once (hence the
