@@ -1112,9 +1112,9 @@ void GraphicsContextRenderer::draw_path_collection(
   };
   // Don't drop the arrays until the function exits.
   auto const& fcs_raw_keepref = convert_colors(fcs),
-       ecs_raw_keepref = convert_colors(ecs);
+              ecs_raw_keepref = convert_colors(ecs);
   auto const& fcs_raw = fcs_raw_keepref.unchecked<2>(),
-       ecs_raw = ecs_raw_keepref.unchecked<2>();
+              ecs_raw = ecs_raw_keepref.unchecked<2>();
   auto const& lws_raw = lws.unchecked<1>();
   auto n_dashes = dashes.size();
   auto const& dashes_raw = std::unique_ptr<dash_t[]>{
@@ -1405,20 +1405,27 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
   // Use ints to avoid a bunch of warnings below.
   // Clipping out partial pixels on the edges (using ceil/floor instead of
   // floor/ceil) helps avoiding invalid_argument being thrown below due to
-  // floating point inaccuracies.
-  auto const
-    & x0 = int(std::ceil(bbox.attr("x0").cast<double>())),
-    & x1 = int(std::floor(bbox.attr("x1").cast<double>())),
-    // Invert y-axis.
-    & y0 = int(std::ceil(state.height - bbox.attr("y1").cast<double>())),
-    & y1 = int(std::floor(state.height - bbox.attr("y0").cast<double>()));
-  if (!(0 <= x0 && x0 <= x1 && x1 <= state.width
-        && 0 <= y0 && y0 <= y1 && y1 <= state.height)) {
+  // floating point inaccuracies.  With e.g. collapsed axes, Matplotlib can
+  // try to copy e.g. from x0 = 1.1 to x1 = 1.9, in which case x1 < x0 after
+  // clipping, hence the x0o <= x1o test and the max(x1 - x0, 0) below.
+  auto const& x0o = bbox.attr("x0").cast<double>(),
+            & x1o = bbox.attr("x1").cast<double>(),
+            // Invert y-axis.
+            & y0o = state.height - bbox.attr("y1").cast<double>(),
+            & y1o = state.height - bbox.attr("y0").cast<double>();
+  auto const& x0 = int(std::ceil(x0o)),
+            & x1 = int(std::floor(x1o)),
+            & y0 = int(std::ceil(y0o)),
+            & y1 = int(std::floor(y1o));
+  if (!(0 <= x0 && x0o <= x1o && x1 <= state.width
+        && 0 <= y0 && y0o <= y1o && y1 <= state.height)) {
     throw std::invalid_argument(
-      "cannot copy\n{}\nfrom canvas of width {} and height {}"_format(
-        bbox, state.width, state.height).cast<std::string>());
+      "cannot copy\n{}\ni.e.\n{}\nout of canvas of width {} and height {}"_format(
+        bbox, bbox.attr("frozen")(), state.width, state.height)
+      .cast<std::string>());
   }
-  auto const& width = x1 - x0, height = y1 - y0;
+  auto const width = std::max(x1 - x0, 0),
+             height = std::max(y1 - y0, 0);
   // 4 bytes per pixel throughout.
   auto buf = std::unique_ptr<uint8_t[]>{new uint8_t[4 * width * height]};
   auto const& surface = cairo_get_target(cr_);
