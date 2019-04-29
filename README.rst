@@ -485,7 +485,7 @@ Missing implementation
 
 Support for the following features is missing:
 
-- the ``svg.image_inline`` rcparam.
+- the ``pdf.inheritcolor`` and ``svg.image_inline`` rcparams.
 
 Missing support from cairo
 --------------------------
