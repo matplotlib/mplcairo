@@ -102,11 +102,11 @@ for Windows build scripts.
 
 On Fedora, the package is available as `python-mplcairo <fedora-package_>`_.
 
-Building
-========
+Building/packaging
+==================
 
-This section is only relevant if you wish to build mplcairo yourself.
-Otherwise, proceed to the Use_ section.
+This section is only relevant if you wish to build mplcairo yourself, or
+package it for redistribution.  Otherwise, proceed to the Use_ section.
 
 In all cases, once the dependencies described below are installed, mplcairo
 can be built and installed using any of the standard commands (``pip wheel
@@ -147,14 +147,20 @@ nonstandard [#]_.  In that case, be careful to set them to e.g. ``g++-7`` and
 **not** ``gcc-7``, otherwise the compilation will succeed but the shared object
 will be mis-linked and fail to load.
 
-The manylinux wheel is built using ``tools/build-manylinux-wheel.sh``.
+The manylinux wheel is built using `tools/build-manylinux-wheel.sh`_.
+
+Packagers may want to set the ``MPLCAIRO_BUILD_TYPE`` environment variable to
+``package`` before the build (see the docstring of setup.py_ for details).
+
+.. _tools/build-manylinux-wheel.sh: tools/build-manylinux-wheel.sh
+.. _setup.py: setup.py
 
 **NOTE**: On Arch Linux, the python-pillow (Arch) package includes an invalid
 version of ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not be
-installed while building a Raqm-enabled version of mplcairo using the system
-Python, even in a virtualenv (it can be installed when *using* mplcairo without
-causing any problems).  One solution is to temporarily uninstall the package;
-another one is to package it yourself using e.g. pypi2pkgbuild_.
+installed while building mplcairo with the system Python, even in a virtualenv
+(it can be installed when *using* mplcairo without causing any problems).  One
+solution is to temporarily uninstall the package; another one is to package it
+yourself using e.g. pypi2pkgbuild_.
 
 .. [#] ``distutils`` uses ``CC`` for *compiling* C++ sources but ``CXX`` for
    linking them (don't ask).  You may run into additional issues if ``CC`` or
