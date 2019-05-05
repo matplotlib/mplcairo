@@ -10,6 +10,10 @@ enum class StreamSurfaceType {
   PDF, PS, EPS, SVG, Script
 };
 
+enum class EMFMarker {
+  EMF
+};
+
 struct Region {
   cairo_rectangle_int_t const bbox;
   std::unique_ptr<uint8_t const[]> buffer;  // Not const, to allow move()ing.
@@ -53,6 +57,10 @@ class GraphicsContextRenderer {
   GraphicsContextRenderer(
     StreamSurfaceType type, py::object file,
     double width, double height, double dpi);
+  static cairo_t* cr_from_emf_args(
+    py::object path, double width, double height, double dpi);
+  GraphicsContextRenderer(
+    EMFMarker, py::object path, double width, double height, double dpi);
 
   static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
 

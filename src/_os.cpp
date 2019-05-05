@@ -1,16 +1,15 @@
 #include "_os.h"
 
+#include <pybind11/pybind11.h>
+
 #if defined __linux__ || defined __APPLE__
 #include <dlfcn.h>
 #elif defined _WIN32
 #include <memory>
-
 #define NOMINMAX
 #include <psapi.h>
 #include <Windows.h>
 #endif
-
-#include <pybind11/pybind11.h>
 
 namespace mplcairo::os {
 

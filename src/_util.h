@@ -9,6 +9,11 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
+#ifdef _WIN32
+#define NOMINMAX
+#include <Windows.h>
+#endif
+
 // Helper for std::visit.
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
@@ -52,6 +57,10 @@ extern void (*cairo_pdf_surface_set_metadata)(
   cairo_surface_t*, cairo_pdf_metadata_t, char const*);
 extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
 extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
+#ifndef _WIN32
+#define HDC void*
+#endif
+extern cairo_surface_t* (*cairo_win32_printing_surface_create)(HDC);
 
 #define ITER_CAIRO_OPTIONAL_API(_) \
   _(cairo_tag_begin) \
@@ -63,7 +72,8 @@ extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
   _(cairo_ps_surface_set_size) \
   _(cairo_pdf_surface_set_metadata) \
   _(cairo_ps_surface_set_eps) \
-  _(cairo_ps_surface_dsc_comment)
+  _(cairo_ps_surface_dsc_comment) \
+  _(cairo_win32_printing_surface_create)
 
 // Other useful values.
 extern std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE;

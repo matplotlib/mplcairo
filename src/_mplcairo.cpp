@@ -342,6 +342,42 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     cr_from_fileformat_args(type, file, width, height, dpi), width, height, 72}
 {}
 
+#ifdef _WIN32
+cairo_t* GraphicsContextRenderer::cr_from_emf_args(
+  py::object path, double width, double height, double dpi)
+{
+  if (!detail::cairo_win32_printing_surface_create) {
+    throw std::runtime_error("cairo was built without Win32 support");
+  }
+  auto const& path_s =
+#if PY_VERSION_HEX >= 0x03060000
+    py::reinterpret_steal<py::object>(PY_CHECK(PyOS_FSPath, path.ptr()))
+#else
+    path
+#endif
+    .cast<std::string>();
+  auto rect = RECT{0, 0, LONG(width / dpi * 2540), LONG(height / dpi * 2540)};
+  auto const& hdc = CreateEnhMetaFile(nullptr, path_s.c_str(), &rect, nullptr);
+  auto const& surface = detail::cairo_win32_printing_surface_create(hdc);
+  auto const& cr = cairo_create(surface);
+  cairo_surface_destroy(surface);
+  CAIRO_CHECK(
+    cairo_set_user_data, cr, &detail::REFS_KEY, hdc,
+    [](void* data) -> void {
+      if (!DeleteEnhMetaFile(CloseEnhMetaFile(static_cast<HDC>(data)))) {
+        std::cerr << "Failed to close EMF.\n";
+      }
+    });
+  return cr;
+}
+
+GraphicsContextRenderer::GraphicsContextRenderer(
+  EMFMarker, py::object path, double width, double height, double dpi) :
+  GraphicsContextRenderer{
+    cr_from_emf_args(path, width, height, dpi), width, height, 72}
+{}
+#endif
+
 GraphicsContextRenderer GraphicsContextRenderer::make_pattern_gcr(
   cairo_surface_t* surface)
 {
@@ -1728,6 +1764,8 @@ Patch an artist to make it use this compositing operator for drawing.
     .value("EPS", StreamSurfaceType::EPS)
     .value("SVG", StreamSurfaceType::SVG)
     .value("Script", StreamSurfaceType::Script);
+  py::enum_<EMFMarker>(m, "_EMFMarker")
+    .value("EMF", EMFMarker::EMF);
 
   // Export functions.
   m.def(
@@ -1821,6 +1859,9 @@ options.
     .def(py::init<py::object, double>())
 #endif
     .def(py::init<StreamSurfaceType, py::object, double, double, double>())
+#ifdef _WIN32
+    .def(py::init<EMFMarker, py::object, double, double, double>())
+#endif
     .def(
       py::pickle(
         [](GraphicsContextRenderer const& gcr) -> py::tuple {

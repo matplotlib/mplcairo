@@ -6,6 +6,7 @@ import logging
 import os
 from pathlib import Path
 import shutil
+import sys
 from tempfile import TemporaryDirectory
 from threading import RLock
 
@@ -25,7 +26,7 @@ from matplotlib.mathtext import MathTextParser
 
 from . import _mplcairo, _util
 from ._backports import get_glyph_name
-from ._mplcairo import _StreamSurfaceType
+from ._mplcairo import _StreamSurfaceType, _EMFMarker
 
 
 _log = logging.getLogger()
@@ -94,6 +95,13 @@ class GraphicsContextRendererCairo(
             gzip_file.close()
 
         obj._finish = _finish
+        return obj
+
+    @classmethod
+    def _for_emf_output(cls, path, width, height, dpi):
+        args = _EMFMarker.EMF, path, width, height, dpi
+        obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
+        _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
         return obj
 
     def option_image_nocomposite(self):
@@ -360,6 +368,21 @@ class FigureCanvasCairo(FigureCanvasBase):
              .save(path_or_stream, format="tiff", **pil_kwargs))
 
         print_tif = print_tiff
+
+    if sys.platform == "win32":
+
+        def print_emf(self, path, *, dpi=72, metadata=None, **kwargs):
+            _check_print_extra_kwargs(**kwargs)
+            self.figure.set_dpi(72)
+            renderer = GraphicsContextRendererCairo._for_emf_output(
+                path, self.figure.bbox.width, self.figure.bbox.height, dpi)
+            if metadata:
+                _log.warning("No support for EMF metadata.")
+            with _LOCK:
+                self.figure.draw(renderer)
+            # _finish() corresponds finalize() in Matplotlib's PDF and SVG
+            # backends; it is inlined in Matplotlib's PS backend.
+            renderer._finish()
 
 
 @_Backend.export

@@ -141,11 +141,13 @@ bool has_vector_surface(cairo_t* cr)
   switch (auto const& type = cairo_surface_get_type(cairo_get_target(cr))) {
     case CAIRO_SURFACE_TYPE_IMAGE:
     case CAIRO_SURFACE_TYPE_XLIB:
+    case CAIRO_SURFACE_TYPE_WIN32:
       return false;
     case CAIRO_SURFACE_TYPE_PDF:
     case CAIRO_SURFACE_TYPE_PS:
     case CAIRO_SURFACE_TYPE_SVG:
     case CAIRO_SURFACE_TYPE_RECORDING:
+    case CAIRO_SURFACE_TYPE_WIN32_PRINTING:
       return true;
     case CAIRO_SURFACE_TYPE_SCRIPT:
       switch (detail::MPLCAIRO_SCRIPT_SURFACE) {

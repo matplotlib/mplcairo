@@ -43,6 +43,7 @@ Noteworthy points include:
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
   multi-page PDF).
 - Support for custom blend modes (see `examples/operators.py`_).
+- On Windows, support for EMF output.
 
 .. _cairo: https://www.cairographics.org/
 .. _Matplotlib: http://matplotlib.org/
