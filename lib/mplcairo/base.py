@@ -157,6 +157,13 @@ class GraphicsContextRendererCairo(
         return img.tobytes(), bounds
 
 
+def _check_print_extra_kwargs(*,
+        # These arguments are already taken care of by print_figure().
+        dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
+        dryrun=False, bbox_inches_restore=None, pil_kwargs=None):
+    pass
+
+
 class FigureCanvasCairo(FigureCanvasBase):
     # Although this attribute should semantically be set from __init__ (it is
     # purely an instance attribute), initializing it at the class level helps
@@ -212,12 +219,9 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.get_renderer().restore_region(region)
         super().draw()
 
-    def _print_method(
-            self, renderer_factory,
-            path_or_stream, *, metadata=None, dpi=72,
-            # These arguments are already taken care of by print_figure().
-            facecolor=None, edgecolor=None, orientation="portrait",
-            dryrun=False, bbox_inches_restore=None):
+    def _print_method(self, renderer_factory,
+                      path_or_stream, *, metadata=None, dpi=72, **kwargs):
+        _check_print_extra_kwargs(**kwargs)
         self.figure.set_dpi(72)
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(
@@ -289,11 +293,9 @@ class FigureCanvasCairo(FigureCanvasBase):
         self._last_renderer_call = last_renderer_call
         return _util.cairo_to_straight_rgba8888(renderer._get_buffer())
 
-    def print_rgba(
-            self, path_or_stream, *, metadata=None,
-            # These arguments are already taken care of by print_figure().
-            dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
-            dryrun=False, bbox_inches_restore=None):
+    def print_rgba(self, path_or_stream, *, dryrun=False, metadata=None,
+                   **kwargs):
+        _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
@@ -302,11 +304,9 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     print_raw = print_rgba
 
-    def print_png(
-            self, path_or_stream, *, metadata=None,
-            # These arguments are already taken care of by print_figure().
-            dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
-            dryrun=False, bbox_inches_restore=None):
+    def print_png(self, path_or_stream, *,
+                  dryrun=False, metadata=None, pil_kwargs=None, **kwargs):
+        _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
@@ -315,18 +315,37 @@ class FigureCanvasCairo(FigureCanvasBase):
               "matplotlib version {}, https://matplotlib.org"
               .format(mpl.__version__))])
         full_metadata.update(metadata or {})
-        with cbook.open_file_cm(path_or_stream, "wb") as stream:
-            _png.write_png(img, stream, metadata=full_metadata)
+        if pil_kwargs is not None:
+            from PIL import Image
+            from PIL.PngImagePlugin import PngInfo
+            # Only use the metadata kwarg if pnginfo is not set, because the
+            # semantics of duplicate keys in pnginfo is unclear.
+            if "pnginfo" not in pil_kwargs:
+                pnginfo = PngInfo()
+                for k, v in metadata.items():
+                    pnginfo.add_text(k, v)
+                pil_kwargs["pnginfo"] = pnginfo
+            pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+            (Image.frombuffer("RGBA", img.shape[:2], img, "raw", "RGBA", 0, 1)
+             .save(path_or_stream, format="png", **pil_kwargs))
+        else:
+            with cbook.open_file_cm(path_or_stream, "wb") as stream:
+                _png.write_png(img, stream, metadata=full_metadata)
 
     if Image:
 
-        def print_jpeg(
-                self, path_or_stream, *,
-                # These arguments are already taken care of by print_figure().
-                dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
-                dryrun=False, bbox_inches_restore=None,
-                # Remaining kwargs are passed to PIL.
-                **kwargs):
+        def print_jpeg(self, path_or_stream, *,
+                       facecolor=None, dryrun=False, pil_kwargs=None,
+                       **kwargs):
+            if pil_kwargs is None:
+                pil_kwargs = {}
+            for k in ["quality", "optimize", "progressive"]:
+                if k in kwargs:
+                    pil_kwargs.setdefault(k, kwargs.pop(k))
+            pil_kwargs.setdefault(
+                "quality", mpl.rcParams["savefig.jpeg_quality"])
+            pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+            _check_print_extra_kwargs(**kwargs)
             buf = self._get_fresh_straight_rgba8888()
             if dryrun:
                 return
@@ -339,24 +358,22 @@ class FigureCanvasCairo(FigureCanvasBase):
                 (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
             composited = Image.new("RGB", buf.shape[:2][::-1], background)
             composited.paste(img, img)
-            kwargs.setdefault("quality", mpl.rcParams["savefig.jpeg_quality"])
-            composited.save(path_or_stream, format="jpeg",
-                            dpi=(self.figure.dpi, self.figure.dpi), **kwargs)
+            composited.save(path_or_stream, format="jpeg", **pil_kwargs)
 
         print_jpg = print_jpeg
 
-        def print_tiff(
-                self, path_or_stream, *,
-                # These arguments are already taken care of by print_figure().
-                dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
-                dryrun=False, bbox_inches_restore=None):
+        def print_tiff(self, path_or_stream, *, dryrun=False, pil_kwargs=None,
+                       **kwargs):
+            if pil_kwargs is None:
+                pil_kwargs = {}
+            pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+            _check_print_extra_kwargs(**kwargs)
             buf = self._get_fresh_straight_rgba8888()
             if dryrun:
                 return
             (Image.frombuffer(
                 "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
-             .save(path_or_stream, format="tiff",
-                   dpi=(self.figure.dpi, self.figure.dpi)))
+             .save(path_or_stream, format="tiff", **pil_kwargs))
 
         print_tif = print_tiff
 
