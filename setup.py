@@ -46,7 +46,6 @@ from setupext import Extension, build_ext, find_packages, setup
 
 MIN_CAIRO_VERSION = "1.11.4"  # Also in _feature_tests.cpp.
 MIN_RAQM_VERSION = "0.2.0"
-RAQM_TAG = "v0.5.0"
 
 
 class BuildType(Enum):
@@ -119,7 +118,7 @@ class build_ext(build_ext):
         except (FileNotFoundError, CalledProcessError):
             with urllib.request.urlopen(
                     "https://raw.githubusercontent.com/HOST-Oman/libraqm/"
-                    "{}/src/raqm.h".format(RAQM_TAG)) as request, \
+                    "v{}/src/raqm.h".format(MIN_RAQM_VERSION)) as request, \
                  (tmp_include_dir / "raqm.h").open("wb") as file:
                 file.write(request.read())
 
