@@ -2,172 +2,104 @@
 # The macOS build does not install inkscape as building it from source is a bit
 # silly.
 
-jobs:
+strategy:
+  matrix:
+    Linux_py35:
+      vmImage: 'ubuntu-16.04'
+      pythonVersion: '3.5'
+    Linux_py36:
+      vmImage: 'ubuntu-16.04'
+      pythonVersion: '3.6'
+    Linux_py37:
+      vmImage: 'ubuntu-16.04'
+      pythonVersion: '3.7'
+    macOS_py35:
+      vmImage: 'macOS-10.13'
+      pythonVersion: '3.5'
+    macOS_py36:
+      vmImage: 'macOS-10.13'
+      pythonVersion: '3.6'
+    macOS_py37:
+      vmImage: 'macOS-10.13'
+      pythonVersion: '3.7'
+    Windows_py36:
+      vmImage: 'vs2017-win2016'
+      pythonVersion: '3.6'
+    Windows_py37:
+      vmImage: 'vs2017-win2016'
+      pythonVersion: '3.7'
 
-- job: 'Linux'
-  pool:
-    vmImage: 'ubuntu-16.04'
-  strategy:
-    matrix:
-      Python35:
-        python.version: '3.5'
-      Python36:
-        python.version: '3.6'
-      Python37:
-        python.version: '3.7'
+pool:
+  vmImage: '$(vmImage)'
 
-  steps:
+steps:
 
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-      architecture: 'x64'
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(pythonVersion)'
+    architecture: 'x64'
 
-  - bash: |
-      pip install --upgrade pip setuptools &&
-        sudo PY_VERS="$PYTHON_VERSION" tools/build-manylinux-wheel.sh &&
-        pip install dist/*.whl &&
-        ./tools/ensure-mpl-test-data.py &&
-        # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
-        pip install 'pytest<3.8' &&
-        sudo apt update &&
-        sudo apt install ghostscript inkscape
-    displayName: 'Build & install'
+- bash: |
 
-  - bash: |
-      ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
-    displayName: 'Test'
+    pip install --upgrade pip setuptools
 
-  - task: PublishTestResults@2
-    inputs:
-      testResultsFiles: '**/test-results.xml'
-      testRunTitle: 'Python $(python.version) / Linux'
-    condition: succeededOrFailed()
+    case "$VMIMAGE" in
+    ubuntu-16.04)
+      sudo PY_VERS="$PYTHONVERSION" tools/build-manylinux-wheel.sh &&
+      sudo apt update &&
+      sudo apt install ghostscript inkscape
+      ;;
+    macOS-10.13)
+      brew update >/dev/null &&
+      # Pin to llvm<8 until Azure has a macOS 10.14 image.
+      brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/4a3a0d06fd320af7df33342293b682bb1d263f8b/Formula/llvm.rb
+      brew install cairo ccache pkg-config &&
+      # CXX must be set due to weird manipulations by distutils.
+      PATH="/usr/local/opt/llvm/bin:$PATH" \
+        PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig \
+        CPPFLAGS=-L/usr/local/opt/llvm/include \
+        LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib' \
+        CC='ccache clang' \
+        CXX='ccache clang' \
+        tools/build-macos-wheel.sh &&
+      brew install ghostscript
+      ;;
+    vs2017-win2016)
+      git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
+      python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
+      python tools/build-windows-wheel.py &&
+      choco install ghostscript inkscape
+      ;;
+    *)
+      exit 1
+      ;;
+    esac
 
-  - bash: |
-      cp dist/*.whl "$BUILD_ARTIFACTSTAGINGDIRECTORY"
-    displayName: 'Copy files'
+    python -mpip install dist/*.whl &&
+    python tools/ensure-mpl-test-data.py &&
+    # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
+    pip install 'pytest<3.8'
 
-  - task: PublishBuildArtifacts@1
-    inputs:
-      artifactName: 'wheels'
+  displayName: 'Build & install'
 
-- job: 'macOS'
-  pool:
-    vmImage: 'macOS-10.13'
-  strategy:
-    matrix:
-      Python35:
-        python.version: '3.5'
-      Python36:
-        python.version: '3.6'
-      Python37:
-        python.version: '3.7'
+- bash: |
+    ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
+  displayName: 'Test'
 
-  steps:
-
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-      architecture: 'x64'
-
-  - bash: |
-      pip install --upgrade pip setuptools &&
-        brew update >/dev/null &&
-        # Pin to llvm<8 until Azure has a macOS 10.14 image.
-        brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/4a3a0d06fd320af7df33342293b682bb1d263f8b/Formula/llvm.rb
-        brew install cairo ccache pkg-config &&
-        # CXX must be set due to weird manipulations by distutils.
-        PATH="/usr/local/opt/llvm/bin:$PATH" \
-          PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig \
-          CPPFLAGS=-L/usr/local/opt/llvm/include \
-          LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib' \
-          CC='ccache clang' \
-          CXX='ccache clang' \
-          tools/build-macos-wheel.sh &&
-        pip install dist/*.whl &&
-        ./tools/ensure-mpl-test-data.py &&
-        # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
-        pip install 'pytest<3.8' &&
-        brew install ghostscript
-    displayName: 'Build & install'
-
-  - bash: |
-      ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
-    displayName: 'Test'
-
-  - task: PublishTestResults@2
-    inputs:
-      testResultsFiles: '**/test-results.xml'
-      testRunTitle: 'Python $(python.version) / macOS'
-    condition: succeededOrFailed()
-
-  - bash: |
-      cp dist/*.whl "$BUILD_ARTIFACTSTAGINGDIRECTORY"
-    displayName: 'Copy files'
-
-  - task: PublishBuildArtifacts@1
-    inputs:
-      artifactName: 'wheels'
-
-- job: 'Windows'
-  pool:
-    vmImage: 'vs2017-win2016'
-  strategy:
-    matrix:
-      Python36:
-        python.version: '3.6'
-      Python37:
-        python.version: '3.7'
-
-  steps:
-
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-      architecture: 'x64'
-
-  - bash: |
-      python -mpip install --upgrade pip setuptools &&
-        git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
-        python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
-        python tools/build-windows-wheel.py &&
-        python -mpip install dist/*.whl &&
-        python tools/ensure-mpl-test-data.py &&
-        # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
-        pip install 'pytest<3.8' &&
-        choco install ghostscript inkscape
-    displayName: 'Build & install'
-
-  - bash: |
-      python run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
-    displayName: 'Test'
-
-  - task: PublishTestResults@2
-    inputs:
-      testResultsFiles: '**/test-results.xml'
-      testRunTitle: 'Python $(python.version) / Windows'
-    condition: succeededOrFailed()
-
-  - bash: |
-      cp dist/*.whl "$BUILD_ARTIFACTSTAGINGDIRECTORY"
-    displayName: 'Copy files'
-
-  - task: PublishBuildArtifacts@1
-    inputs:
-      artifactName: 'wheels'
-
-- job: 'PublishWheels'
-  dependsOn:
-  - Linux
-  - macOS
-  - Windows
+- task: PublishTestResults@2
+  inputs:
+    testResultsFiles: '**/test-results.xml'
+    testRunTitle: 'Python $(pythonVersion) / $(vmImage)'
   condition: succeededOrFailed()
 
-  steps:
+- bash: |
+    cp dist/*.whl "$BUILD_ARTIFACTSTAGINGDIRECTORY"
+  displayName: 'Copy files'
 
-  - checkout: none
+- task: PublishBuildArtifacts@1
+  inputs:
+    artifactName: 'wheels'
 
-  - task: DownloadBuildArtifacts@0
-    inputs:
-      artifactName: 'wheels'
+- task: DownloadBuildArtifacts@0
+  inputs:
+    artifactName: 'wheels'
