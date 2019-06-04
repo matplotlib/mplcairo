@@ -112,6 +112,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_agg.py::test_repeated_save_with_alpha",
                 "test_artist.py::test_cull_markers",
                 "test_axes.py::test_log_scales[png]",
+                "test_axes.py::test_get_tightbbox_polar",
+                "test_axes.py::test_normal_axes",
                 "test_backend_bases.py::test_non_gui_warning",
                 "test_backend_pdf.py::test_composite_image",
                 "test_backend_pdf.py::test_multipage_keep_empty",
