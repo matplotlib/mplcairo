@@ -486,13 +486,6 @@ at straight or Bézier segment ends.
 Known issues
 ============
 
-Missing implementation
-----------------------
-
-Support for the following features is missing:
-
-- the ``svg.image_inline`` rcparam.
-
 Missing support from cairo
 --------------------------
 

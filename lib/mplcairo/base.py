@@ -75,6 +75,12 @@ class GraphicsContextRendererCairo(
         args = fmt, stream, width, height, dpi
         obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
         _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        try:
+            name = os.fsdecode(stream.name)
+        except (AttributeError, TypeError):
+            pass  # In particular, stream.name is an int for TemporaryFile.
+        else:
+            obj._set_path(name)
         return obj
 
     _for_pdf_output = partialmethod(_for_fmt_output, _StreamSurfaceType.PDF)
@@ -88,6 +94,12 @@ class GraphicsContextRendererCairo(
     def _for_svgz_output(cls, stream, width, height, dpi):
         gzip_file = GzipFile(fileobj=stream)
         obj = cls._for_svg_output(gzip_file, width, height, dpi)
+        try:
+            name = os.fsdecode(stream.name)
+        except (AttributeError, TypeError):
+            pass  # In particular, stream.name is an int for TemporaryFile.
+        else:
+            obj._set_path(name)
 
         def _finish():
             cls._finish(obj)

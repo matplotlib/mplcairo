@@ -20,6 +20,14 @@ struct Region {
 };
 
 class GraphicsContextRenderer {
+  public:
+  cairo_t* const cr_;
+
+  private:
+  std::optional<std::string> path_ = {};
+
+  private:
+
   class AdditionalContext {
     GraphicsContextRenderer* gcr_;
 
@@ -37,7 +45,6 @@ class GraphicsContextRenderer {
   AdditionalContext additional_context();
 
   public:
-  cairo_t* const cr_;
 
   GraphicsContextRenderer(
     cairo_t* cr, double width, double height, double dpi);
@@ -56,6 +63,7 @@ class GraphicsContextRenderer {
 
   static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
 
+  void _set_path(std::optional<std::string> path);
   void _set_metadata(std::optional<py::dict> metadata);
   void _set_size(double width, double height, double dpi);
   void _show_page();

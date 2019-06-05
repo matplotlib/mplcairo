@@ -357,6 +357,10 @@ GraphicsContextRenderer GraphicsContextRenderer::make_pattern_gcr(
   return gcr;
 }
 
+void GraphicsContextRenderer::_set_path(std::optional<std::string> path) {
+  path_ = path;
+}
+
 void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
 {
   if (!metadata) {
@@ -740,6 +744,35 @@ void GraphicsContextRenderer::draw_image(
     }
   }
   cairo_surface_mark_dirty(surface);
+  if (cairo_surface_get_type(cairo_get_target(cr_)) == CAIRO_SURFACE_TYPE_SVG
+      && !rc_param("svg.image_inline").cast<bool>()) {
+    if (!path_) {
+      throw std::runtime_error{
+        "Cannot save images to filesystem when writing to a non-file stream"};
+    }
+    auto image_path_ptr = new std::string{};
+    for (auto i = 0;; ++i) {
+      *image_path_ptr = *path_ + ".image" + std::to_string(i) + ".png";
+      // Matplotlib uses a hard counter.  Checking for file existence avoids
+      // both the need for the counter *and* the risk of overwriting
+      // preexisting files.
+      if (!py::module::import("os.path").attr("exists")(*image_path_ptr)
+           .cast<bool>()) {
+        break;
+      }
+    }
+    CAIRO_CHECK(cairo_surface_write_to_png, surface, image_path_ptr->c_str());
+    CAIRO_CHECK(
+      cairo_surface_set_mime_data,
+      surface,
+      CAIRO_MIME_TYPE_URI,
+      reinterpret_cast<uint8_t const*>(image_path_ptr->c_str()),
+      image_path_ptr->size(),
+      [](void* data) -> void {
+        delete static_cast<std::string*>(data);
+      },
+      image_path_ptr);
+  }
   auto const& pattern = cairo_pattern_create_for_surface(surface);
   cairo_surface_destroy(surface);
   auto const& matrix =
@@ -1846,6 +1879,7 @@ options.
       [](GraphicsContextRenderer& gcr) -> bool {
         return has_vector_surface(gcr.cr_);
       })
+    .def("_set_path", &GraphicsContextRenderer::_set_path)
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
