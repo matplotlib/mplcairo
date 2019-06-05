@@ -491,7 +491,7 @@ Missing implementation
 
 Support for the following features is missing:
 
-- the ``pdf.inheritcolor`` and ``svg.image_inline`` rcparams.
+- the ``svg.image_inline`` rcparam.
 
 Missing support from cairo
 --------------------------
@@ -499,9 +499,18 @@ Missing support from cairo
 - SVG output does not set URLs on any element, as cairo provides no support for
   doing so.
 - PS output does not respect SOURCE_DATE_EPOCH.
-- The following rcparams have no effect: ``pdf.fonttype``,
-  ``pdf.use14corefonts``, ``ps.fonttype``, ``ps.useafm``, ``svg.fonttype``,
-  ``svg.hashsalt``.
+- The following rcparams have no effect:
+
+  - ``pdf.fonttype`` (font type is selected by cairo internally),
+  - ``pdf.inheritcolor`` (effectively always ``False``),
+  - ``pdf.use14corefonts`` (effectively always ``False``),
+  - ``ps.fonttype`` (font type is selected by cairo internally),
+  - ``ps.useafm`` (effectively always ``False``),
+  - ``svg.fonttype`` (effectively always ``"path"``, see `cairo bug #253
+    <cairo-253_>`_),
+  - ``svg.hashsalt``.
+
+.. _cairo-253: https://gitlab.freedesktop.org/cairo/cairo/issues/253
 
 Possible optimizations
 ======================
@@ -509,9 +518,6 @@ Possible optimizations
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
 - Path simplification (although cairo appears to use vertex reduction and
   Douglas-Peucker internally?).
-- mathtext should probably hold onto a vector of ``FT_Glyph``\s instead of
-  reloading a ``FT_Face`` for each glyph, but that'll likely wait for the ft2
-  rewrite in Matplotlib itself.
 - Use QtOpenGLWidget and the cairo-gl backend.
 - ``hexbin`` currently falls back on the slow implementation due to its use of
   the ``offset_position`` parameter.  This should be fixed on Matplotlib's
