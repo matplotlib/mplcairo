@@ -154,7 +154,7 @@ void PatternCache::mask(
     std::tie(it_bboxes, ok) =
       bboxes_.emplace(key.path, cairo_rectangle_t{x0, y0, x1 - x0, y1 - y0});
     if (!ok) {
-      throw std::runtime_error("unexpected insertion failure into cache");
+      throw std::runtime_error{"unexpected insertion failure into cache"};
     }
   }
   // Approximate ("quantize") the transform matrix, so that the transformed
@@ -215,7 +215,7 @@ void PatternCache::mask(
       patterns_.emplace(
         key, PatternEntry{x0, y0, x1 - x0, y1 - y0, std::move(patterns)});
     if (!ok) {
-      throw std::runtime_error("unexpected insertion failure into cache");
+      throw std::runtime_error{"unexpected insertion failure into cache"};
     }
   }
   auto const& entry = it_patterns->second;

@@ -101,13 +101,13 @@ rgba_t to_rgba(py::object color, std::optional<double> alpha)
 cairo_matrix_t matrix_from_transform(py::object transform, double y0)
 {
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
-    throw std::invalid_argument("only affine transforms are handled");
+    throw std::invalid_argument{"only affine transforms are handled"};
   }
   auto const& py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
   if (py_matrix.shape(0) != 3 || py_matrix.shape(1) != 3) {
-    throw std::invalid_argument(
+    throw std::invalid_argument{
       "transformation matrix must have shape (3, 3), "
-      "not {.shape}"_format(transform).cast<std::string>());
+      "not {.shape}"_format(transform).cast<std::string>()};
   }
   return cairo_matrix_t{
     py_matrix(0, 0), -py_matrix(1, 0),
@@ -119,13 +119,13 @@ cairo_matrix_t matrix_from_transform(
   py::object transform, cairo_matrix_t const* master_matrix)
 {
   if (!py::bool_(py::getattr(transform, "is_affine", py::bool_(true)))) {
-    throw std::invalid_argument("only affine transforms are handled");
+    throw std::invalid_argument{"only affine transforms are handled"};
   }
   auto const& py_matrix = transform.cast<py::array_t<double>>().unchecked<2>();
   if (py_matrix.shape(0) != 3 || py_matrix.shape(1) != 3) {
-    throw std::invalid_argument(
+    throw std::invalid_argument{
       "transformation matrix must have shape (3, 3), "
-      "not {.shape}"_format(transform).cast<std::string>());
+      "not {.shape}"_format(transform).cast<std::string>()};
   }
   // The y flip is already handled by the master matrix.
   auto matrix = cairo_matrix_t{
@@ -156,8 +156,8 @@ bool has_vector_surface(cairo_t* cr)
         default: ;
       }
     default:
-      throw std::invalid_argument(
-        "unexpected surface type: " + std::to_string(type));
+      throw std::invalid_argument{
+        "unexpected surface type: " + std::to_string(type)};
   }
 }
 
@@ -167,11 +167,11 @@ AdditionalState& get_additional_state(cairo_t* cr)
 {
   auto const& data = cairo_get_user_data(cr, &detail::STATE_KEY);
   if (!data) {
-    throw std::runtime_error("cairo_t* missing additional state");
+    throw std::runtime_error{"cairo_t* missing additional state"};
   }
   auto& stack = *static_cast<std::stack<AdditionalState>*>(data);
   if (stack.empty()) {
-    throw std::runtime_error("cairo_t* missing additional state");
+    throw std::runtime_error{"cairo_t* missing additional state"};
   }
   return stack.top();
 }
@@ -243,9 +243,9 @@ void load_path_exact(
     path.attr("codes").cast<std::optional<py::array_t<uint8_t>>>();
   auto const& n = vertices_keepref.shape(0);
   if (vertices_keepref.shape(1) != 2) {
-    throw std::invalid_argument(
+    throw std::invalid_argument{
       "vertices must have shape (n, 2), not {.shape}"_format(
-        path.attr("vertices")).cast<std::string>());
+        path.attr("vertices")).cast<std::string>()};
   }
   if (!codes_keepref) {
     load_path_exact(cr, vertices_keepref, 0, n, matrix);
@@ -254,9 +254,9 @@ void load_path_exact(
   auto const& vertices = vertices_keepref.unchecked<2>();
   auto const& codes = codes_keepref->unchecked<1>();
   if (codes.shape(0) != n) {
-    throw std::invalid_argument(
+    throw std::invalid_argument{
       "lengths of vertices ({}) and codes ({}) are mistached "_format(
-        n, codes.shape(0)).cast<std::string>());
+        n, codes.shape(0)).cast<std::string>()};
   }
   auto const& snapper = lpc.snapper;
   // Main loop.
@@ -353,9 +353,9 @@ void load_path_exact(
   auto const& vertices = vertices_keepref.unchecked<2>();
   auto const& n = vertices.shape(0);
   if (!(0 <= start && start <= stop && stop <= n)) {
-    throw std::invalid_argument(
+    throw std::invalid_argument{
       "invalid sub-path bounds ({}, {}) for path of size {}"_format(
-        start, stop, n).cast<std::string>());
+        start, stop, n).cast<std::string>()};
   }
   auto const& snapper = lpc.snapper;
 
@@ -524,9 +524,9 @@ void fill_and_stroke_exact(
 py::array image_surface_to_buffer(cairo_surface_t* surface) {
   if (auto const& type = cairo_surface_get_type(surface);
       type != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error(
+    throw std::runtime_error{
       "_get_buffer only supports image surfaces, not {}"_format(type)
-      .cast<std::string>());
+      .cast<std::string>()};
   }
   cairo_surface_reference(surface);
   cairo_surface_flush(surface);
@@ -558,9 +558,9 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
             cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
           })};
     default:
-      throw std::invalid_argument(
+      throw std::invalid_argument{
         "_get_buffer only supports images surfaces with ARGB32 and RGBA128F "
-        "formats, not {}"_format(fmt).cast<std::string>());
+        "formats, not {}"_format(fmt).cast<std::string>()};
   }
 }
 
@@ -666,7 +666,7 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
         decltype(raqm::destroy)>{
           rq, raqm::destroy};
     if (!rq) {
-      throw std::runtime_error("failed to compute text layout");
+      throw std::runtime_error{"failed to compute text layout"};
     }
     TRUE_CHECK(raqm::set_text_utf8, rq, s.c_str(), s.size());
     TRUE_CHECK(raqm::set_freetype_face, rq, ft_face);
