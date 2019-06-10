@@ -1636,8 +1636,7 @@ PYBIND11_MODULE(_mplcairo, m)
 
 #ifndef _WIN32
   if (import_cairo() < 0) {
-      m.ptr() = nullptr;  // FIXME[pybind11]: Exceptions set in init (#1734).
-      return;
+    throw py::error_already_set{};
   }
 
   auto const& ctypes = py::module::import("ctypes"),
