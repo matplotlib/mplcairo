@@ -241,7 +241,7 @@ setup(
     description="A (new) cairo backend for Matplotlib.",
     long_description=open("README.rst", encoding="utf-8").read(),
     author="Antony Lee",
-    url="https://github.com/anntzer/mplcairo",
+    url="https://github.com/matplotlib/mplcairo",
     license="MIT",
     classifiers=[
         "Development Status :: 4 - Beta",

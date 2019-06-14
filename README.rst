@@ -13,8 +13,8 @@ A (new) cairo backend for Matplotlib
    image:: https://repology.org/badge/version-for-repo/fedora_rawhide/python:mplcairo.svg
    :target: fedora-package_
 .. |Azure Pipelines|
-   image:: https://dev.azure.com/anntzer/mplcairo/_apis/build/status/anntzer.mplcairo
-   :target: https://dev.azure.com/anntzer/mplcairo/_build/latest?definitionId=1
+   image:: https://dev.azure.com/matplotlib/mplcairo/_apis/build/status/matplotlib.mplcairo
+   :target: https://dev.azure.com/matplotlib/mplcairo/_build/latest?definitionId=1
 
 .. _fedora-package: https://apps.fedoraproject.org/packages/python-mplcairo
 
@@ -66,7 +66,7 @@ As usual, install using pip:
 .. code-block:: sh
 
    $ pip install mplcairo  # from PyPI
-   $ pip install git+https://github.com/anntzer/mplcairo  # from Github
+   $ pip install git+https://github.com/matplotlib/mplcairo  # from Github
 
 Note that wheels are not available for macOS, because no macOS version ships a
 recent-enough libc++ by default and vendoring of libc++ appears to be fragile.
