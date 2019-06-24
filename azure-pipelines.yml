@@ -14,13 +14,13 @@ strategy:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.7'
     macOS_py35:
-      vmImage: 'macOS-10.13'
+      vmImage: 'macOS-10.14'
       pythonVersion: '3.5'
     macOS_py36:
-      vmImage: 'macOS-10.13'
+      vmImage: 'macOS-10.14'
       pythonVersion: '3.6'
     macOS_py37:
-      vmImage: 'macOS-10.13'
+      vmImage: 'macOS-10.14'
       pythonVersion: '3.7'
     Windows_py36:
       vmImage: 'vs2017-win2016'
@@ -49,19 +49,10 @@ steps:
       sudo apt update &&
       sudo apt install ghostscript inkscape
       ;;
-    macOS-10.13)
+    macOS-10.14)
       brew update >/dev/null &&
-      # Pin to llvm<8 until Azure has a macOS 10.14 image.
-      brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/4a3a0d06fd320af7df33342293b682bb1d263f8b/Formula/llvm.rb
-      brew install cairo ccache pkg-config &&
-      # CXX must be set due to weird manipulations by distutils.
-      PATH="/usr/local/opt/llvm/bin:$PATH" \
-        PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig \
-        CPPFLAGS=-L/usr/local/opt/llvm/include \
-        LDFLAGS='-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib' \
-        CC='ccache clang' \
-        CXX='ccache clang' \
-        tools/build-macos-wheel.sh &&
+      brew install cairo pkg-config &&
+      PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
       brew install ghostscript
       ;;
     vs2017-win2016)
