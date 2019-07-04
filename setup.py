@@ -267,5 +267,5 @@ setup(
         "matplotlib>=2.2",
         "pycairo>=1.16.0; os_name == 'posix'",
     ]
-    + (["pybind11>=2.2.4"] if BUILD_TYPE is BuildType.Default else []),
+    + (["pybind11==2.2.4"] if BUILD_TYPE is BuildType.Default else []),
 )

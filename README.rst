@@ -56,7 +56,7 @@ mplcairo requires
 
 - Python≥3.5 (≥3.6 on Windows),
 - Matplotlib≥2.2 (declared as ``install_requires``),
-- pybind11≥2.2.4 [#]_ (declared as ``install_requires``),
+- pybind11==2.2.4 [#]_ (declared as ``install_requires``),
 - on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as conditional
   ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
@@ -78,7 +78,11 @@ and macOS.  You may want to look at https://github.com/HOST-Oman/libraqm-cmake
 for Windows build scripts.
 
 .. [#] pybind11 is actually only a build-time requirement, but doesn't play
-   well with ``setup_requires``.
+   well with ``setup_requires``.  The exact version requirement comes from
+   pybind11 issues `#1362 <pybind11-1362_>`_ and `#1830 <pybind11-1830_>`_.
+
+.. _pybind11-1362: https://github.com/pybind/pybind11/issues/1362
+.. _pybind11-1830: https://github.com/pybind/pybind11/issues/1830
 
 .. [#] pycairo 1.16.0 added ``get_include()``.
 
@@ -376,8 +380,8 @@ rcparam validation, using, e.g.
 The ``text.antialiased`` rcparam can likewise be set to any
 ``cairo_antialias_t`` enum value, or ``True`` (the default, which maps to
 ``SUBPIXEL`` — ``GRAY`` is not sufficient to benefit from Raqm_'s subpixel
-positioning; see also `cairo bug #152 <cairo-152_>`_) or ``False`` (which maps
-to ``NONE``).
+positioning; see also `cairo issue #152 <cairo-152_>`_) or ``False`` (which
+maps to ``NONE``).
 
 .. _cairo-152: https://gitlab.freedesktop.org/cairo/cairo/issues/152
 
@@ -472,7 +476,7 @@ rendering path used (e.g., whether marker stamping is used at all).  This may
 be helpful for troubleshooting purposes.
 
 Note that this may crash the process after the file is written, due to `cairo
-bug #277 <cairo-277_>`_.
+issue #277 <cairo-277_>`_.
 
 .. _cairo-277: https://gitlab.freedesktop.org/cairo/cairo/issues/277
 
@@ -499,7 +503,7 @@ Missing support from cairo
   - ``pdf.use14corefonts`` (effectively always ``False``),
   - ``ps.fonttype`` (font type is selected by cairo internally),
   - ``ps.useafm`` (effectively always ``False``),
-  - ``svg.fonttype`` (effectively always ``"path"``, see `cairo bug #253
+  - ``svg.fonttype`` (effectively always ``"path"``, see `cairo issue #253
     <cairo-253_>`_),
   - ``svg.hashsalt``.
 
