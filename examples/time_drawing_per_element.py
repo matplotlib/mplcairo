@@ -6,7 +6,8 @@ import pprint
 import sys
 import time
 
-from matplotlib import backends, pyplot as plt
+import matplotlib as mpl
+from matplotlib import pyplot as plt
 import numpy as np
 
 
@@ -79,9 +80,8 @@ $ python %(prog)s plot \\
         try:
             orig_rc = dict.copy(plt.rcParams)
             dict.update(plt.rcParams, rc)
+            mpl.use(plt.rcParams["backend"])
             fig, ax = plt.subplots()
-            backend_mod, *_ = backends.pylab_setup(plt.rcParams["backend"])
-            ax.figure.canvas = backend_mod.FigureCanvas(ax.figure)
             results.append(get_times(ax, method, n_elems))
             plt.close(fig)
         finally:
