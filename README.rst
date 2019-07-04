@@ -303,7 +303,7 @@ is arguably more accurate than the one of the default renderer, Agg:
 
 - circle_markers.py_ and square_markers.py_: more accurate and faster marker
   stamping.
-- markevery.py_: more accurate marker stamping.
+- marker_stamping.py_: more accurate marker stamping.
 - quadmesh.py_: better antialiasing of quad meshes, fewer artefacts with
   masked data.
 - text_kerning.py_: improved text kerning.
@@ -311,7 +311,7 @@ is arguably more accurate than the one of the default renderer, Agg:
 .. _examples: examples/
 .. _circle_markers.py: examples/circle_markers.py
 .. _square_markers.py: examples/square_markers.py
-.. _markevery.py: examples/markevery.py
+.. _marker_stamping.py: examples/marker_stamping.py
 .. _quadmesh.py: examples/quadmesh.py
 .. _text_kerning.py: examples/text_kerning.py
 
