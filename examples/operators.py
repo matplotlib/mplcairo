@@ -42,7 +42,8 @@ class OpCircle(Circle):
         gc.restore()
 
 
-fig, axs = plt.subplots(math.ceil(len(ops)**(1/2)), math.ceil(len(ops)**(1/2)))
+fig = plt.figure(figsize=(8, 4))
+axs = fig.subplots(math.ceil(len(ops)**(1/2)), math.ceil(len(ops)**(1/2)))
 # The figure patch should be set to fully transparent to avoid compositing the
 # patches against it.
 fig.patch.set(alpha=0)
@@ -60,7 +61,8 @@ fig.tight_layout()
 
 # Rely on `operator_t.patch_artist`.
 
-fig, axs = plt.subplots(math.ceil(len(ops)**(1/2)), math.ceil(len(ops)**(1/2)))
+fig = plt.figure(figsize=(8, 4))
+axs = fig.subplots(math.ceil(len(ops)**(1/2)), math.ceil(len(ops)**(1/2)))
 # The figure patch should be set to fully transparent to avoid compositing the
 # patches against it.
 fig.patch.set(alpha=0)

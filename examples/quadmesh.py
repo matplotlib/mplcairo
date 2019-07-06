@@ -21,5 +21,8 @@ axs[0, 0].pcolormesh(Qx, Qz, Z, shading='gouraud')
 axs[0, 1].pcolormesh(Qx, Qz, Zm, shading='gouraud')
 axs[1, 0].pcolormesh(Qx, Qz, Z, lw=0.5, edgecolors='k')
 axs[1, 1].pcolormesh(Qx, Qz, Z, lw=2, edgecolors=['b', 'w'])
+for ax in axs.flat:
+    ax.set_axis_off()
+fig.tight_layout()
 
 plt.show()
