@@ -84,6 +84,10 @@ cairo PS does not support SOURCE_DATE_EPOCH. ::
 
    test_backend_ps::test_source_date_epoch
 
+cairo does not support text in SVG output. ::
+
+   test_backend_svg::test_svgnone_with_data_coordinates
+
 cairo does not support URLs in SVG output. ::
 
    test_backend_svg::test_text_urls

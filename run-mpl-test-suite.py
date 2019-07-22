@@ -126,6 +126,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_ps.py::test_savefig_to_stringio[ps with usetex]",
                 "test_backend_ps.py::test_savefig_to_stringio[ps]",
                 "test_backend_ps.py::test_source_date_epoch",
+                "test_backend_svg.py::test_svgnone_with_data_coordinates",
                 "test_backend_svg.py::test_text_urls",
                 "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[pdf]",
                 "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[png]",
