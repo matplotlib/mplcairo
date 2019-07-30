@@ -153,12 +153,6 @@ rgba_t GraphicsContextRenderer::get_rgba()
   return {r, g, b, a};
 }
 
-GraphicsContextRenderer::AdditionalContext
-GraphicsContextRenderer::additional_context()
-{
-  return {this};
-}
-
 GraphicsContextRenderer::GraphicsContextRenderer(
   cairo_t* cr, double width, double height, double dpi) :
   // This does *not* incref the cairo_t, but the destructor *will* decref it.
@@ -355,6 +349,12 @@ GraphicsContextRenderer GraphicsContextRenderer::make_pattern_gcr(
   cairo_surface_destroy(surface);
   gcr.get_additional_state().snap = false;
   return gcr;
+}
+
+GraphicsContextRenderer::AdditionalContext
+GraphicsContextRenderer::_additional_context()
+{
+  return {this};
 }
 
 void GraphicsContextRenderer::_set_path(std::optional<std::string> path) {
@@ -673,7 +673,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
   auto matrix =
     matrix_from_transform(transform, get_additional_state().height);
   auto const& tri_raw = triangles.unchecked<3>();
@@ -712,7 +712,7 @@ void GraphicsContextRenderer::draw_image(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
   auto const& im_raw = im.unchecked<3>();
   auto const& height = im_raw.shape(0), width = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
@@ -794,7 +794,7 @@ void GraphicsContextRenderer::draw_markers(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
 
   // As paths store their vertices in an array, the .cast<>() will not make a
   // copy and we don't need to explicitly keep the intermediate result alive.
@@ -998,7 +998,7 @@ void GraphicsContextRenderer::draw_path(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
   auto path_loaded = false;
   auto matrix =
     matrix_from_transform(transform, get_additional_state().height);
@@ -1107,7 +1107,7 @@ void GraphicsContextRenderer::draw_path_collection(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
   auto const& old_snap = get_additional_state().snap;
   get_additional_state().snap = false;
 
@@ -1223,7 +1223,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
   auto const& matrix =
     matrix_from_transform(master_transform, get_additional_state().height);
   auto const& fcs_raw = fcs.unchecked<2>(),
@@ -1322,7 +1322,7 @@ void GraphicsContextRenderer::draw_text(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = additional_context();
+  auto const& ac = _additional_context();
   if (ismath) {
     py::module::import("mplcairo")
       .attr("_mathtext_parse")(s, get_additional_state().dpi, prop)
@@ -1570,6 +1570,7 @@ MathtextBackend& MathtextBackend::get_results(
 void MathtextBackend::_draw(
   GraphicsContextRenderer& gcr, double x, double y, double angle) const
 {
+  auto const& ac = gcr._additional_context();
   auto const& cr = gcr.cr_;
   auto const& dpi = get_additional_state(cr).dpi;
   cairo_translate(cr, x, y);

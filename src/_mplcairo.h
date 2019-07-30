@@ -42,7 +42,6 @@ class GraphicsContextRenderer {
 
   double pixels_to_points(double pixels);
   rgba_t get_rgba();
-  AdditionalContext additional_context();
 
   public:
 
@@ -62,6 +61,8 @@ class GraphicsContextRenderer {
     double width, double height, double dpi);
 
   static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
+
+  AdditionalContext _additional_context();
 
   void _set_path(std::optional<std::string> path);
   void _set_metadata(std::optional<py::dict> metadata);
