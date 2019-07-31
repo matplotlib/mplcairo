@@ -584,9 +584,11 @@ void GraphicsContextRenderer::set_joinstyle(std::string joinstyle)
 void GraphicsContextRenderer::set_linewidth(double lw)
 {
   cairo_set_line_width(cr_, points_to_pixels(lw));
-  // Somewhat weird setting, but that's what the Agg backend does
-  // (_backend_agg.h).
-  cairo_set_miter_limit(cr_, cairo_get_line_width(cr_));
+  cairo_set_miter_limit(
+    cr_,
+    detail::MITER_LIMIT >= 0
+    // Agg's default (in _backend_agg.h) is likely buggy.
+    ? detail::MITER_LIMIT : cairo_get_line_width(cr_));
 }
 
 // NOTE: Don't take std::optional<bool> as argument as this appears to lead to
@@ -1789,6 +1791,10 @@ Patch an artist to make it use this compositing operator for drawing.
           pop_option("marker_threads").cast<std::optional<int>>()) {
         detail::MARKER_THREADS = *marker_threads;
       }
+      if (auto miter_limit =
+          pop_option("miter_limit").cast<std::optional<double>>()) {
+        detail::MITER_LIMIT = *miter_limit;
+      }
       if (auto raqm =
           pop_option("raqm").cast<std::optional<bool>>()) {
         if (*raqm) {
@@ -1807,15 +1813,24 @@ Set mplcairo options.
 
 Parameters
 ----------
-cairo_circles : bool
+cairo_circles : bool, default: True
   Whether to use cairo's circle drawing algorithm, rather than Matplotlib's
   fixed spline approximation.
-float_surface : bool
+
+float_surface : bool, default: False
   Whether to use a floating point surface (more accurate, but uses more
   memory).
-marker_threads : int
-  Number of threads to use to render markers.
-raqm : bool
+
+marker_threads : int, default: 0
+  Number of threads to use to render markers, if nonzero.
+
+miter_limit : float, default: 10
+  Setting for cairo_set_miter_limit__.  If negative, use Matplotlib's (bad)
+  default of matching the linewidth.  The default matches cairo's default.
+
+  __ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-set-miter-limit
+
+raqm : bool, default: if available
   Whether to use Raqm for text rendering.
 )__doc__");
   m.def(
@@ -1825,6 +1840,7 @@ raqm : bool
         "cairo_circles"_a=!detail::UNIT_CIRCLE.is_none(),
         "float_surface"_a=detail::FLOAT_SURFACE,
         "marker_threads"_a=detail::MARKER_THREADS,
+        "miter_limit"_a=detail::MITER_LIMIT,
         "raqm"_a=has_raqm());
     }, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available

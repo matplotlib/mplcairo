@@ -37,6 +37,7 @@ cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
 py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
 bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
+double MITER_LIMIT{10.};
 MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{
   []() -> MplcairoScriptSurface {
     if (auto script_surface = std::getenv("MPLCAIRO_SCRIPT_SURFACE");

@@ -75,6 +75,7 @@ extern py::object UNIT_CIRCLE;
 extern py::object PIXEL_MARKER;
 extern bool FLOAT_SURFACE;
 extern int MARKER_THREADS;
+extern double MITER_LIMIT;
 enum class MplcairoScriptSurface {
   None, Raster, Vector
 };
