@@ -1769,34 +1769,32 @@ Patch an artist to make it use this compositing operator for drawing.
     "set_options",
     [](py::kwargs kwargs) -> void {
       // FIXME[pybind11]: Redo once they pybind11 has kwonly args.
-      auto pop_option = [&](std::string key) -> py::object {
-        return kwargs.attr("pop")(key, py::none());
+      auto const& pop_option =
+        [&](std::string key, auto dummy) -> std::optional<decltype(dummy)> {
+          return
+            kwargs.attr("pop")(key, py::none())
+            .cast<std::optional<decltype(dummy)>>();
       };
-      if (auto cairo_circles =
-          pop_option("cairo_circles").cast<std::optional<bool>>()) {
+      if (auto const& cairo_circles = pop_option("cairo_circles", bool{})) {
         detail::UNIT_CIRCLE =
           *cairo_circles
           ? py::module::import("matplotlib.path").attr("Path")
             .attr("unit_circle")()
           : py::none{};
       }
-      if (auto float_surface =
-          pop_option("float_surface").cast<std::optional<bool>>()) {
+      if (auto const& float_surface = pop_option("float_surface", bool{})) {
         if (cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
           throw std::invalid_argument{"float surfaces require cairo>=1.17.2"};
         }
         detail::FLOAT_SURFACE = *float_surface;
       }
-      if (auto marker_threads =
-          pop_option("marker_threads").cast<std::optional<int>>()) {
+      if (auto const& marker_threads = pop_option("marker_threads", int{})) {
         detail::MARKER_THREADS = *marker_threads;
       }
-      if (auto miter_limit =
-          pop_option("miter_limit").cast<std::optional<double>>()) {
+      if (auto const& miter_limit = pop_option("miter_limit", double{})) {
         detail::MITER_LIMIT = *miter_limit;
       }
-      if (auto raqm =
-          pop_option("raqm").cast<std::optional<bool>>()) {
+      if (auto const& raqm = pop_option("raqm", bool{})) {
         if (*raqm) {
           load_raqm();
         } else {
