@@ -69,7 +69,9 @@ steps:
     python -mpip install dist/*.whl &&
     python tools/ensure-mpl-test-data.py &&
     # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
-    pip install 'pytest<3.8'
+    pip install 'pytest<3.8' &&
+    # numpy!=1.17.0 needed before matplotlib#14901 (matplotlib<3.1.2).
+    pip install 'numpy!=1.17.0'
 
   displayName: 'Build & install'
 
