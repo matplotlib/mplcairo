@@ -1503,8 +1503,11 @@ void GraphicsContextRenderer::restore_region(Region& region)
 
 MathtextBackend::Glyph::Glyph(
   std::string path, double size,
-  std::variant<std::string, FT_ULong> name_or_code, double x, double y) :
-  path{path}, size{size}, name_or_code{name_or_code}, x{x}, y{y}
+  std::variant<char32_t, std::string, FT_ULong> codepoint_or_name_or_index,
+  double x, double y) :
+  path{path}, size{size},
+  codepoint_or_name_or_index{codepoint_or_name_or_index},
+  x{x}, y{y}
 {}
 
 MathtextBackend::MathtextBackend() :
@@ -1541,15 +1544,24 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
   glyphs_.emplace_back(
     info.attr("font").attr("fname").cast<std::string>(),
     info.attr("fontsize").cast<double>(),
-    info.attr("symbol_name").cast<std::string>(),
+    // Here, we must use the character's unicode index rather than the
+    // symbol name, because the symbol may have been synthesized by
+    // FT2Font::get_glyph_name for a font without FT_FACE_FLAG_GLYPH_NAMES
+    // (e.g. arial.ttf), which FT_Get_Name_Index can't know about.
+    char32_t(info.attr("num").cast<unsigned long>()),
     ox, oy);
 }
 
 void MathtextBackend::_render_usetex_glyph(
   double ox, double oy, std::string filename, double size,
-  std::variant<std::string, FT_ULong> name_or_code)
+  std::variant<std::string, FT_ULong> name_or_index)
 {
-  glyphs_.emplace_back(filename, size, name_or_code, ox, oy);
+  auto codepoint_or_name_or_index =
+    std::variant<char32_t, std::string, FT_ULong>{};
+  std::visit(overloaded {
+    [&](auto name_or_index) { codepoint_or_name_or_index = name_or_index; }
+  }, name_or_index);
+  glyphs_.emplace_back(filename, size, codepoint_or_name_or_index, ox, oy);
 }
 
 void MathtextBackend::render_rect_filled(
@@ -1590,13 +1602,34 @@ void MathtextBackend::_draw(
         cairo_font_face_get_user_data(font_face, &detail::FT_KEY));
     auto index = FT_UInt{};
     std::visit(overloaded {
+      [&](char32_t codepoint) {
+        // The last unicode charmap is the FreeType-synthesized one.
+        auto i = ft_face->num_charmaps - 1;
+        for (; i >= 0; --i) {
+          if (ft_face->charmaps[i]->encoding == FT_ENCODING_UNICODE) {
+            FT_CHECK(FT_Set_Charmap, ft_face, ft_face->charmaps[i]);
+            break;
+          }
+        }
+        if (i < 0) {
+          throw std::runtime_error{"no unicode charmap found"};
+        }
+        index = FT_Get_Char_Index(ft_face, codepoint);
+        if (!index) {
+          warn_on_missing_glyph("#" + std::to_string(index));
+        }
+      },
       [&](std::string name) {
         index = FT_Get_Name_Index(ft_face, name.data());
         if (!index) {
-          warn_on_missing_glyph("#" + name);
+          warn_on_missing_glyph(name);
         }
       },
-      [&](FT_ULong code) {
+      [&](FT_ULong idx) {
+        // For the usetex case, look up the "native" font charmap,
+        // which typically has a TT_ENCODING_ADOBE_STANDARD or
+        // TT_ENCODING_ADOBE_CUSTOM encoding, unlike the FreeType-synthesized
+        // one which has a TT_ENCODING_UNICODE encoding.
         auto found = false;
         for (auto i = 0; i < ft_face->num_charmaps; ++i) {
           if (ft_face->charmaps[i]->encoding != FT_ENCODING_UNICODE) {
@@ -1610,12 +1643,12 @@ void MathtextBackend::_draw(
         if (!found) {
           throw std::runtime_error{"no builtin charmap found"};
         }
-        index = FT_Get_Char_Index(ft_face, code);
+        index = FT_Get_Char_Index(ft_face, idx);
         if (!index) {
           warn_on_missing_glyph("#" + std::to_string(index));
         }
       }
-    }, glyph.name_or_code);
+    }, glyph.codepoint_or_name_or_index);
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};
     cairo_show_glyphs(cr, &raw_glyph, 1);
   }
