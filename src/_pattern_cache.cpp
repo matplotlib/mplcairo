@@ -209,9 +209,8 @@ void PatternCache::mask(
       draw_direct();
       return;
     }
-    // Must be nullptr-initialized.
-    auto patterns =
-      std::make_unique<cairo_pattern_t*[]>(n_subpix_ * n_subpix_);
+    auto patterns = std::unique_ptr<cairo_pattern_t*[]>{
+      new cairo_pattern_t*[n_subpix_ * n_subpix_]()};  // () for nullptr-init!
     bool ok;
     std::tie(it_patterns, ok) =
       patterns_.emplace(

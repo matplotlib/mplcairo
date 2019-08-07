@@ -18,7 +18,6 @@ against it.
 import math
 
 from matplotlib import pyplot as plt
-from matplotlib.image import AxesImage
 from matplotlib.patches import Circle
 import numpy as np
 

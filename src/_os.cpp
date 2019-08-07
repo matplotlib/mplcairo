@@ -58,7 +58,7 @@ symbol_t dlsym(char const* symbol) {
   auto cbNeeded = DWORD{};
   EnumProcessModules(hProcess, nullptr, 0, &cbNeeded);
   auto n_modules = cbNeeded / sizeof(HMODULE);
-  auto lphModule = std::unique_ptr<HMODULE[]>(new HMODULE[n_modules]);
+  auto lphModule = std::unique_ptr<HMODULE[]>{new HMODULE[n_modules]};
   if (EnumProcessModules(hProcess, lphModule.get(), cbNeeded, &cbNeeded)) {
     for (auto i = 0; i < n_modules; ++i) {
       if (auto proc = GetProcAddress(lphModule[i], symbol)) {

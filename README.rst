@@ -493,8 +493,8 @@ Known issues
 Missing support from cairo
 --------------------------
 
-- SVG output does not set URLs on any element, as cairo provides no support for
-  doing so.
+- SVG output does not set URLs or ids on any element, as cairo provides no
+  support to do so.
 - PS output does not respect SOURCE_DATE_EPOCH.
 - The following rcparams have no effect:
 

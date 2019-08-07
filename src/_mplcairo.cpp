@@ -874,7 +874,7 @@ void GraphicsContextRenderer::draw_markers(
     cairo_set_line_join(raster_cr, cairo_get_line_join(cr_));
     cairo_set_line_width(raster_cr, cairo_get_line_width(cr_));
     auto const& dash_count = cairo_get_dash_count(cr_);
-    auto const& dashes = std::unique_ptr<double[]>(new double[dash_count]);
+    auto const& dashes = std::unique_ptr<double[]>{new double[dash_count]};
     double offset;
     cairo_get_dash(cr_, dashes.get(), &offset);
     cairo_set_dash(raster_cr, dashes.get(), dash_count, offset);
@@ -1558,9 +1558,9 @@ void MathtextBackend::_render_usetex_glyph(
 {
   auto codepoint_or_name_or_index =
     std::variant<char32_t, std::string, FT_ULong>{};
-  std::visit(overloaded {
-    [&](auto name_or_index) { codepoint_or_name_or_index = name_or_index; }
-  }, name_or_index);
+  std::visit(
+    [&](auto name_or_index) { codepoint_or_name_or_index = name_or_index; },
+    name_or_index);
   glyphs_.emplace_back(filename, size, codepoint_or_name_or_index, ox, oy);
 }
 
