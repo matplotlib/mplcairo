@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import functools
 from functools import partial, partialmethod
+import gc
 from gzip import GzipFile
 import logging
 import os
@@ -230,6 +231,16 @@ class FigureCanvasCairo(FigureCanvasBase):
         with _LOCK:
             self.get_renderer().restore_region(region)
         super().draw()
+
+    def print_figure(self, *args, **kwargs):
+        super().print_figure(*args, **kwargs)
+        # When using bbox_inches = "tight", an additional renderer is created
+        # to measure the figure bbox, but that renderer needs to be gc'd now;
+        # otherwise it may be gc'd at shutdown, where cairo's attempt to
+        # finalize() the surface will segfault due to already torn down
+        # structures.  Repro with
+        #    plot(); savefig("/tmp/test.pdf", bbox_inches="tight")
+        gc.collect()
 
     def _print_method(self, renderer_factory,
                       path_or_stream, *, metadata=None, dpi=72, **kwargs):
