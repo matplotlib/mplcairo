@@ -69,7 +69,7 @@ def get_raw_buffer(canvas):
 
 
 def _operator_patch_artist(op, artist):
-    """Implementation of `operator_t.patch_artist`."""
+    """Patch an artist to make it use this compositing operator for drawing."""
 
     def draw(renderer):
         gc = renderer.new_gc()
@@ -79,3 +79,6 @@ def _operator_patch_artist(op, artist):
 
     _base_draw = artist.draw
     artist.draw = draw
+
+
+operator_t.patch_artist = _operator_patch_artist

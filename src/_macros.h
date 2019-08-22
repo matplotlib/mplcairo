@@ -47,3 +47,43 @@
       return value_; \
     } \
   }()
+
+// Extension for pybind11: Pythonic macros.
+
+#define P11X_ENUM_TYPE(...) decltype(std::map{std::pair __VA_ARGS__})::mapped_type
+
+#define P11X_DECLARE_ENUM(py_name, holder, ...) \
+  static_assert(std::is_enum_v<P11X_ENUM_TYPE(__VA_ARGS__)>, "Not an enum"); \
+  namespace { \
+    auto holder = \
+      std::tuple{py_name, std::vector{std::pair __VA_ARGS__}, pybind11::none{}}; \
+  } \
+  namespace pybind11::detail { \
+    template<> struct type_caster<P11X_ENUM_TYPE(__VA_ARGS__)> { \
+      PYBIND11_TYPE_CASTER(P11X_ENUM_TYPE(__VA_ARGS__), _(py_name)); \
+      bool load(handle src, bool) { \
+        PyObject* tmp = nullptr; \
+        if (pybind11::isinstance(src, std::get<2>(holder)) \
+            && (tmp = PyNumber_Index(src.attr("value").ptr()))) { \
+          auto ival = PyLong_AsLong(tmp); \
+          value = decltype(value)(ival); \
+          Py_DECREF(tmp); \
+          return !(ival == -1 && !PyErr_Occurred()); \
+        } else { \
+          return false; \
+        } \
+      } \
+      static handle cast(decltype(value) obj, return_value_policy, handle) { \
+        return std::get<2>(holder)(int(obj)).inc_ref(); \
+      } \
+    }; \
+  }
+
+#define P11X_BIND_ENUM(mod, holder, pyenum_class) { \
+  auto tmp = std::vector<std::pair<std::string, int>>{}; \
+  for (auto& [k, v]: std::get<1>(holder)) { tmp.emplace_back(k, int(v)); } \
+  mod.attr(pybind11::cast(std::get<0>(holder))) = \
+    std::get<2>(holder) = \
+    pybind11::module::import("pydoc").attr("locate")(pyenum_class)( \
+      std::get<0>(holder), tmp); \
+}

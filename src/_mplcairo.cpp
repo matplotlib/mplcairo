@@ -15,6 +15,68 @@
 
 #include "_macros.h"
 
+P11X_DECLARE_ENUM(
+  "antialias_t", Py_antialias_t,
+  {"DEFAULT", CAIRO_ANTIALIAS_DEFAULT},
+  {"NONE", CAIRO_ANTIALIAS_NONE},
+  {"GRAY", CAIRO_ANTIALIAS_GRAY},
+  {"SUBPIXEL", CAIRO_ANTIALIAS_SUBPIXEL},
+  {"FAST", CAIRO_ANTIALIAS_FAST},
+  {"GOOD", CAIRO_ANTIALIAS_GOOD},
+  {"BEST", CAIRO_ANTIALIAS_BEST}
+)
+P11X_DECLARE_ENUM(
+  "_format_t", Py_format_t,
+  {"INVALID", CAIRO_FORMAT_INVALID},
+  {"ARGB32", CAIRO_FORMAT_ARGB32},
+  {"RGB24", CAIRO_FORMAT_RGB24},
+  {"A8", CAIRO_FORMAT_A8},
+  {"A1", CAIRO_FORMAT_A1},
+  {"RGB16_565", CAIRO_FORMAT_RGB16_565},
+  {"RGB30", CAIRO_FORMAT_RGB30},
+  {"RGB96F", static_cast<cairo_format_t>(6)},
+  {"RGBA128F", static_cast<cairo_format_t>(7)}
+)
+P11X_DECLARE_ENUM(
+  "operator_t", Py_operator_t,
+  {"CLEAR", CAIRO_OPERATOR_CLEAR},
+  {"SOURCE", CAIRO_OPERATOR_SOURCE},
+  {"OVER", CAIRO_OPERATOR_OVER},
+  {"IN", CAIRO_OPERATOR_IN},
+  {"OUT", CAIRO_OPERATOR_OUT},
+  {"ATOP", CAIRO_OPERATOR_ATOP},
+  {"DEST", CAIRO_OPERATOR_DEST},
+  {"DEST_OVER", CAIRO_OPERATOR_DEST_OVER},
+  {"DEST_IN", CAIRO_OPERATOR_DEST_IN},
+  {"DEST_OUT", CAIRO_OPERATOR_DEST_OUT},
+  {"DEST_ATOP", CAIRO_OPERATOR_DEST_ATOP},
+  {"XOR", CAIRO_OPERATOR_XOR},
+  {"ADD", CAIRO_OPERATOR_ADD},
+  {"SATURATE", CAIRO_OPERATOR_SATURATE},
+  {"MULTIPLY", CAIRO_OPERATOR_MULTIPLY},
+  {"SCREEN", CAIRO_OPERATOR_SCREEN},
+  {"OVERLAY", CAIRO_OPERATOR_OVERLAY},
+  {"DARKEN", CAIRO_OPERATOR_DARKEN},
+  {"LIGHTEN", CAIRO_OPERATOR_LIGHTEN},
+  {"COLOR_DODGE", CAIRO_OPERATOR_COLOR_DODGE},
+  {"COLOR_BURN", CAIRO_OPERATOR_COLOR_BURN},
+  {"SOFT_LIGHT", CAIRO_OPERATOR_SOFT_LIGHT},
+  {"DIFFERENCE", CAIRO_OPERATOR_DIFFERENCE},
+  {"EXCLUSION", CAIRO_OPERATOR_EXCLUSION},
+  {"HSL_HUE", CAIRO_OPERATOR_HSL_HUE},
+  {"HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION},
+  {"HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR},
+  {"HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY}
+)
+P11X_DECLARE_ENUM(
+  "_StreamSurfaceType", Py_StreamSurfaceType,
+  {"PDF", mplcairo::StreamSurfaceType::PDF},
+  {"PS", mplcairo::StreamSurfaceType::PS},
+  {"EPS", mplcairo::StreamSurfaceType::EPS},
+  {"SVG", mplcairo::StreamSurfaceType::SVG},
+  {"Script", mplcairo::StreamSurfaceType::Script}
+)
+
 namespace mplcairo {
 
 using namespace pybind11::literals;
@@ -1734,68 +1796,10 @@ PYBIND11_MODULE(_mplcairo, m)
     XSTR(PYBIND11_VERSION_MINOR) "."
     XSTR(PYBIND11_VERSION_PATCH);
 
-  py::enum_<cairo_antialias_t>(m, "antialias_t")
-    .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
-    .value("NONE", CAIRO_ANTIALIAS_NONE)
-    .value("GRAY", CAIRO_ANTIALIAS_GRAY)
-    .value("SUBPIXEL", CAIRO_ANTIALIAS_SUBPIXEL)
-    .value("FAST", CAIRO_ANTIALIAS_FAST)
-    .value("GOOD", CAIRO_ANTIALIAS_GOOD)
-    .value("BEST", CAIRO_ANTIALIAS_BEST);
-  py::enum_<cairo_operator_t>(m, "operator_t")
-    .value("CLEAR", CAIRO_OPERATOR_CLEAR)
-    .value("SOURCE", CAIRO_OPERATOR_SOURCE)
-    .value("OVER", CAIRO_OPERATOR_OVER)
-    .value("IN", CAIRO_OPERATOR_IN)
-    .value("OUT", CAIRO_OPERATOR_OUT)
-    .value("ATOP", CAIRO_OPERATOR_ATOP)
-    .value("DEST", CAIRO_OPERATOR_DEST)
-    .value("DEST_OVER", CAIRO_OPERATOR_DEST_OVER)
-    .value("DEST_IN", CAIRO_OPERATOR_DEST_IN)
-    .value("DEST_OUT", CAIRO_OPERATOR_DEST_OUT)
-    .value("DEST_ATOP", CAIRO_OPERATOR_DEST_ATOP)
-    .value("XOR", CAIRO_OPERATOR_XOR)
-    .value("ADD", CAIRO_OPERATOR_ADD)
-    .value("SATURATE", CAIRO_OPERATOR_SATURATE)
-    .value("MULTIPLY", CAIRO_OPERATOR_MULTIPLY)
-    .value("SCREEN", CAIRO_OPERATOR_SCREEN)
-    .value("OVERLAY", CAIRO_OPERATOR_OVERLAY)
-    .value("DARKEN", CAIRO_OPERATOR_DARKEN)
-    .value("LIGHTEN", CAIRO_OPERATOR_LIGHTEN)
-    .value("COLOR_DODGE", CAIRO_OPERATOR_COLOR_DODGE)
-    .value("COLOR_BURN", CAIRO_OPERATOR_COLOR_BURN)
-    .value("SOFT_LIGHT", CAIRO_OPERATOR_SOFT_LIGHT)
-    .value("DIFFERENCE", CAIRO_OPERATOR_DIFFERENCE)
-    .value("EXCLUSION", CAIRO_OPERATOR_EXCLUSION)
-    .value("HSL_HUE", CAIRO_OPERATOR_HSL_HUE)
-    .value("HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION)
-    .value("HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR)
-    .value("HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY)
-    .def(
-      "patch_artist",
-      [](cairo_operator_t op, py::object obj) -> void {
-        py::module::import("mplcairo").attr("_operator_patch_artist")(op, obj);
-      }, R"__doc__(
-Patch an artist to make it use this compositing operator for drawing.
-)__doc__");
-
-  py::enum_<cairo_format_t>(m, "_format_t")
-    .value("INVALID", CAIRO_FORMAT_INVALID)
-    .value("ARGB32", CAIRO_FORMAT_ARGB32)
-    .value("RGB24", CAIRO_FORMAT_RGB24)
-    .value("A8", CAIRO_FORMAT_A8)
-    .value("A1", CAIRO_FORMAT_A1)
-    .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
-    .value("RGB30", CAIRO_FORMAT_RGB30)
-    .value("RGB96F", static_cast<cairo_format_t>(6))
-    .value("RGBA128F", static_cast<cairo_format_t>(7))
-    ;
-  py::enum_<StreamSurfaceType>(m, "_StreamSurfaceType")
-    .value("PDF", StreamSurfaceType::PDF)
-    .value("PS", StreamSurfaceType::PS)
-    .value("EPS", StreamSurfaceType::EPS)
-    .value("SVG", StreamSurfaceType::SVG)
-    .value("Script", StreamSurfaceType::Script);
+  P11X_BIND_ENUM(m, Py_antialias_t, "enum.Enum");
+  P11X_BIND_ENUM(m, Py_format_t, "enum.Enum");
+  P11X_BIND_ENUM(m, Py_operator_t, "enum.Enum");
+  P11X_BIND_ENUM(m, Py_StreamSurfaceType, "enum.Enum");
 
   // Export functions.
   m.def(
