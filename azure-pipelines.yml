@@ -76,7 +76,8 @@ steps:
   displayName: 'Build & install'
 
 - bash: |
-    ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml
+    ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml &&
+    ./run-examples.py
   displayName: 'Test'
 
 - task: PublishTestResults@2

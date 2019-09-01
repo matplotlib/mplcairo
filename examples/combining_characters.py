@@ -11,7 +11,7 @@ H̬̤e͜ ̜̥w̕h̖̯o̝͙ ̺̙W̷̼a̺̪į͈͕t̶̼s̘͙ ̠̫B̻͍e̵h̵̬i̹͓
 Z̮̞Ḁ̗̞Ḷ͙͎G̻O̭̗"""
 print(s)
 for c in s:
-    print(unicodedata.name(c, f"?? {ord(c):#x}"))
+    print(unicodedata.name(c, "?? {:#x}".format(ord(c))))  # Py3.5 compat.
 
 
 fig, ax = plt.subplots()

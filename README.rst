@@ -350,6 +350,9 @@ rendering differences.  In practice, ``--tolerance=50`` appears to be enough.
 Some other (non-image-comparison) tests are also known to fail (they are listed
 in ``ISSUES.rst``, with the relevant explanations), and automatically skipped.
 
+Run ``run-examples.py`` to run some examples that exercise some more aspects of
+mplcairo.
+
 Notes
 =====
 
