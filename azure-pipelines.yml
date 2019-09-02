@@ -76,8 +76,9 @@ steps:
   displayName: 'Build & install'
 
 - bash: |
+    export PYTHONFAULTHANDLER=1 &&
     ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml &&
-    ./run-examples.py
+    PYTHONIOENCODING=utf-8 ./run-examples.py
   displayName: 'Test'
 
 - task: PublishTestResults@2
