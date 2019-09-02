@@ -201,9 +201,11 @@ Windows
 
 The following additional dependencies are required:
 
-- MSVC≥19.14, which corresponds to VS2017≥15.7.  (This is the reason for
-  restricting support to Python 3.6 on Windows: distutils is able to use such a
-  recent MSVC only since Python 3.6.4.)
+- VS2019 (The exact minimum version is unknown, but it is known that mplcairo
+  fails to build on the Azure ``vs2017-win2016`` agent and requires the
+  ``windows-2019`` agent.  This is the reason for restricting support to Python
+  3.6 on Windows: distutils is able to use such a recent MSVC only since Python
+  3.6.4.)
 
 - cairo headers and import and dynamic libraries (``cairo.lib`` and
   ``cairo.dll``) *with FreeType support*.  Note that this excludes, in

@@ -166,7 +166,7 @@ class build_ext(build_ext):
                 # Windows conda path for FreeType.
                 [str(Path(sys.prefix, "Library/include"))])
             ext.extra_compile_args += (
-                ["/std:c++17", "/Zc:__cplusplus",
+                ["/std:c++17", "/Zc:__cplusplus", "/experimental:preprocessor",
                  "/EHsc", "/D_USE_MATH_DEFINES",
                  "/wd4244", "/wd4267"])  # cf. gcc -Wconversion.
             ext.libraries += (

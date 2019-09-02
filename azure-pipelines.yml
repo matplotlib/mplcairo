@@ -23,10 +23,10 @@ strategy:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.7'
     Windows_py36:
-      vmImage: 'vs2017-win2016'
+      vmImage: 'windows-2019'
       pythonVersion: '3.6'
     Windows_py37:
-      vmImage: 'vs2017-win2016'
+      vmImage: 'windows-2019'
       pythonVersion: '3.7'
 
 pool:
@@ -43,19 +43,19 @@ steps:
 
     pip install --upgrade pip setuptools
 
-    case "$VMIMAGE" in
-    ubuntu-16.04)
+    case "$(python -c 'import sys; print(sys.platform)')" in
+    linux)
       sudo PY_VERS="$PYTHONVERSION" tools/build-manylinux-wheel.sh &&
       sudo apt update &&
       sudo apt install ghostscript inkscape
       ;;
-    macOS-10.14)
+    darwin)
       brew update >/dev/null &&
       brew install cairo pkg-config &&
       PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
       brew install ghostscript
       ;;
-    vs2017-win2016)
+    win32)
       git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
       python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
       python tools/build-windows-wheel.py &&

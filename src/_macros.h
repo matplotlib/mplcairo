@@ -50,13 +50,17 @@
 
 // Extension for pybind11: Pythonic macros.
 
-#define P11X_ENUM_TYPE(...) decltype(std::map{std::pair __VA_ARGS__})::mapped_type
+// a1 includes the opening brace and a2 the closing brace.
+#define P11X_ENUM_TYPE(a1, a2, ...) decltype(std::pair a1, a2)::second_type
 
 #define P11X_DECLARE_ENUM(py_name, holder, ...) \
   static_assert(std::is_enum_v<P11X_ENUM_TYPE(__VA_ARGS__)>, "Not an enum"); \
   namespace { \
     auto holder = \
-      std::tuple{py_name, std::vector{std::pair __VA_ARGS__}, pybind11::none{}}; \
+      std::make_tuple( \
+        py_name, \
+        std::vector<std::pair<std::string, P11X_ENUM_TYPE(__VA_ARGS__)>>{__VA_ARGS__}, \
+        pybind11::none{}); \
   } \
   namespace pybind11::detail { \
     template<> struct type_caster<P11X_ENUM_TYPE(__VA_ARGS__)> { \
