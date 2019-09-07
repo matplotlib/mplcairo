@@ -157,6 +157,7 @@ def pytest_collection_modifyitems(session, config, items):
                     "test_backend_pdf.py::test_empty_rasterised",
                 ])
             ]
+            for nodeid in nodeids
         })
     xfails = []
     for item in items:
