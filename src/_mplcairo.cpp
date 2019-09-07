@@ -26,18 +26,6 @@ P11X_DECLARE_ENUM(
   {"BEST", CAIRO_ANTIALIAS_BEST}
 )
 P11X_DECLARE_ENUM(
-  "_format_t", Py_format_t,
-  {"INVALID", CAIRO_FORMAT_INVALID},
-  {"ARGB32", CAIRO_FORMAT_ARGB32},
-  {"RGB24", CAIRO_FORMAT_RGB24},
-  {"A8", CAIRO_FORMAT_A8},
-  {"A1", CAIRO_FORMAT_A1},
-  {"RGB16_565", CAIRO_FORMAT_RGB16_565},
-  {"RGB30", CAIRO_FORMAT_RGB30},
-  {"RGB96F", static_cast<cairo_format_t>(6)},
-  {"RGBA128F", static_cast<cairo_format_t>(7)}
-)
-P11X_DECLARE_ENUM(
   "operator_t", Py_operator_t,
   {"CLEAR", CAIRO_OPERATOR_CLEAR},
   {"SOURCE", CAIRO_OPERATOR_SOURCE},
@@ -67,6 +55,34 @@ P11X_DECLARE_ENUM(
   {"HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION},
   {"HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR},
   {"HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY}
+)
+P11X_DECLARE_ENUM(  // Only for error messages.
+  "_surface_type_t", Py_surface_type_t,
+  {"IMAGE", CAIRO_SURFACE_TYPE_IMAGE},
+  {"PDF", CAIRO_SURFACE_TYPE_PDF},
+  {"PS", CAIRO_SURFACE_TYPE_PS},
+  {"XLIB", CAIRO_SURFACE_TYPE_XLIB},
+  {"XCB", CAIRO_SURFACE_TYPE_XCB},
+  {"GLITZ", CAIRO_SURFACE_TYPE_GLITZ},
+  {"QUARTZ", CAIRO_SURFACE_TYPE_QUARTZ},
+  {"WIN32", CAIRO_SURFACE_TYPE_WIN32},
+  {"BEOS", CAIRO_SURFACE_TYPE_BEOS},
+  {"DIRECTFB", CAIRO_SURFACE_TYPE_DIRECTFB},
+  {"SVG", CAIRO_SURFACE_TYPE_SVG},
+  {"OS2", CAIRO_SURFACE_TYPE_OS2},
+  {"WIN32_PRINTING", CAIRO_SURFACE_TYPE_WIN32_PRINTING},
+  {"QUARTZ_IMAGE", CAIRO_SURFACE_TYPE_QUARTZ_IMAGE},
+  {"SCRIPT", CAIRO_SURFACE_TYPE_SCRIPT},
+  {"QT", CAIRO_SURFACE_TYPE_QT},
+  {"RECORDING", CAIRO_SURFACE_TYPE_RECORDING},
+  {"VG", CAIRO_SURFACE_TYPE_VG},
+  {"GL", CAIRO_SURFACE_TYPE_GL},
+  {"DRM", CAIRO_SURFACE_TYPE_DRM},
+  {"TEE", CAIRO_SURFACE_TYPE_TEE},
+  {"XML", CAIRO_SURFACE_TYPE_XML},
+  {"SKIA", CAIRO_SURFACE_TYPE_SKIA},
+  {"SUBSURFACE", CAIRO_SURFACE_TYPE_SUBSURFACE},
+  {"COGL", CAIRO_SURFACE_TYPE_COGL}
 )
 P11X_DECLARE_ENUM(
   "_StreamSurfaceType", Py_StreamSurfaceType,
@@ -353,8 +369,9 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       }
     }();
   if (!surface_create_for_stream) {
-    throw std::runtime_error{  // FIXME[pybind11]: .name (pybind11 2.3).
-      "cairo was built without {} support"_format(type).cast<std::string>()};
+    throw std::runtime_error{
+      "cairo was built without {.name} support"_format(type)
+      .cast<std::string>()};
   }
   auto const& cb =
     [](void* closure, unsigned char const* data, unsigned int length)
@@ -518,8 +535,8 @@ void GraphicsContextRenderer::_set_size(
       detail::cairo_ps_surface_set_size(surface, width, height);
       break;
     default:
-      throw std::invalid_argument{  // FIXME[pybind11]: .name (pybind11 2.3).
-        "_set_size only supports PDF and PS surfaces, not {}"_format(type)
+      throw std::invalid_argument{
+        "_set_size only supports PDF and PS surfaces, not {.name}"_format(type)
         .cast<std::string>()};
   }
 }
@@ -1528,8 +1545,8 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
   auto const& surface = cairo_get_target(cr_);
   if (auto const& type = cairo_surface_get_type(surface);
       type != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error{  // FIXME[pybind11]: .name (pybind11 2.3).
-      "copy_from_bbox only supports image surfaces, not {}"_format(type)
+    throw std::runtime_error{
+      "copy_from_bbox only supports IMAGE surfaces, not {.name}"_format(type)
       .cast<std::string>()};
   }
   auto const& raw = cairo_image_surface_get_data(surface);
@@ -1548,8 +1565,8 @@ void GraphicsContextRenderer::restore_region(Region& region)
   auto const& surface = cairo_get_target(cr_);
   if (auto const& type = cairo_surface_get_type(surface);
       type != CAIRO_SURFACE_TYPE_IMAGE) {
-    throw std::runtime_error{  // FIXME[pybind11]: .name (pybind11 2.3).
-      "restore_region only supports image surfaces, not {}"_format(type)
+    throw std::runtime_error{
+      "restore_region only supports IMAGE surfaces, not {.name}"_format(type)
       .cast<std::string>()};
   }
   auto const& raw = cairo_image_surface_get_data(surface);
@@ -1797,8 +1814,8 @@ PYBIND11_MODULE(_mplcairo, m)
     XSTR(PYBIND11_VERSION_PATCH);
 
   P11X_BIND_ENUM(m, Py_antialias_t, "enum.Enum");
-  P11X_BIND_ENUM(m, Py_format_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_operator_t, "enum.Enum");
+  P11X_BIND_ENUM(m, Py_surface_type_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_StreamSurfaceType, "enum.Enum");
 
   // Export functions.
