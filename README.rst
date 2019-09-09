@@ -500,6 +500,8 @@ Missing support from cairo
 - SVG output does not set URLs or ids on any element, as cairo provides no
   support to do so.
 - PS output does not respect SOURCE_DATE_EPOCH.
+- PS output does not support the ``Creator`` metadata key; however it supports
+  the ``Title`` key.
 - The following rcparams have no effect:
 
   - ``pdf.fonttype`` (font type is selected by cairo internally),

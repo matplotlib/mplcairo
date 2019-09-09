@@ -266,8 +266,9 @@ class FigureCanvasCairo(FigureCanvasBase):
         print_cairoscript = partialmethod(
             _print_method, GraphicsContextRendererCairo._for_script_output)
 
-    def _print_ps_impl(self, is_eps, path_or_stream,
-                       orientation="portrait", papertype=None, **kwargs):
+    def _print_ps_impl(self, is_eps, path_or_stream, *,
+                       metadata=None, orientation="portrait", papertype=None,
+                       **kwargs):
         if papertype is None:
             papertype = mpl.rcParams["ps.papersize"]
         if orientation == "portrait":
@@ -280,8 +281,11 @@ class FigureCanvasCairo(FigureCanvasBase):
                 papertype = backend_ps._get_papertype(width, height)
         else:
             raise ValueError("Invalid orientation ({!r})".format(orientation))
-        dsc_comments = kwargs.setdefault("metadata", {})["_dsc_comments"] = [
+        metadata = {**metadata} if metadata is not None else {}
+        dsc_comments = metadata["_dsc_comments"] = [
             "%%Orientation: {}".format(orientation)]
+        if "Title" in metadata:
+            dsc_comments.append("%%Title: {}".format(metadata.pop("Title")))
         if not is_eps:
             dsc_comments.append("%%DocumentPaperSizes: {}".format(papertype))
         print_method = partial(self._print_method,
@@ -291,7 +295,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         if mpl.rcParams["ps.usedistiller"]:
             with TemporaryDirectory() as tmp_dirname:
                 tmp_name = str(Path(tmp_dirname, "tmp"))  # Py3.5 compat.
-                print_method(tmp_name, **kwargs)
+                print_method(tmp_name, metadata=metadata, **kwargs)
                 # Assume we can get away without passing the bbox.
                 {"ghostscript": backend_ps.gs_distill,
                  "xpdf": backend_ps.xpdf_distill}[
@@ -301,7 +305,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                      cbook.open_file_cm(path_or_stream, "wb") as stream:
                     shutil.copyfileobj(tmp_file, stream)
         else:
-            print_method(path_or_stream, **kwargs)
+            print_method(path_or_stream, metadata=metadata, **kwargs)
 
     print_ps = partialmethod(_print_ps_impl, False)
     print_eps = partialmethod(_print_ps_impl, True)

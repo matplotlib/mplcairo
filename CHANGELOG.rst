@@ -16,6 +16,7 @@ next
 - Added `get_raw_buffer` to access the raw internal buffer.
 - Added `operator_t.patch_artist` to simplify usage of custom compositing
   operators.
+- Support ``Title`` metadata entry for PostScript output.
 
 v0.1
 ====

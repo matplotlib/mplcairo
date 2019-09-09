@@ -493,7 +493,7 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
             it.second.attr("isoformat")().cast<std::string>().c_str());
         } else {
           py::module::import("warnings").attr("warn")(
-            "Unknown PDF metadata entry: " + key);
+            "Unsupported PDF metadata entry: " + key);
         }
       }
       break;
@@ -507,7 +507,7 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
           }
         } else {
           py::module::import("warnings").attr("warn")(
-            "Unknown PS metadata entry: " + key);
+            "Unsupported PS metadata entry: " + key);
         }
       }
       break;
