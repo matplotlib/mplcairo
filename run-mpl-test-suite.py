@@ -66,7 +66,9 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
     mpl.backends.backend_agg = \
         sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
 
-    mpl.use("agg", warn=False, force=True)
+    with warnings.catch_warnings():  # mpl 3.0
+        warnings.filterwarnings("ignore")
+        mpl.use("agg", warn=False, force=True)
     from matplotlib import pyplot as plt
 
     __orig_switch_backend = plt.switch_backend
@@ -119,28 +121,19 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_pdf.py::test_multipage_keep_empty",
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
-                "test_backend_ps.py::test_savefig_to_stringio[eps afm]",
-                "test_backend_ps.py::test_savefig_to_stringio[eps with usetex]",
-                "test_backend_ps.py::test_savefig_to_stringio[eps]",
-                "test_backend_ps.py::test_savefig_to_stringio[ps with distiller]",
-                "test_backend_ps.py::test_savefig_to_stringio[ps with usetex]",
-                "test_backend_ps.py::test_savefig_to_stringio[ps]",
+                "test_backend_ps.py::test_savefig_to_stringio[",
                 "test_backend_ps.py::test_source_date_epoch",
+                "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svgnone_with_data_coordinates",
                 "test_backend_svg.py::test_text_urls",
-                "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[pdf]",
-                "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[png]",
-                "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[svg]",
-                "test_image.py::test_composite[True-1-ps- colorimage]",
-                "test_image.py::test_composite[False-2-ps- colorimage]",
+                "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[",
+                "test_image.py::test_composite[",
                 "test_scale.py::test_logscale_mask[png]",
                 "test_simplification.py::test_throw_rendering_complexity_exceeded",
             ]),
             (textfail_message, [
                 "test_axes.py::test_gettightbbox_ignoreNaN",
-                "test_figure.py::test_align_labels[pdf]",
-                "test_figure.py::test_align_labels[png]",
-                "test_figure.py::test_align_labels[svg]",
+                "test_figure.py::test_align_labels[",
                 "test_figure.py::test_tightbbox",
             ])
         ]
@@ -162,14 +155,19 @@ def pytest_collection_modifyitems(session, config, items):
     xfails = []
     for item in items:
         reason = (xfail_modules.get(item.module.__name__)
-                  or xfail_nodeids.get(item.nodeid))
+                  or xfail_nodeids.get(item.nodeid)
+                  or xfail_nodeids.get(item.nodeid.split("[")[0] + "["
+                                       if "[" in item.nodeid else object()))
         if reason:
             xfails.append(item)
             item.add_marker(pytest.mark.xfail(reason=reason))
     if config.getoption("file_or_dir") == ["matplotlib"]:
         invalid_xfails = (
             ({*xfail_modules} - {item.module.__name__ for item in xfails})
-            | ({*xfail_nodeids} - {item.nodeid for item in xfails}))
+            | ({*xfail_nodeids}
+               - {item.nodeid for item in xfails}
+               - {item.nodeid.split("[")[0] + "[" for item in xfails
+                  if "[" in item.nodeid}))
         if invalid_xfails:
             warnings.warn("Unused xfails:\n    {}"
                           .format("\n    ".join(sorted(invalid_xfails))))
