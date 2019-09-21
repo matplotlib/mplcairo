@@ -1,4 +1,4 @@
-next
+v0.2
 ====
 
 - Add the ``MPLCAIRO_BUILD_TYPE`` environment variable for controlling the
