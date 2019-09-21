@@ -1,6 +1,3 @@
-Blockers
-========
-
 There is a significant performance regression on the wire3d_animation example.
 
 Crashes
