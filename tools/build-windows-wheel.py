@@ -96,7 +96,6 @@ os.environ.update(
         f"/I{Path()}/build/freetype/include "),
     LINK=(f"/LIBPATH:{Path()}/build/cairo/win64 "
           f"/LIBPATH:{Path()}/build/freetype/win64 "),
-    MPLCAIRO_BUILD_TYPE="package",
 )
 subprocess.run(
     [sys.executable, "setup.py", "bdist_wheel"],

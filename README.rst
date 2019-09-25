@@ -158,11 +158,7 @@ will be mis-linked and fail to load.
 
 The manylinux wheel is built using `tools/build-manylinux-wheel.sh`_.
 
-Packagers may want to set the ``MPLCAIRO_BUILD_TYPE`` environment variable to
-``package`` before the build (see the docstring of setup.py_ for details).
-
 .. _tools/build-manylinux-wheel.sh: tools/build-manylinux-wheel.sh
-.. _setup.py: setup.py
 
 **NOTE**: On Arch Linux, the python-pillow (Arch) package includes an invalid
 version of ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not be

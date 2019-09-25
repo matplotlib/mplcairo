@@ -21,6 +21,6 @@ python -mvenv "$tmpenv"
     python -mpip install --upgrade pip wheel delocate
 
     cd "$toplevel"
-    MPLCAIRO_BUILD_TYPE=package python setup.py bdist_wheel
+    python setup.py bdist_wheel
     delocate-wheel -v dist/*
 )

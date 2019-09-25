@@ -4,14 +4,12 @@ mplcairo build
 
 Environment variables:
 
-MPLCAIRO_BUILD_TYPE
-    - Set to "package" to build a wheel or Linux distribution package: do not
-      compile with ``-march=native``.
-    - Set to "manylinux" to build a manylinux wheel: all of the above;
-      moreover, pkg-config is shimmed and libstdc++ is statically linked.
+MPLCAIRO_MANYLINUX
+    - If set, build a manylinux wheel: pkg-config is shimmed and libstdc++ is
+      statically linked.
 
 MPLCAIRO_NO_UNITY_BUILD
-    - Set to compile the various cpp files separately, instead of as a single
+    - If set, compile the various cpp files separately, instead of as a single
       compilation unit.  Unity builds tend to be faster even when using ccache,
       because linking is rather time-consuming.
 """
@@ -44,20 +42,12 @@ from setupext import Extension, build_ext, find_packages, setup
 
 MIN_CAIRO_VERSION = "1.11.4"  # Also in _feature_tests.cpp.
 MIN_RAQM_VERSION = "0.2.0"
-
-
-class BuildType(Enum):
-    Default = None
-    Package = "package"
-    Manylinux = "manylinux"
-
-
-BUILD_TYPE = BuildType(os.environ.get("MPLCAIRO_BUILD_TYPE"))
+MANYLINUX = bool(os.environ.get("MPLCAIRO_MANYLINUX", ""))
 UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
 
 def get_pkg_config(info, lib):
-    if BUILD_TYPE is BuildType.Manylinux:
+    if MANYLINUX:
         if info.startswith("--atleast-version"):
             if lib == "raqm":
                 raise FileNotFoundError  # Trigger the header download.
@@ -159,10 +149,7 @@ class build_ext(build_ext):
                 + get_pkg_config("--cflags", "cairo"))
             ext.extra_link_args += (
                 ["-flto"])
-            if BUILD_TYPE is BuildType.Default:
-                ext.extra_compile_args += (
-                    ["-march=native"])
-            if BUILD_TYPE is BuildType.Manylinux:
+            if MANYLINUX:
                 ext.extra_link_args += (
                     ["-static-libgcc", "-static-libstdc++"])
 
