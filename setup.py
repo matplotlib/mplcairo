@@ -90,7 +90,10 @@ def paths_from_link_libpaths():
 class build_ext(build_ext):
 
     def build_extensions(self):
-        import pybind11
+        try:
+            import importlib.metadata as importlib_metadata
+        except ImportError:
+            import importlib_metadata
 
         ext, = self.distribution.ext_modules
 
@@ -110,7 +113,9 @@ class build_ext(build_ext):
         tmp_include_dir.mkdir(parents=True, exist_ok=True)
         ext.include_dirs += (
             [tmp_include_dir,
-             pybind11.get_include(user=True), pybind11.get_include()])
+             # pybind11.get_include() is brittle (pybind #1425).
+             next(path for path in importlib_metadata.files("pybind11")
+                  if path.name == "pybind11.h").locate().resolve().parents[1]])
 
         try:
             get_pkg_config(
@@ -257,7 +262,10 @@ setup(
     package_dir={"": "lib"},
     ext_modules=[Extension("mplcairo._mplcairo", [])],
     python_requires=">=3.5",
-    setup_requires=["setuptools_scm"],
+    setup_requires=[
+        "importlib_metadata>=0.8; python_version<'3.8'",  # Added files().
+        "setuptools_scm",
+    ],
     use_scm_version={  # xref __init__.py
         "version_scheme": "post-release",
         "local_scheme": "node-and-date",
