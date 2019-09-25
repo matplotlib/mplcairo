@@ -6,9 +6,7 @@ Environment variables:
 
 MPLCAIRO_BUILD_TYPE
     - Set to "package" to build a wheel or Linux distribution package: do not
-      compile with ``-march=native`` and do not declare pybind11 as
-      ``install_requires`` (it needs to be manually provided by the packager
-      instead).
+      compile with ``-march=native``.
     - Set to "manylinux" to build a manylinux wheel: all of the above;
       moreover, pkg-config is shimmed and libstdc++ is statically linked.
 
@@ -108,15 +106,38 @@ class build_ext(build_ext):
             ext.sources += [*map(str, Path("src").glob("*.cpp"))]
             ext.sources.remove("src/_unity_build.cpp")
         ext.language = "c++"
+
+        # pybind11.get_include() is brittle (pybind #1425).
+        pybind11_include_path = next(
+            path for path in importlib_metadata.files("pybind11")
+            if path.name == "pybind11.h").locate().parents[1]
+        if not (pybind11_include_path / "pybind11/pybind11.h").exists():
+            # egg-install from setup_requires:
+            # importlib-metadata thinks the headers are at
+            #   .eggs/pybind11-VER-TAG.egg/pybind11-VER.data/headers/pybind11.h
+            # but they're actually at
+            #   .eggs/pybind11-VER-TAG.egg/pybind11.h
+            # pybind11_include_path is
+            #   /<...>/.eggs/pybind11-VER-TAG.egg/pybind11-VER.data
+            # so just create the proper structure there.
+            assert pybind11_include_path.relative_to(
+                Path(__file__).resolve().parent).parts[0] == ".eggs"
+            shutil.rmtree(pybind11_include_path / "pybind11",
+                          ignore_errors=True)
+            for file in [*pybind11_include_path.parent.glob("**/*")]:
+                if file.is_dir():
+                    continue
+                dest = (pybind11_include_path / "pybind11" /
+                        file.relative_to(pybind11_include_path.parent))
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(file), str(dest))  # Py3.5 compat.
+
+        ext.include_dirs += [pybind11_include_path]
+
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
         tmp_include_dir.mkdir(parents=True, exist_ok=True)
-        ext.include_dirs += (
-            [tmp_include_dir,
-             # pybind11.get_include() is brittle (pybind #1425).
-             next(path for path in importlib_metadata.files("pybind11")
-                  if path.name == "pybind11.h").locate().resolve().parents[1]])
-
+        ext.include_dirs += [tmp_include_dir]
         try:
             get_pkg_config(
                 "--atleast-version={}".format(MIN_RAQM_VERSION), "raqm")
@@ -265,6 +286,10 @@ setup(
     setup_requires=[
         "importlib_metadata>=0.8; python_version<'3.8'",  # Added files().
         "setuptools_scm",
+        "pybind11>=2.2.4",
+        # Actually also a setup_requires on Linux, but in the manylinux build
+        # we need to shim it.
+        "pycairo>=1.16.0; sys_platform == 'darwin'",
     ],
     use_scm_version={  # xref __init__.py
         "version_scheme": "post-release",
@@ -274,6 +299,5 @@ setup(
     install_requires=[
         "matplotlib>=2.2",
         "pycairo>=1.16.0; os_name == 'posix'",
-    ]
-    + (["pybind11>=2.2.4"] if BUILD_TYPE is BuildType.Default else []),
+    ],
 )

@@ -18,9 +18,7 @@ python -mvenv "$tmpenv"
 
 (
     source "$tmpenv/bin/activate"
-    python -mpip install --upgrade pip
-    python -mpip install --upgrade wheel delocate
-    python -mpip install pybind11 pycairo
+    python -mpip install --upgrade pip wheel delocate
 
     cd "$toplevel"
     MPLCAIRO_BUILD_TYPE=package python setup.py bdist_wheel

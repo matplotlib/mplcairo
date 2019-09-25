@@ -56,10 +56,14 @@ mplcairo requires
 
 - Python≥3.5 (≥3.6 on Windows),
 - Matplotlib≥2.2 (declared as ``install_requires``),
-- pybind11≥2.2.4 [#]_ (declared as ``install_requires``),
-- on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as conditional
-  ``install_requires``),
+- on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
+
+Additionally, building mplcairo from source requires
+
+- pybind11≥2.2.4 [#]_ (declared as ``setup_requires``),
+- on Linux and macOS, pycairo≥1.16.0 (declared as ``setup_requires`` on macOS,
+  but not on Linux).
 
 As usual, install using pip:
 
@@ -77,10 +81,6 @@ Refer to the instructions on that project's website for installation on Linux
 and macOS.  You may want to look at https://github.com/HOST-Oman/libraqm-cmake
 for Windows build scripts.
 
-.. [#] pybind11 is actually only a build-time requirement, but doesn't play
-   well with ``setup_requires``.  The version requirement comes from pybind11
-   issue `#1362 <pybind11-1362_>`_.
-
 .. _pybind11-1362: https://github.com/pybind/pybind11/issues/1362
 
 .. [#] pycairo 1.16.0 added ``get_include()``.
@@ -94,6 +94,9 @@ for Windows build scripts.
    On Windows, this strategy is (AFAIK) not possible, so we explicitly link
    against the cairo DLL.
 
+   pycairo is not declared as a ``setup_requires`` on Linux because the
+   manylinux wheel builder needs to work around it.
+
 .. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
 
    cairo 1.15.4 added support for PDF metadata and links; the presence of this
@@ -102,6 +105,9 @@ for Windows build scripts.
    cairo 1.17.2 added support for floating point surfaces, usable with
    ``mplcairo.set_options(float_surface=True)``; the presence of this feature
    is detected at runtime.
+
+.. [#] The version requirement comes from pybind11 issue `#1362
+   <pybind11-1362_>`_.
 
 On Fedora, the package is available as `python-mplcairo <fedora-package_>`_.
 

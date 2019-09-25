@@ -71,7 +71,6 @@ else
             >"$PY_PREFIX/lib/python$PY_VER/site-packages/cairo.py"
         (
             cd /io/mplcairo
-            "$PY_PREFIX/bin/pip" install pybind11
             # Force a rebuild of the extension.
             "$PY_PREFIX/bin/python" setup.py bdist_wheel
             auditwheel -v repair -wdist \

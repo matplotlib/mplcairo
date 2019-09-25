@@ -88,8 +88,7 @@ cc.spawn(
 # Build the wheel.
 os.chdir("..")
 subprocess.run(
-    [sys.executable, "-mpip", "install", "--upgrade",
-     "pip", "wheel", "pybind11"],
+    [sys.executable, "-mpip", "install", "--upgrade", "pip", "wheel"],
     check=True)
 os.environ.update(
     CL=(f"/I{Path()}/build/cairo/usr/include/cairo "
