@@ -18,7 +18,7 @@ def main():
             (Path(__file__).resolve().parent / "examples").glob("*.py")):
         if path.name not in SKIP:
             print("Running", path)
-            runpy.run_path(str(path), run_name=path.stem)  # Py3.5 compat.
+            runpy.run_path(path, run_name=path.stem)
 
 
 if __name__ == "__main__":

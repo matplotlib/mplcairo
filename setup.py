@@ -120,7 +120,7 @@ class build_ext(build_ext):
                 dest = (pybind11_include_path / "pybind11" /
                         file.relative_to(pybind11_include_path.parent))
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(file), str(dest))  # Py3.5 compat.
+                shutil.copy2(file, dest)
 
         ext.include_dirs += [pybind11_include_path]
 
@@ -209,8 +209,8 @@ class build_ext(build_ext):
             for dll in ["cairo.dll", "freetype.dll"]:
                 for path in paths_from_link_libpaths():
                     if (path / dll).exists():
-                        shutil.copy2(str(path / dll),  # Py3.5 compat.
-                                     str(Path(self.build_lib, "mplcairo")))
+                        shutil.copy2(path / dll,
+                                     Path(self.build_lib, "mplcairo"))
                         break
 
     def copy_extensions_to_source(self):
@@ -219,7 +219,7 @@ class build_ext(build_ext):
             for dll in ["cairo.dll", "freetype.dll"]:
                 for path in paths_from_link_libpaths():
                     if (path / dll).exists():
-                        shutil.copy2(str(path / dll),  # Py3.5 compat.
+                        shutil.copy2(path / dll,
                                      self.get_finalized_command("build_py")
                                      .get_package_dir("mplcairo"))
                         break
@@ -269,7 +269,7 @@ setup(
     packages=find_packages("lib"),
     package_dir={"": "lib"},
     ext_modules=[Extension("mplcairo._mplcairo", [])],
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     setup_requires=[
         "importlib_metadata>=0.8; python_version<'3.8'",  # Added files().
         "setuptools_scm",

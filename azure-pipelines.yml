@@ -4,18 +4,12 @@
 
 strategy:
   matrix:
-    Linux_py35:
-      vmImage: 'ubuntu-16.04'
-      pythonVersion: '3.5'
     Linux_py36:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.6'
     Linux_py37:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.7'
-    macOS_py35:
-      vmImage: 'macOS-10.14'
-      pythonVersion: '3.5'
     macOS_py36:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.6'

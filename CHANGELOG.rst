@@ -1,6 +1,7 @@
 next
 ====
 
+- Dropped support for Py3.5.
 - ``pybind11`` is now a ``setup_requires`` and ``-march=native`` is no longer
   passed as compilation option by default; drop support for
   ``MPLCAIRO_BUILD_TYPE``.

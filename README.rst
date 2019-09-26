@@ -54,7 +54,7 @@ Installation
 
 mplcairo requires
 
-- Python≥3.5 (≥3.6 on Windows),
+- Python≥3.6,
 - Matplotlib≥2.2 (declared as ``install_requires``),
 - on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
@@ -205,9 +205,7 @@ The following additional dependencies are required:
 
 - VS2019 (The exact minimum version is unknown, but it is known that mplcairo
   fails to build on the Azure ``vs2017-win2016`` agent and requires the
-  ``windows-2019`` agent.  This is the reason for restricting support to Python
-  3.6 on Windows: distutils is able to use such a recent MSVC only since Python
-  3.6.4.)
+  ``windows-2019`` agent.)
 
 - cairo headers and import and dynamic libraries (``cairo.lib`` and
   ``cairo.dll``) *with FreeType support*.  Note that this excludes, in
