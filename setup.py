@@ -110,17 +110,23 @@ class build_ext(build_ext):
             # pybind11_include_path is
             #   /<...>/.eggs/pybind11-VER-TAG.egg/pybind11-VER.data
             # so just create the proper structure there.
-            assert pybind11_include_path.relative_to(
-                Path(__file__).resolve().parent).parts[0] == ".eggs"
-            shutil.rmtree(pybind11_include_path / "pybind11",
-                          ignore_errors=True)
-            for file in [*pybind11_include_path.parent.glob("**/*")]:
-                if file.is_dir():
-                    continue
-                dest = (pybind11_include_path / "pybind11" /
-                        file.relative_to(pybind11_include_path.parent))
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(file, dest)
+            try:
+                is_egg = (pybind11_include_path.relative_to(
+                    Path(__file__).resolve().parent).parts[0] == ".eggs")
+            except ValueError:
+                # Arch Linux ships completely wrong metadata, but the headers
+                # are in the default include paths, so just leave things as is.
+                is_egg = False
+            if is_egg:
+                shutil.rmtree(pybind11_include_path / "pybind11",
+                              ignore_errors=True)
+                for file in [*pybind11_include_path.parent.glob("**/*")]:
+                    if file.is_dir():
+                        continue
+                    dest = (pybind11_include_path / "pybind11" /
+                            file.relative_to(pybind11_include_path.parent))
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(file, dest)
 
         ext.include_dirs += [pybind11_include_path]
 
