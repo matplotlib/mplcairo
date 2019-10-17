@@ -11,13 +11,11 @@ from tempfile import TemporaryDirectory
 from threading import RLock
 
 import numpy as np
-try:
-    from PIL import Image
-except ImportError:
-    Image = None
+from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 import matplotlib as mpl
-from matplotlib import _png, cbook, colors, dviread
+from matplotlib import cbook, colors, dviread
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
@@ -320,8 +318,8 @@ class FigureCanvasCairo(FigureCanvasBase):
         self._last_renderer_call = last_renderer_call
         return _util.cairo_to_straight_rgba8888(renderer._get_buffer())
 
-    def print_rgba(self, path_or_stream, *, dryrun=False, metadata=None,
-                   **kwargs):
+    def print_rgba(self, path_or_stream, *,
+                   dryrun=False, metadata=None, **kwargs):
         _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
@@ -342,65 +340,60 @@ class FigureCanvasCairo(FigureCanvasBase):
               "matplotlib version {}, https://matplotlib.org"
               .format(mpl.__version__))])
         full_metadata.update(metadata or {})
-        if pil_kwargs is not None:
-            from PIL.PngImagePlugin import PngInfo
-            # Only use the metadata kwarg if pnginfo is not set, because the
-            # semantics of duplicate keys in pnginfo is unclear.
-            if "pnginfo" not in pil_kwargs:
-                pnginfo = PngInfo()
-                for k, v in full_metadata.items():
-                    pnginfo.add_text(k, v)
-                pil_kwargs["pnginfo"] = pnginfo
-            pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-            (Image.frombuffer("RGBA", img.shape[:2], img, "raw", "RGBA", 0, 1)
-             .save(path_or_stream, format="png", **pil_kwargs))
-        else:
-            with cbook.open_file_cm(path_or_stream, "wb") as stream:
-                _png.write_png(img, stream, metadata=full_metadata)
+        if pil_kwargs is None:
+            pil_kwargs = {}
+        # Only use the metadata kwarg if pnginfo is not set, because the
+        # semantics of duplicate keys in pnginfo is unclear.
+        if "pnginfo" not in pil_kwargs:
+            pnginfo = PngInfo()
+            for k, v in full_metadata.items():
+                pnginfo.add_text(k, v)
+            pil_kwargs["pnginfo"] = pnginfo
+        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+        (Image.frombuffer(
+            "RGBA", img.shape[:2][::-1], img, "raw", "RGBA", 0, 1)
+         .save(path_or_stream, format="png", **pil_kwargs))
 
-    if Image:
+    def print_jpeg(self, path_or_stream, *,
+                   facecolor=None, dryrun=False, pil_kwargs=None, **kwargs):
+        if pil_kwargs is None:
+            pil_kwargs = {}
+        for k in ["quality", "optimize", "progressive"]:
+            if k in kwargs:
+                pil_kwargs.setdefault(k, kwargs.pop(k))
+        pil_kwargs.setdefault(
+            "quality", mpl.rcParams["savefig.jpeg_quality"])
+        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+        _check_print_extra_kwargs(**kwargs)
+        buf = self._get_fresh_straight_rgba8888()
+        if dryrun:
+            return
+        img = Image.frombuffer(
+            "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
+        # Composite against the background (actually we could just skip the
+        # conversion to straight RGBA earlier).
+        background = tuple(
+            (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
+        composited = Image.new("RGB", buf.shape[:2][::-1], background)
+        composited.paste(img, img)
+        composited.save(path_or_stream, format="jpeg", **pil_kwargs)
 
-        def print_jpeg(self, path_or_stream, *,
-                       facecolor=None, dryrun=False, pil_kwargs=None,
-                       **kwargs):
-            if pil_kwargs is None:
-                pil_kwargs = {}
-            for k in ["quality", "optimize", "progressive"]:
-                if k in kwargs:
-                    pil_kwargs.setdefault(k, kwargs.pop(k))
-            pil_kwargs.setdefault(
-                "quality", mpl.rcParams["savefig.jpeg_quality"])
-            pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-            _check_print_extra_kwargs(**kwargs)
-            buf = self._get_fresh_straight_rgba8888()
-            if dryrun:
-                return
-            img = Image.frombuffer(
-                "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
-            # Composite against the background (actually we could just skip the
-            # conversion to straight RGBA earlier).
-            background = tuple(
-                (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
-            composited = Image.new("RGB", buf.shape[:2][::-1], background)
-            composited.paste(img, img)
-            composited.save(path_or_stream, format="jpeg", **pil_kwargs)
+    print_jpg = print_jpeg
 
-        print_jpg = print_jpeg
+    def print_tiff(self, path_or_stream, *,
+                   dryrun=False, pil_kwargs=None, **kwargs):
+        if pil_kwargs is None:
+            pil_kwargs = {}
+        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+        _check_print_extra_kwargs(**kwargs)
+        buf = self._get_fresh_straight_rgba8888()
+        if dryrun:
+            return
+        (Image.frombuffer(
+            "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
+         .save(path_or_stream, format="tiff", **pil_kwargs))
 
-        def print_tiff(self, path_or_stream, *, dryrun=False, pil_kwargs=None,
-                       **kwargs):
-            if pil_kwargs is None:
-                pil_kwargs = {}
-            pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-            _check_print_extra_kwargs(**kwargs)
-            buf = self._get_fresh_straight_rgba8888()
-            if dryrun:
-                return
-            (Image.frombuffer(
-                "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
-             .save(path_or_stream, format="tiff", **pil_kwargs))
-
-        print_tif = print_tiff
+    print_tif = print_tiff
 
 
 @_Backend.export

@@ -291,6 +291,7 @@ setup(
     },
     install_requires=[
         "matplotlib>=2.2",
+        "pillow",  # Already a dependency of mpl>=3.3.
         "pycairo>=1.16.0; os_name == 'posix'",
     ],
 )
