@@ -355,7 +355,7 @@ class FigureCanvasCairo(FigureCanvasBase):
          .save(path_or_stream, format="png", **pil_kwargs))
 
     def print_jpeg(self, path_or_stream, *,
-                   facecolor=None, dryrun=False, pil_kwargs=None, **kwargs):
+                   dryrun=False, pil_kwargs=None, **kwargs):
         if pil_kwargs is None:
             pil_kwargs = {}
         for k in ["quality", "optimize", "progressive"]:
@@ -370,11 +370,9 @@ class FigureCanvasCairo(FigureCanvasBase):
             return
         img = Image.frombuffer(
             "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
-        # Composite against the background (actually we could just skip the
-        # conversion to straight RGBA earlier).
-        background = tuple(
-            (np.array(colors.to_rgb(facecolor)) * 255).astype(int))
-        composited = Image.new("RGB", buf.shape[:2][::-1], background)
+        # The image is "pasted" onto a white background image to safely
+        # handle any transparency
+        composited = Image.new("RGB", img.size, "white")
         composited.paste(img, img)
         composited.save(path_or_stream, format="jpeg", **pil_kwargs)
 
