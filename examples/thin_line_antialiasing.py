@@ -32,9 +32,9 @@ for i, px in enumerate(np.arange(.05, .5, .05)):
     pt = px * dpi / 72
     ax.plot(.1 * i + np.array([0, 1]), [0, 1], lw=pt, c="k", aa=FAST)
     ax.plot(.1 * i + np.array([1, 2]), [1, 2], lw=pt, c="k", aa=BEST)
-    ax.text(.1 * i, 0, "{:.2f}px".format(px),
+    ax.text(.1 * i, 0, f"{px:.2f}px",
             ha="center", va="top", rotation=90)
-    ax.text(.1 * i + 2, 2, "{:.2f}px".format(px),
+    ax.text(.1 * i + 2, 2, f"{px:.2f}px",
             ha="center", va="bottom", rotation=90)
 ax.axhline(1, c="k")
 

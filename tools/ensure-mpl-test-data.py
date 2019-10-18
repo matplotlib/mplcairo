@@ -14,11 +14,11 @@ import mpl_toolkits
 try:
     import matplotlib.tests
 except Exception:  # ImportError if patched out, IOError by mpl itself.
-    print("Fetching test data for Matplotlib {}.".format(mpl.__version__))
+    print(f"Fetching test data for Matplotlib {mpl.__version__}.")
     with TemporaryDirectory() as tmpdir:
         with urllib.request.urlopen(
-                "https://github.com/matplotlib/matplotlib/archive/v{}.tar.gz"
-                .format(mpl.__version__)) as request, \
+                f"https://github.com/matplotlib/matplotlib/"
+                f"archive/v{mpl.__version__}.tar.gz") as request, \
              Path(tmpdir, "matplotlib.tar.gz").open("wb") as file:
             file.write(request.read())
         shutil.unpack_archive(file.name, tmpdir)
@@ -30,4 +30,4 @@ except Exception:  # ImportError if patched out, IOError by mpl itself.
                          "lib", pkg.__name__, "tests")),  # bpo#32689.
                 list(pkg.__path__)[0])
 else:
-    print("Matplotlib test data already present.".format(mpl.__version__))
+    print("Matplotlib test data already present.")

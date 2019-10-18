@@ -15,7 +15,7 @@ def get_times(ax, method, n_elems):
     all_times = []
 
     for n in n_elems:
-        print("{} elements".format(n))
+        print(f"{n} elements")
         ax.set(xticks=[], yticks=[])
         for spine in ax.spines.values():
             plt.setp(spine, visible=False)
@@ -56,7 +56,7 @@ $ python %(prog)s plot \\
       "lines.antialiased": __import__("mplcairo").antialias_t.FAST}}' \\
     '{{"backend": "module://mplcairo.base", \\
       "lines.antialiased": __import__("mplcairo").antialias_t.BEST}}'
-""".format(sys.argv[0]))
+""")
 
     parser.add_argument(
         "-n", "--n-elements", type=lambda s: [int(n) for n in s.split(",")],
@@ -107,7 +107,7 @@ $ python %(prog)s plot \\
         for n, norm in zip(n_elems, normalized):
             detail_ax.plot(norm, np.linspace(0, 1, len(norm))[::-1],
                            drawstyle="steps-pre",
-                           label="{} elements (N={})".format(n, len(norm)))
+                           label=f"{n} elements (N={len(norm)})")
         detail_ax.set(xlabel="time per element (s)", xscale="log",
                       ylabel="CCDF")
         detail_ax.legend(loc="upper right")

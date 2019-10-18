@@ -35,8 +35,7 @@ class setup:
                 super().run()
                 for fname, (name, source) in cls._pth_hooks.items():
                     with Path(self.install_dir, fname).open("w") as file:
-                        file.write("import os; exec({!r}); {}()"
-                                   .format(source, name))
+                        file.write(f"import os; exec({source!r}); {name}()")
 
             def get_outputs(self):
                 return (super().get_outputs()

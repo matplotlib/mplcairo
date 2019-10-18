@@ -135,34 +135,30 @@ class build_ext(build_ext):
         tmp_include_dir.mkdir(parents=True, exist_ok=True)
         ext.include_dirs += [tmp_include_dir]
         try:
-            get_pkg_config(
-                "--atleast-version={}".format(MIN_RAQM_VERSION), "raqm")
+            get_pkg_config(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
         except (FileNotFoundError, CalledProcessError):
             with urllib.request.urlopen(
-                    "https://raw.githubusercontent.com/HOST-Oman/libraqm/"
-                    "v{}/src/raqm.h".format(MIN_RAQM_VERSION)) as request, \
+                    f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
+                    f"v{MIN_RAQM_VERSION}/src/raqm.h") as request, \
                  (tmp_include_dir / "raqm.h").open("wb") as file:
                 file.write(request.read())
 
         if sys.platform == "linux":
             import cairo
-            get_pkg_config(
-                "--atleast-version={}".format(MIN_CAIRO_VERSION), "cairo")
+            get_pkg_config(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
             ext.include_dirs += [cairo.get_include()]
-            ext.extra_compile_args += (
-                ["-std=c++1z", "-fvisibility=hidden", "-flto",
-                 "-Wall", "-Wextra", "-Wpedantic"]
-                + get_pkg_config("--cflags", "cairo"))
-            ext.extra_link_args += (
-                ["-flto"])
+            ext.extra_compile_args += [
+                "-std=c++1z", "-fvisibility=hidden", "-flto",
+                "-Wall", "-Wextra", "-Wpedantic",
+                *get_pkg_config("--cflags", "cairo"),
+            ]
+            ext.extra_link_args += ["-flto"]
             if MANYLINUX:
-                ext.extra_link_args += (
-                    ["-static-libgcc", "-static-libstdc++"])
+                ext.extra_link_args += ["-static-libgcc", "-static-libstdc++"]
 
         elif sys.platform == "darwin":
             import cairo
-            get_pkg_config(
-                "--atleast-version={}".format(MIN_CAIRO_VERSION), "cairo")
+            get_pkg_config(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
             ext.include_dirs += [cairo.get_include()]
             # On OSX<10.14, version-min=10.9 avoids deprecation warning wrt.
             # libstdc++, but assumes that the build uses non-Xcode-provided
@@ -171,28 +167,27 @@ class build_ext(build_ext):
             macosx_min_version = (
                 "10.14" if LooseVersion(platform.mac_ver()[0]) >= "10.14"
                 else "10.9")
-            ext.extra_compile_args += (
-                ["-std=c++1z", "-fvisibility=hidden", "-flto",
-                 "-mmacosx-version-min={}".format(macosx_min_version)]
-                + get_pkg_config("--cflags", "cairo"))
-            ext.extra_link_args += (
+            ext.extra_compile_args += [
+                "-std=c++1z", "-fvisibility=hidden", "-flto",
+                f"-mmacosx-version-min={macosx_min_version}",
+                *get_pkg_config("--cflags", "cairo"),
+            ]
+            ext.extra_link_args += [
                 # version-min needs to be repeated to avoid a warning.
-                ["-flto",
-                 "-mmacosx-version-min={}".format(macosx_min_version)])
+                "-flto", f"-mmacosx-version-min={macosx_min_version}",
+            ]
 
         elif sys.platform == "win32":
-            ext.include_dirs += (
-                # Windows conda path for FreeType.
-                [str(Path(sys.prefix, "Library/include"))])
-            ext.extra_compile_args += (
-                ["/std:c++17", "/Zc:__cplusplus", "/experimental:preprocessor",
-                 "/EHsc", "/D_USE_MATH_DEFINES",
-                 "/wd4244", "/wd4267"])  # cf. gcc -Wconversion.
-            ext.libraries += (
-                ["psapi", "cairo", "freetype"])
-            ext.library_dirs += (
-                # Windows conda path for FreeType.
-                [str(Path(sys.prefix, "Library/lib"))])
+            # Windows conda path for FreeType.
+            ext.include_dirs += [Path(sys.prefix, "Library/include")]
+            ext.extra_compile_args += [
+                "/std:c++17", "/Zc:__cplusplus", "/experimental:preprocessor",
+                "/EHsc", "/D_USE_MATH_DEFINES",
+                "/wd4244", "/wd4267",
+            ]  # cf. gcc -Wconversion.
+            ext.libraries += ["psapi", "cairo", "freetype"]
+            # Windows conda path for FreeType -- needs to be str, not Path.
+            ext.library_dirs += [str(Path(sys.prefix, "Library/lib"))]
 
         # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
         # libstdc++ + std::variant = compilation error) and pybind11 #1604
@@ -200,7 +195,7 @@ class build_ext(build_ext):
         # for UnixCCompiler.
         if os.name == "posix":
             compiler_macros = subprocess.check_output(
-                self.compiler.compiler + ["-dM", "-E", "-x", "c", "/dev/null"],
+                [*self.compiler.compiler, "-dM", "-E", "-x", "c", "/dev/null"],
                 universal_newlines=True)
             if "__clang__" in compiler_macros:
                 ext.extra_compile_args += (

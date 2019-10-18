@@ -23,7 +23,7 @@ def main():
         sys.exit("Multi-font strings are not supported.")
 
     font = args.test.parent / lines[0]
-    text = ast.literal_eval("'{}'".format(lines[1]))
+    text = ast.literal_eval(f"'{lines[1]}'")
 
     fig, ax = plt.subplots()
     ax.set_axis_off()

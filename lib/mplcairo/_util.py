@@ -24,7 +24,7 @@ def cairo_to_premultiplied_argb32(buf):
         return (((a << 24) + (r << 16) + (g << 8) + (b << 0))
                 .view(np.uint8).reshape(buf.shape))
     else:
-        raise TypeError("Unexpected dtype: {}".format(buf.dtype))
+        raise TypeError(f"Unexpected dtype: {buf.dtype}")
 
 
 def cairo_to_premultiplied_rgba8888(buf):
@@ -58,7 +58,7 @@ def cairo_to_straight_rgba8888(buf):
     elif buf.dtype == np.float32:
         return (buf * 255).astype(np.uint8)
     else:
-        raise TypeError("Unexpected dtype: {}".format(buf.dtype))
+        raise TypeError(f"Unexpected dtype: {buf.dtype}")
 
 
 @functools.lru_cache(1)

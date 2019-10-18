@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import functools
 from functools import partial, partialmethod
 import gc
@@ -123,8 +122,8 @@ class GraphicsContextRendererCairo(
             if texfont.filename is None:
                 # Not TypeError:
                 # :mpltest:`test_backend_svg.test_missing_psfont`.
-                raise ValueError("No font file found for {} ({!a})"
-                                 .format(texfont.psname, texfont.texname))
+                raise ValueError(f"No font file found for {texfont.psname} "
+                                 f"({texfont.texname!a})")
             mb._render_usetex_glyph(text.x, -text.y,
                                     texfont.filename, text.font.size,
                                     get_glyph_name(text) or text.glyph)
@@ -278,14 +277,14 @@ class FigureCanvasCairo(FigureCanvasBase):
                 width, height = self.figure.get_size_inches()
                 papertype = backend_ps._get_papertype(width, height)
         else:
-            raise ValueError("Invalid orientation ({!r})".format(orientation))
+            raise ValueError(f"Invalid orientation ({orientation!r})")
         metadata = {**metadata} if metadata is not None else {}
         dsc_comments = metadata["_dsc_comments"] = [
-            "%%Orientation: {}".format(orientation)]
+            f"%%Orientation: {orientation}"]
         if "Title" in metadata:
             dsc_comments.append("%%Title: {}".format(metadata.pop("Title")))
         if not is_eps:
-            dsc_comments.append("%%DocumentPaperSizes: {}".format(papertype))
+            dsc_comments.append(f"%%DocumentPaperSizes: {papertype}")
         print_method = partial(self._print_method,
                                GraphicsContextRendererCairo._for_eps_output
                                if is_eps else
@@ -335,18 +334,18 @@ class FigureCanvasCairo(FigureCanvasBase):
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
-        full_metadata = OrderedDict(
-            [("Software",
-              "matplotlib version {}, https://matplotlib.org"
-              .format(mpl.__version__))])
-        full_metadata.update(metadata or {})
+        metadata = {
+            "Software":
+            f"matplotlib version {mpl.__version__}, https://matplotlib.org",
+            **(metadata if metadata is not None else {}),
+        }
         if pil_kwargs is None:
             pil_kwargs = {}
         # Only use the metadata kwarg if pnginfo is not set, because the
         # semantics of duplicate keys in pnginfo is unclear.
         if "pnginfo" not in pil_kwargs:
             pnginfo = PngInfo()
-            for k, v in full_metadata.items():
+            for k, v in metadata.items():
                 pnginfo.add_text(k, v)
             pil_kwargs["pnginfo"] = pnginfo
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))

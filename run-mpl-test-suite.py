@@ -181,7 +181,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus):
               "RMS\texpected\n")
         for rms, expected in sorted(
                 ((v, k) for k, v in _IGNORED_FAILURES.items()), reverse=True):
-            write("{:#.2f}\t{}\n".format(rms, expected))
+            write(f"{rms:#.2f}\t{expected}\n")
 
 
 if __name__ == "__main__":
