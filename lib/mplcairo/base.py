@@ -15,7 +15,7 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 
 import matplotlib as mpl
-from matplotlib import cbook, colors, dviread
+from matplotlib import cbook, dviread
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
@@ -350,31 +350,28 @@ class FigureCanvasCairo(FigureCanvasBase):
                 pnginfo.add_text(k, v)
             pil_kwargs["pnginfo"] = pnginfo
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-        (Image.frombuffer(
-            "RGBA", img.shape[:2][::-1], img, "raw", "RGBA", 0, 1)
-         .save(path_or_stream, format="png", **pil_kwargs))
+        Image.fromarray(img).save(path_or_stream, format="png", **pil_kwargs)
 
     def print_jpeg(self, path_or_stream, *,
                    dryrun=False, pil_kwargs=None, **kwargs):
+        # Remove transparency by alpha-blending on an assumed white background.
+        r, g, b, a = mpl.colors.to_rgba(self.figure.get_facecolor())
+        try:
+            self.figure.set_facecolor(a * np.array([r, g, b]) + 1 - a)
+            img = self._get_fresh_straight_rgba8888()[..., :3]  # Drop alpha.
+        finally:
+            self.figure.set_facecolor((r, g, b, a))
+        if dryrun:
+            return
         if pil_kwargs is None:
             pil_kwargs = {}
         for k in ["quality", "optimize", "progressive"]:
             if k in kwargs:
-                pil_kwargs.setdefault(k, kwargs.pop(k))
-        pil_kwargs.setdefault(
-            "quality", mpl.rcParams["savefig.jpeg_quality"])
+                pil_kwargs.setdefault(k, kwargs[k])
+        pil_kwargs.setdefault("quality", mpl.rcParams["savefig.jpeg_quality"])
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
-        buf = self._get_fresh_straight_rgba8888()
-        if dryrun:
-            return
-        img = Image.frombuffer(
-            "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
-        # The image is "pasted" onto a white background image to safely
-        # handle any transparency
-        composited = Image.new("RGB", img.size, "white")
-        composited.paste(img, img)
-        composited.save(path_or_stream, format="jpeg", **pil_kwargs)
+        Image.fromarray(img).save(path_or_stream, format="jpeg", **pil_kwargs)
 
     print_jpg = print_jpeg
 
@@ -384,12 +381,10 @@ class FigureCanvasCairo(FigureCanvasBase):
             pil_kwargs = {}
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
-        buf = self._get_fresh_straight_rgba8888()
+        img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
-        (Image.frombuffer(
-            "RGBA", buf.shape[:2][::-1], buf, "raw", "RGBA", 0, 1)
-         .save(path_or_stream, format="tiff", **pil_kwargs))
+        Image.fromarray(img).save(path_or_stream, format="tiff", **pil_kwargs)
 
     print_tif = print_tiff
 
