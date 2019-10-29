@@ -281,14 +281,15 @@ Matplotlib** due to incompatibilities associated with the use of a recent
 libc++.  As such, the most practical option is to import mplcairo, then call
 e.g. ``matplotlib.use("module://mplcairo.macosx")``.
 
-.. ... doesn't work now.
+To use cairo rendering in Jupyter's ``inline`` mode, patch, in your
+``ipython_config.py``:
 
-   To use cairo rendering in Jupyter's ``inline`` mode, patch
+.. code-block:: python
 
-   .. code-block:: python
-
-      ipykernel.pylab.backend_inline.new_figure_manager = \
-          mplcairo.base.new_figure_manager
+   import ipykernel.pylab.backend_inline
+   import mplcairo.base
+   ipykernel.pylab.backend_inline.new_figure_manager = \
+       mplcairo.base.new_figure_manager
 
 Alternatively, set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
 non-empty value to fully replace the Agg renderer by the cairo renderer
@@ -297,7 +298,7 @@ of copies and conversions between premultiplied ARGB32 and straight RGBA8888
 buffers); additionally, it does not work with the wx and macosx backends due
 to peculiarities of the corresponding canvas classes.  On the other hand, this
 is currently the only way in which the webagg-based backends (e.g., Jupyter's
-inline widget) are supported.
+interactive widgets) are supported.
 
 At import-time, mplcairo will attempt to load Raqm_.  The use of that library
 can be controlled and checked using the ``set_options`` and ``get_options``
