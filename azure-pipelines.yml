@@ -63,7 +63,8 @@ steps:
     python -mpip install dist/*.whl &&
     python tools/ensure-mpl-test-data.py &&
     # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
-    pip install 'pytest<3.8' &&
+    # pytest-instafail useful for hanging tests.
+    pip install 'pytest<3.8' pytest-instafail &&
     # numpy!=1.17.0 needed before matplotlib#14901 (matplotlib<3.1.2).
     pip install 'numpy!=1.17.0'
 
@@ -71,7 +72,7 @@ steps:
 
 - bash: |
     export PYTHONFAULTHANDLER=1 &&
-    ./run-mpl-test-suite.py --tolerance=50 --junitxml=junit/test-results.xml &&
+    ./run-mpl-test-suite.py --tolerance=50 --instafail --junitxml=junit/test-results.xml &&
     PYTHONIOENCODING=utf-8 ./run-examples.py
   displayName: 'Test'
 
