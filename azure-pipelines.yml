@@ -44,10 +44,11 @@ steps:
       sudo apt install ghostscript inkscape
       ;;
     darwin)
+      # gs<9.50 is needed until matplotlib#15556 (matplotlib<3.2).
       brew update >/dev/null &&
       brew install cairo pkg-config &&
       PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
-      brew install ghostscript
+      brew install https://raw.githubusercontent.com/sashkab/homebrew-core/996730866806cf0dd13a56beac47c664b1408d94/Formula/ghostscript.rb
       ;;
     win32)
       git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
