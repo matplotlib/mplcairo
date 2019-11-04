@@ -41,7 +41,7 @@ from setupext import Extension, build_ext, find_packages, setup
 
 
 MIN_CAIRO_VERSION = "1.11.4"  # Also in _feature_tests.cpp.
-MIN_RAQM_VERSION = "0.2.0"
+MIN_RAQM_VERSION = "0.7.0"
 MANYLINUX = bool(os.environ.get("MPLCAIRO_MANYLINUX", ""))
 UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
@@ -137,6 +137,7 @@ class build_ext(build_ext):
         try:
             get_pkg_config(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
         except (FileNotFoundError, CalledProcessError):
+            (tmp_include_dir / "raqm-version.h").write_text("")  # Touch it.
             with urllib.request.urlopen(
                     f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
                     f"v{MIN_RAQM_VERSION}/src/raqm.h") as request, \

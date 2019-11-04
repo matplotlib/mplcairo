@@ -46,13 +46,12 @@ def get_versions():
     This function is solely intended to help gather information for bug
     reports; its output may change without notice.
     """
+    versions = _mplcairo.get_versions()
     return {
         "python": sys.version,
         "mplcairo": __version__,
         "matplotlib": matplotlib.__version__,
-        "cairo": _mplcairo.__cairo_version__,
-        "freetype": _mplcairo.__freetype_version__,
-        "pybind11": _mplcairo.__pybind11_version__,
+        **versions,
     }
 
 

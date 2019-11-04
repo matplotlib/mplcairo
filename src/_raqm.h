@@ -12,7 +12,8 @@ extern "C" {  // Support raqm<=0.2.
   _(get_glyphs) \
   _(layout) \
   _(set_freetype_face) \
-  _(set_text_utf8)
+  _(set_text_utf8) \
+  _(version_string)
 
 namespace mplcairo {
 

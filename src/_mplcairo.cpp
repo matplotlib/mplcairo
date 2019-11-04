@@ -1801,24 +1801,37 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Export symbols.
 
-  m.attr("__cairo_version__") = cairo_version_string();
-  auto ft_major = 0, ft_minor = 0, ft_patch = 0;
-  FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
-  m.attr("__freetype_version__") =
-    std::to_string(ft_major) + "."
-    + std::to_string(ft_minor) + "."
-    + std::to_string(ft_patch);
-  m.attr("__pybind11_version__") =
-    XSTR(PYBIND11_VERSION_MAJOR) "."
-    XSTR(PYBIND11_VERSION_MINOR) "."
-    XSTR(PYBIND11_VERSION_PATCH);
-
   P11X_BIND_ENUM(m, Py_antialias_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_operator_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_surface_type_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_StreamSurfaceType, "enum.Enum");
 
   // Export functions.
+  m.def(
+    "get_versions",
+    []() -> py::dict {
+      auto const& cairo_version = cairo_version_string();
+      auto ft_major = 0, ft_minor = 0, ft_patch = 0;
+      FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
+      auto const& freetype_version =
+        std::to_string(ft_major) + "."
+        + std::to_string(ft_minor) + "."
+        + std::to_string(ft_patch);
+      auto const& pybind11_version =
+        XSTR(PYBIND11_VERSION_MAJOR) "."
+        XSTR(PYBIND11_VERSION_MINOR) "."
+        XSTR(PYBIND11_VERSION_PATCH);
+      auto const& raqm_version =
+        has_raqm()
+        ? std::optional<std::string>{raqm::version_string()} : std::nullopt;
+      return py::dict(
+        "cairo"_a=cairo_version,
+        "freetype"_a=freetype_version,
+        "pybind11"_a=pybind11_version,
+        "raqm"_a=raqm_version);
+    }, R"__doc__(
+Get library versions.
+)__doc__");
   m.def(
     "set_options",
     [](py::kwargs kwargs) -> void {
