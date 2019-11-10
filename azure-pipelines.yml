@@ -63,7 +63,7 @@ steps:
       git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
       python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
       python tools/build-windows-wheel.py &&
-      choco install ghostscript inkscape
+      choco install --no-progress ghostscript inkscape
       ;;
     *)
       exit 1
