@@ -23,7 +23,14 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # requirement does not seem necessary?
         qimage = QtGui.QImage(buf, width, height,
                               QtGui.QImage.Format_ARGB32_Premultiplied)
-        getattr(qimage, "setDevicePixelRatio", lambda _: None)(self._dpi_ratio)
+        try:
+            qimage_setDevicePixelRatioF = qimage.setDevicePixelRatioF
+        except AttributeError:
+            try:
+                qimage_setDevicePixelRatioF = qimage.setDevicePixelRatio
+            except AttributeError:
+                def qimage_setDevicePixelRatioF(scaleFactor): pass
+        qimage_setDevicePixelRatioF(self._dpi_ratio)
         # FIXME[PySide{,2}]: https://bugreports.qt.io/browse/PYSIDE-140
         if qt_compat.QT_API.startswith("PySide"):
             ctypes.c_long.from_address(id(buf)).value -= 1
