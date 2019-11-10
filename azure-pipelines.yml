@@ -74,14 +74,15 @@ steps:
     # matplotlib 3.2.0rc1 needed for tests to pass on Py3.8.
     pip install matplotlib==3.2.0rc1 &&
     python tools/ensure-mpl-test-data.py &&
-    # pytest-instafail useful for hanging tests.
-    pip install pytest pytest-instafail
+    # pytest-{instafail,timeout} useful for hanging tests.
+    pip install pytest pytest-instafail pytest-timeout
 
   displayName: 'Build & install'
 
 - bash: |
     export PYTHONFAULTHANDLER=1 &&
-    ./run-mpl-test-suite.py --tolerance=50 --instafail --junitxml=junit/test-results.xml &&
+    ./run-mpl-test-suite.py --tolerance=50 \
+      --instafail --timeout=300 --junitxml=junit/test-results.xml &&
     PYTHONIOENCODING=utf-8 ./run-examples.py
   displayName: 'Test'
 
