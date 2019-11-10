@@ -10,18 +10,27 @@ strategy:
     Linux_py37:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.7'
+    Linux_py38:
+      vmImage: 'ubuntu-16.04'
+      pythonVersion: '3.8'
     macOS_py36:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.6'
     macOS_py37:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.7'
+    macOS_py38:
+      vmImage: 'macOS-10.14'
+      pythonVersion: '3.8'
     Windows_py36:
       vmImage: 'windows-2019'
       pythonVersion: '3.6'
     Windows_py37:
       vmImage: 'windows-2019'
       pythonVersion: '3.7'
+    Windows_py38:
+      vmImage: 'windows-2019'
+      pythonVersion: '3.8'
 
 pool:
   vmImage: '$(vmImage)'
@@ -44,7 +53,7 @@ steps:
       sudo apt install ghostscript inkscape
       ;;
     darwin)
-      # gs<9.50 is needed until matplotlib#15556 (matplotlib<3.2).
+      # gs<9.50 is needed until matplotlib#15556 (matplotlib<3.2.0rc2).
       brew update >/dev/null &&
       brew install cairo pkg-config &&
       PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
@@ -62,12 +71,11 @@ steps:
     esac
 
     python -mpip install dist/*.whl &&
+    # matplotlib 3.2.0rc1 needed for tests to pass on Py3.8.
+    pip install matplotlib==3.2.0rc1 &&
     python tools/ensure-mpl-test-data.py &&
-    # pytest<3.8 needed before matplotlib#12154 (matplotlib<3.1).
     # pytest-instafail useful for hanging tests.
-    pip install 'pytest<3.8' pytest-instafail &&
-    # numpy!=1.17.0 needed before matplotlib#14901 (matplotlib<3.1.2).
-    pip install 'numpy!=1.17.0'
+    pip install pytest pytest-instafail
 
   displayName: 'Build & install'
 

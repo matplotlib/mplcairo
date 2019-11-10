@@ -16,7 +16,7 @@ if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...
     docker run \
-        -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.5 3.6 3.7}" \
+        -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.6 3.7 3.8}" \
         --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
         quay.io/pypa/manylinux1_x86_64 \
         "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"
@@ -63,8 +63,8 @@ else
     )
 
     for PY_VER in $PY_VERS; do
-        PY_VER_ABI_TAG="cp${PY_VER/./}-cp${PY_VER/./}m"
-        PY_PREFIX="/opt/python/$PY_VER_ABI_TAG"
+        PY_PREFIX=("/opt/python/cp${PY_VER/./}-"*)
+        PY_VER_ABI_TAG="$(basename "$PY_PREFIX")"
         echo "Building the wheel for Python $PY_VER."
         # Provide a shim to access pycairo's header.
         echo 'def get_include(): return "/dev/null"' \
