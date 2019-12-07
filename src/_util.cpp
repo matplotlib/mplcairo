@@ -686,7 +686,8 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
       y += rq_glyph.y_advance / 64.;
     }
     // raqm returns glyphs left-to-right but cairo wants them in logical order.
-    if (rq_glyphs[0].cluster > rq_glyphs[num_glyphs - 1].cluster) {
+    if (num_glyphs
+        && rq_glyphs[0].cluster > rq_glyphs[num_glyphs - 1].cluster) {
       std::reverse(&rq_glyphs[0], &rq_glyphs[num_glyphs]);
       gac.cluster_flags = CAIRO_TEXT_CLUSTER_FLAG_BACKWARD;
     }
