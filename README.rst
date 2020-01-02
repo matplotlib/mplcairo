@@ -72,8 +72,8 @@ As usual, install using pip:
    $ pip install mplcairo  # from PyPI
    $ pip install git+https://github.com/matplotlib/mplcairo  # from Github
 
-Note that wheels are not available for macOS, because no macOS version ships a
-recent-enough libc++ by default and vendoring of libc++ appears to be fragile.
+Note that wheels are not available for macOS<10.13, because the libc++ included
+with these versions is too old and vendoring of libc++ appears to be fragile.
 Help for packaging would be welcome.
 
 mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.
@@ -420,11 +420,12 @@ of discretized sizes, with an error bounded by the threshold.
 
 **NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
 where the facets join each other.  This is because these functions internally
-use a ``PathCollection``, thus triggering the approximate stamping.
-``pcolormesh`` (which internally uses a ``QuadMesh``) should generally be
-preferred over ``pcolor`` anyways. ``plot_surface`` should likewise instead
-represent the surface using ``QuadMesh``, which is drawn without such
-artefacts.
+use a ``PathCollection``; this triggers the approximate stamping, and
+even without it (by setting ``path.simplify_threshold`` to zero), cairo's
+rasterization of the edge between the facets is poor.  ``pcolormesh`` (which
+internally uses a ``QuadMesh``) should generally be preferred over ``pcolor``
+anyways.  ``plot_surface`` could likewise instead represent the surface using
+``QuadMesh``, which is drawn without such artefacts.
 
 Font formats
 ------------

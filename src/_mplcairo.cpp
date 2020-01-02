@@ -608,7 +608,7 @@ void GraphicsContextRenderer::set_clip_path(
 }
 
 void GraphicsContextRenderer::set_dashes(
-  std::optional<double> dash_offset,
+  std::optional<double> dash_offset,  // Just double, with mpl 3.3+ (#15828).
   std::optional<py::array_t<double>> dash_list)
 {
   if (dash_list) {

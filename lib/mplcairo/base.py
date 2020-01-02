@@ -58,7 +58,8 @@ class GraphicsContextRendererCairo(
         RendererBase):
 
     def __init__(self, width, height, dpi):
-        # Hide the overloaded constructor, provided by from_pycairo_ctx.
+        # Hide the overloaded constructors used by from_pycairo_ctx and
+        # _for_fmt_output.
         _mplcairo.GraphicsContextRendererCairo.__init__(
             self, width, height, dpi)
 
