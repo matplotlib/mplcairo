@@ -9,7 +9,9 @@ Crashes
 
 Seems to be due to cairo trying to call ``write`` during shutdown when the
 interpreter state is seriously messed up (even though ``_finish`` has been
-correctly called first).  See cairo bug #104410.
+correctly called first).  See `cairo issue #277 <cairo-277_>`_.
+
+.. _cairo-277: https://gitlab.freedesktop.org/cairo/cairo/issues/277
 
 Fix needed
 ==========
