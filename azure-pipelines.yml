@@ -43,8 +43,9 @@ steps:
     architecture: 'x64'
 
 - bash: |
+    set -x
 
-    pip install --upgrade pip setuptools
+    pip install --upgrade pip setuptools &&
 
     case "$(python -c 'import sys; print(sys.platform)')" in
     linux)
@@ -53,8 +54,10 @@ steps:
       sudo apt install ghostscript inkscape
       ;;
     darwin)
+      # python2 unlinking needed until brew sorts that out.
       # gs<9.50 is needed until matplotlib#15556 (matplotlib<3.2.0rc2).
       brew update >/dev/null &&
+      brew unlink python@2 &&
       brew install cairo pkg-config &&
       PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
       brew install https://raw.githubusercontent.com/sashkab/homebrew-core/996730866806cf0dd13a56beac47c664b1408d94/Formula/ghostscript.rb
@@ -68,7 +71,7 @@ steps:
     *)
       exit 1
       ;;
-    esac
+    esac &&
 
     python -mpip install dist/*.whl &&
     # matplotlib 3.2.0rc1 needed for tests to pass on Py3.8.
