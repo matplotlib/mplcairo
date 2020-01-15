@@ -68,7 +68,7 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
 
     with warnings.catch_warnings():  # mpl 3.0
         warnings.filterwarnings("ignore")
-        mpl.use("agg", warn=False, force=True)
+        mpl.use("agg", force=True)
     from matplotlib import pyplot as plt
 
     __orig_switch_backend = plt.switch_backend
