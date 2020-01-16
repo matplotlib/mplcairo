@@ -18,7 +18,8 @@ def main():
             (Path(__file__).resolve().parent / "examples").glob("*.py")):
         if path.name not in SKIP:
             print("Running", path)
-            runpy.run_path(path, run_name=path.stem)
+            # run_path(Path) seems broken on macOS + Py3.8.1.
+            runpy.run_path(str(path), run_name=path.stem)
 
 
 if __name__ == "__main__":
