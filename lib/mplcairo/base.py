@@ -242,7 +242,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     def _print_method(self, renderer_factory,
                       path_or_stream, *, metadata=None, dpi=72, **kwargs):
         _check_print_extra_kwargs(**kwargs)
-        self.figure.set_dpi(72)
+        self.figure.set_dpi(dpi)
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
