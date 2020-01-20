@@ -38,13 +38,16 @@ os.chdir(Path(__file__).parents[1])
 Path("build").mkdir(exist_ok=True)
 
 # Download the cairo headers from Arch Linux (<1Mb, vs >40Mb for the official
-# tarball, which contains baseline images), and the "official" FreeType build.
+# tarball, which contains baseline images) from before Arch switched to zstd,
+# and the "official" FreeType build.
 os.chdir("build")
 urls = {
     Path("cairo.txz"):
-        "https://www.archlinux.org/packages/extra/x86_64/cairo/download",
+        "https://archive.org/download/archlinux_pkg_cairo/"
+        "cairo-1.17.2%2B17%2Bg52a7c79fd-2-x86_64.pkg.tar.xz",
     Path("fontconfig.txz"):
-        "https://www.archlinux.org/packages/extra/x86_64/fontconfig/download",
+        "https://archive.org/download/archlinux_pkg_fontconfig/"
+        "fontconfig-2%3A2.13.91%2B24%2Bg75eadca-1-x86_64.pkg.tar.xz",
     Path("freetype.zip"):
         "https://github.com/ubawurinna/freetype-windows-binaries/"
         "releases/download/v2.9.1/freetype-2.9.1.zip",

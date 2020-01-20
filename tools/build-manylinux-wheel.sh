@@ -40,7 +40,9 @@ else
     echo 'Setting up gcc.'
     (
         cd workdir
-        curl -L https://github.com/Noctem/pogeo-toolchain/releases/download/v1.5/gcc-7.3-centos5-x86-64.tar.bz2 -o toolchain.tar.bz2
+        curl -L \
+            https://github.com/Noctem/pogeo-toolchain/releases/download/v1.5/gcc-7.3-centos5-x86-64.tar.bz2 \
+            -o toolchain.tar.bz2
         tar -C / -xf toolchain.tar.bz2
     )
 
@@ -50,13 +52,21 @@ else
     echo 'Setting up headers for dependencies.'
     (
         cd workdir
-        for dep in cairo fontconfig freetype2 python-cairo; do
-            mkdir "$dep"
+        # Use the last versions before Arch switched to zstd.
+        filenames=(
+            cairo-1.17.2%2B17%2Bg52a7c79fd-2-x86_64.pkg.tar.xz
+            fontconfig-2%3A2.13.91%2B24%2Bg75eadca-1-x86_64.pkg.tar.xz
+            freetype2-2.10.1-1-x86_64.pkg.tar.xz
+            python-cairo-1.18.2-3-x86_64.pkg.tar.xz
+        )
+        for filename in "${filenames[@]}"; do
+            name="$(rev <<<"$filename" | cut -d- -f4- | rev)"
+            mkdir "$name"
             # In tar, ignore "ignoring unknown extended header keyword" warning.
-            curl -L "https://www.archlinux.org/packages/extra/x86_64/$dep/download" |
+            curl -L "https://archive.org/download/archlinux_pkg_$name/$filename" |
                 xz -cd - |
-                (tar -C "$dep" -xf - 2>/dev/null || true)
-            mv "$dep/usr/include/"* /usr/include
+                (tar -C "$name" -xf - 2>/dev/null || true)
+            mv "$name/usr/include/"* /usr/include
         done
         # Provide a shim to access pycairo's header.
         mv "$(find python-cairo -name py3cairo.h)" /usr/include
