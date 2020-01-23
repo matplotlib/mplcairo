@@ -45,7 +45,7 @@ steps:
 - bash: |
     set -x
 
-    pip install --upgrade pip setuptools &&
+    python -mpip install --upgrade pip setuptools &&
 
     case "$(python -c 'import sys; print(sys.platform)')" in
     linux)
@@ -75,10 +75,10 @@ steps:
 
     python -mpip install dist/*.whl &&
     # matplotlib 3.2.0rc1 needed for tests to pass on Py3.8.
-    pip install matplotlib==3.2.0rc1 &&
+    python -mpip install matplotlib==3.2.0rc1 &&
     python tools/ensure-mpl-test-data.py &&
     # pytest-{instafail,timeout} useful for hanging tests.
-    pip install pytest pytest-instafail pytest-timeout
+    python -mpip install pytest pytest-instafail pytest-timeout
 
   displayName: 'Build & install'
 
