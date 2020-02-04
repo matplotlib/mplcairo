@@ -1673,6 +1673,11 @@ MathtextBackend& MathtextBackend::get_results(
 void MathtextBackend::_draw(
   GraphicsContextRenderer& gcr, double x, double y, double angle) const
 {
+  if (!std::isfinite(x) || !std::isfinite(y)) {
+    // This happens e.g. with empty strings, and would put cr in an invalid
+    // state. even though nothing is written.
+    return;
+  }
   auto const& ac = gcr._additional_context();
   auto const& cr = gcr.cr_;
   auto const& dpi = get_additional_state(cr).dpi;
