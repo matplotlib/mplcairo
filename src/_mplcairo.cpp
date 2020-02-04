@@ -57,6 +57,16 @@ P11X_DECLARE_ENUM(
   {"HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY}
 )
 P11X_DECLARE_ENUM(  // Only for error messages.
+  "_format_t", Py_format_t,
+  {"INVALID", CAIRO_FORMAT_INVALID},
+  {"ARGB32", CAIRO_FORMAT_ARGB32},
+  {"RGB24", CAIRO_FORMAT_RGB24},
+  {"A8", CAIRO_FORMAT_A8},
+  {"A1", CAIRO_FORMAT_A1},
+  {"RGB16_565", CAIRO_FORMAT_RGB16_565},
+  {"RGB30", CAIRO_FORMAT_RGB30}
+)
+P11X_DECLARE_ENUM(  // Only for error messages.
   "_surface_type_t", Py_surface_type_t,
   {"IMAGE", CAIRO_SURFACE_TYPE_IMAGE},
   {"PDF", CAIRO_SURFACE_TYPE_PDF},
@@ -1803,6 +1813,7 @@ PYBIND11_MODULE(_mplcairo, m)
 
   P11X_BIND_ENUM(m, Py_antialias_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_operator_t, "enum.Enum");
+  P11X_BIND_ENUM(m, Py_format_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_surface_type_t, "enum.Enum");
   P11X_BIND_ENUM(m, Py_StreamSurfaceType, "enum.Enum");
 
