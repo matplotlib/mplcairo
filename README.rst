@@ -106,6 +106,12 @@ for Windows build scripts.
    ``mplcairo.set_options(float_surface=True)``; the presence of this feature
    is detected at runtime.
 
+   Note that cairo 1.17.2 (and only that version) has a bug that causes (in
+   particular) polar gridlines to be incorrectly cropped.  This bug was fixed
+   in 2d1a137.  However, if you are already using a non-tagged, >1.17.2 version
+   of cairo, it is suggested to use a commit ≥dfe3aa6, as the latter fixes a
+   bug that can cause crashes in mplcairo.
+
 .. [#] The version requirement comes from pybind11 issue `#1362
    <pybind11-1362_>`_.
 
