@@ -27,8 +27,7 @@ from ._mplcairo import _StreamSurfaceType
 
 
 _log = logging.getLogger()
-# FreeType2 is thread-unsafe.
-_LOCK = RLock()
+_LOCK = RLock()  # FreeType2 is thread-unsafe.
 MathTextParser._backend_mapping["mplcairo"] = \
     _mplcairo.MathtextBackendCairo
 
