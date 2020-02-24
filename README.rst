@@ -35,9 +35,10 @@ Noteworthy points include:
   kerning; floating point surfaces are supported with cairo≥1.17.2).
 - Support for a wider variety of font formats, such as otf and pfb, for vector
   (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
-- Optional support for complex text layout (right-to-left languages, etc.)
-  using Raqm_.  **Note** that Raqm depends on Fribidi, which is licensed under
-  the LGPLv2.1+.
+- Optional support for complex text layout (right-to-left languages, etc.) and
+  OpenType font features (see `examples/opentype_features.py`_) using Raqm_.
+  **Note** that Raqm depends on Fribidi,
+  which is licensed under the LGPLv2.1+.
 - Support for embedding URLs in PDF (but not SVG) output (requires
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
@@ -47,6 +48,7 @@ Noteworthy points include:
 .. _cairo: https://www.cairographics.org/
 .. _Matplotlib: http://matplotlib.org/
 .. _Raqm: https://github.com/HOST-Oman/libraqm
+.. _examples/opentype_features.py: examples/opentype_features.py
 .. _examples/operators.py: examples/operators.py
 
 Installation
@@ -76,10 +78,10 @@ Note that wheels are not available for macOS<10.13, because the libc++ included
 with these versions is too old and vendoring of libc++ appears to be fragile.
 Help for packaging would be welcome.
 
-mplcairo can use Raqm_ (≥0.2) for complex text layout if it is available.
-Refer to the instructions on that project's website for installation on Linux
-and macOS.  You may want to look at https://github.com/HOST-Oman/libraqm-cmake
-for Windows build scripts.
+mplcairo can use Raqm_ (≥0.2) for complex text layout and handling of
+OpenType font features.  Refer to the instructions on that project's
+website for installation on Linux and macOS.  You may want to look at
+https://github.com/HOST-Oman/libraqm-cmake for Windows build scripts.
 
 .. _pybind11-1362: https://github.com/pybind/pybind11/issues/1362
 
@@ -433,8 +435,8 @@ internally uses a ``QuadMesh``) should generally be preferred over ``pcolor``
 anyways.  ``plot_surface`` could likewise instead represent the surface using
 ``QuadMesh``, which is drawn without such artefacts.
 
-Font formats
-------------
+Font formats and features
+-------------------------
 
 In order to use a specific font that Matplotlib may be unable to use, pass a
 filename directly:
@@ -442,14 +444,32 @@ filename directly:
 .. code-block:: python
 
    from matplotlib.font_manager import FontProperties
-   ax.text(.5, .5, "hello, world", fontproperties=FontProperties(fname="..."))
+   fig.text(.5, .5, "hello, world",
+            fontproperties=FontProperties(fname="/path/to/font.ttf"))
+
+or more simply, with Matplotlib≥3.3:
+
+.. code-block:: python
+
+   from pathlib import Path
+   fig.text(.5, .5, "hello, world", font=Path("/path/to/font.ttf"))
 
 mplcairo still relies on Matplotlib's font cache, so fonts unsupported by
 Matplotlib remain unavailable by other means.
 
 For ttc fonts (and, more generally, font formats that include multiple font
 faces in a single file), the *n*\th font (*n*\≥0) can be selected by appending
-``#n`` to the filename (e.g., ``fname="/path/to/font.ttc#1"``).
+``#n`` to the filename (e.g., ``"/path/to/font.ttc#1"``).
+
+OpenType font features can be selected by appending ``|feature,...``
+to the filename, followed by a `HarfBuzz feature string`_ (e.g.,
+``"/path/to/font.otf|frac,onum"``); see `examples/opentype_features.py`_.
+
+.. _HarfBuzz feature string: https://harfbuzz.github.io/harfbuzz-hb-common.html#hb-feature-from-string
+
+The syntaxes for selecting TTC subfonts and OpenType font features are
+**experimental** and may change, especially if such features are implemented in
+Matplotlin itself.
 
 Note that Matplotlib's (default) Agg backend will handle most (single-face)
 fonts equally well (ultimately, both backends relies on FreeType for

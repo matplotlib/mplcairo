@@ -5,6 +5,7 @@ next
 - ``pybind11`` is now a ``setup_requires`` and ``-march=native`` is no longer
   passed as compilation option by default; drop support for
   ``MPLCAIRO_BUILD_TYPE``.
+- Added support for OpenType font features.
 
 v0.2
 ====

@@ -33,7 +33,7 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 
 // Other useful values.
 std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE{};
-cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{};
+cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{}, FEATURES_KEY{};
 py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
 bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
@@ -565,18 +565,21 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
   }
 }
 
-cairo_font_face_t* font_face_from_path(std::string path)
+cairo_font_face_t* font_face_from_path(std::string pathspec)
 {
-  auto& font_face = detail::FONT_CACHE[path];
+  auto& font_face = detail::FONT_CACHE[pathspec];
   if (font_face) {
     cairo_font_face_reference(font_face);
   } else {
-    auto face_index = 0;
-    if (auto match = std::smatch{};
-        std::regex_match(path, match, std::regex{"(.*)#(\\d+)"})) {
-      path = match[1];
-      face_index = std::stoi(match[2]);
+    auto match = std::smatch{};
+    if (!std::regex_match(pathspec, match,
+                          std::regex{"(.*?)(#(\\d+))?(\\|(.*))?"})) {
+      throw std::runtime_error{
+        "Failed to parse pathspec {}"_format(pathspec).cast<std::string>()};
     }
+    auto const& path = match.str(1);
+    auto const& face_index = match.str(3).empty() ? 0 : std::stoi(match.str(3));
+    auto const& features_s = match.str(5);
     FT_Face ft_face;
     FT_CHECK(
       FT_New_Face, detail::ft_library, path.c_str(), face_index, &ft_face);
@@ -588,6 +591,21 @@ cairo_font_face_t* font_face_from_path(std::string path)
       font_face, &detail::FT_KEY, ft_face,
       [](void* ptr) -> void {
         FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr));
+      });
+    auto const& comma = std::regex{","};
+    auto const& features = new std::vector<std::string>(
+      features_s.size()
+      ? std::sregex_token_iterator{
+          features_s.begin(), features_s.end(), comma, -1}
+      : std::sregex_token_iterator{},
+      std::sregex_token_iterator{});
+    CAIRO_CLEANUP_CHECK(
+      { cairo_font_face_destroy(font_face);
+        delete static_cast<std::vector<std::string>*>(features); },
+      cairo_font_face_set_user_data,
+      font_face, &detail::FEATURES_KEY, features,
+      [](void* ptr) -> void {
+        delete static_cast<std::vector<std::string>*>(ptr);
       });
   }
   return font_face;
@@ -671,6 +689,12 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
     }
     TRUE_CHECK(raqm::set_text_utf8, rq, s.c_str(), s.size());
     TRUE_CHECK(raqm::set_freetype_face, rq, ft_face);
+    for (auto const& feature:
+         *static_cast<std::vector<std::string>*>(
+           cairo_font_face_get_user_data(
+             cairo_get_font_face(cr), &detail::FEATURES_KEY))) {
+      TRUE_CHECK(raqm::add_font_feature, rq, feature.c_str(), -1);
+    }
     TRUE_CHECK(raqm::layout, rq);
     auto num_glyphs = size_t{};
     auto const& rq_glyphs = raqm::get_glyphs(rq, &num_glyphs);

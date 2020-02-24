@@ -68,9 +68,10 @@ extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
 // Other useful values.
 extern std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE;
 extern cairo_user_data_key_t const
-  REFS_KEY,  // cairo_t -> kept alive Python objects.
-  STATE_KEY, // cairo_t -> additional state.
-  FT_KEY;    // cairo_font_face_t -> FT_Face.
+  REFS_KEY,      // cairo_t -> kept alive Python objects.
+  STATE_KEY,     // cairo_t -> additional state.
+  FT_KEY,        // cairo_font_face_t -> FT_Face.
+  FEATURES_KEY;  // cairo_font_face_t -> OpenType features.
 extern py::object UNIT_CIRCLE;
 extern py::object PIXEL_MARKER;
 extern bool FLOAT_SURFACE;
