@@ -7,6 +7,7 @@ extern "C" {  // Support raqm<=0.2.
 #include <optional>
 
 #define ITER_RAQM_API(_) \
+  _(add_font_feature) \
   _(create) \
   _(destroy) \
   _(get_glyphs) \
