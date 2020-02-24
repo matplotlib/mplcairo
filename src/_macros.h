@@ -5,7 +5,7 @@
   if (auto const& error_ = func(__VA_ARGS__); !error_) { \
     throw \
       std::runtime_error{ \
-        #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed "}; \
+        #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed"}; \
   } \
 } (void)0
 
