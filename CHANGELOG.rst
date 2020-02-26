@@ -6,6 +6,8 @@ next
   passed as compilation option by default; drop support for
   ``MPLCAIRO_BUILD_TYPE``.
 - Added support for OpenType font features.
+- Added support for ``pdftex.map`` font effects (as in Matplotlib's
+  ``usetex_fonteffects.py`` example.
 
 v0.2
 ====
