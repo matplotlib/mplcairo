@@ -1593,10 +1593,12 @@ void GraphicsContextRenderer::restore_region(Region& region)
 MathtextBackend::Glyph::Glyph(
   std::string path, double size,
   std::variant<char32_t, std::string, FT_ULong> codepoint_or_name_or_index,
-  double x, double y) :
+  double x, double y,
+  double slant, double extend) :
   path{path}, size{size},
   codepoint_or_name_or_index{codepoint_or_name_or_index},
-  x{x}, y{y}
+  x{x}, y{y},
+  slant{slant}, extend{extend}
 {}
 
 MathtextBackend::MathtextBackend() :
@@ -1643,14 +1645,16 @@ void MathtextBackend::render_glyph(double ox, double oy, py::object info)
 
 void MathtextBackend::_render_usetex_glyph(
   double ox, double oy, std::string filename, double size,
-  std::variant<std::string, FT_ULong> name_or_index)
+  std::variant<std::string, FT_ULong> name_or_index,
+  double slant, double extend)
 {
   auto codepoint_or_name_or_index =
     std::variant<char32_t, std::string, FT_ULong>{};
   std::visit(
     [&](auto name_or_index) { codepoint_or_name_or_index = name_or_index; },
     name_or_index);
-  glyphs_.emplace_back(filename, size, codepoint_or_name_or_index, ox, oy);
+  glyphs_.emplace_back(
+    filename, size, codepoint_or_name_or_index, ox, oy, slant, extend);
 }
 
 void MathtextBackend::render_rect_filled(
@@ -1688,7 +1692,10 @@ void MathtextBackend::_draw(
     auto const& font_face = font_face_from_path(glyph.path);
     cairo_set_font_face(cr, font_face);
     cairo_font_face_destroy(font_face);
-    cairo_set_font_size(cr, glyph.size * dpi / 72);
+    auto const& size = glyph.size * dpi / 72;
+    auto const& mtx = cairo_matrix_t{
+      size * glyph.extend, 0, -size * glyph.slant * glyph.extend, size, 0, 0};
+    cairo_set_font_matrix(cr, &mtx);
     auto const& options = get_font_options();
     cairo_set_font_options(cr, options.get());
     auto ft_face =
@@ -2145,7 +2152,6 @@ Backend rendering mathtext to a cairo recording surface.
     .def(py::init<>())
     .def("set_canvas_size", &MathtextBackend::set_canvas_size)
     .def("render_glyph", &MathtextBackend::render_glyph)
-    .def("_render_usetex_glyph", &MathtextBackend::_render_usetex_glyph)
     .def("_render_usetex_glyph", &MathtextBackend::_render_usetex_glyph)
     .def("render_rect_filled", &MathtextBackend::render_rect_filled)
     .def("get_results", &MathtextBackend::get_results)

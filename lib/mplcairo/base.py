@@ -125,9 +125,12 @@ class GraphicsContextRendererCairo(
                 # :mpltest:`test_backend_svg.test_missing_psfont`.
                 raise ValueError(f"No font file found for {texfont.psname} "
                                  f"({texfont.texname!a})")
-            mb._render_usetex_glyph(text.x, -text.y,
-                                    texfont.filename, text.font.size,
-                                    get_glyph_name(text) or text.glyph)
+            mb._render_usetex_glyph(
+                text.x, -text.y,
+                texfont.filename, text.font.size,
+                get_glyph_name(text) or text.glyph,
+                texfont.effects.get("slant", 0),
+                texfont.effects.get("extend", 1))
         for x1, y1, h, w in page.boxes:
             mb.render_rect_filled(x1, -y1, x1 + w, -(y1 + h))
         mb._draw(self, x, y, angle)
