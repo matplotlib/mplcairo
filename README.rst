@@ -294,8 +294,8 @@ To use cairo rendering in Jupyter's ``inline`` mode, patch, in your
 
 .. code-block:: python
 
-   import ipykernel.pylab.backend_inline
    import mplcairo.base
+   import ipykernel.pylab.backend_inline
    ipykernel.pylab.backend_inline.new_figure_manager = \
        mplcairo.base.new_figure_manager
 
