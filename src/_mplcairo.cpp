@@ -1799,6 +1799,7 @@ PYBIND11_MODULE(_mplcairo, m)
 
   FT_CHECK(FT_Init_FreeType, &detail::ft_library);
 
+  detail::RC_PARAMS = py::module::import("matplotlib").attr("rcParams");
   detail::PIXEL_MARKER =
     py::module::import("matplotlib.markers").attr("MarkerStyle")(",");
   // Making the mathtext parser live in a Python module works around
@@ -1817,8 +1818,9 @@ PYBIND11_MODULE(_mplcairo, m)
         // using `atexit.register`, we may get a segfault when Python tries to
         // deallocate the type objects (via a decref by the C++ destructor) too
         // late in the shutdown sequence.)
-        detail::UNIT_CIRCLE = {};
+        detail::RC_PARAMS = {};
         detail::PIXEL_MARKER = {};
+        detail::UNIT_CIRCLE = {};
       }
     }
   );

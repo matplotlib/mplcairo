@@ -72,8 +72,9 @@ extern cairo_user_data_key_t const
   STATE_KEY,     // cairo_t -> additional state.
   FT_KEY,        // cairo_font_face_t -> FT_Face.
   FEATURES_KEY;  // cairo_font_face_t -> OpenType features.
-extern py::object UNIT_CIRCLE;
+extern py::object RC_PARAMS;
 extern py::object PIXEL_MARKER;
+extern py::object UNIT_CIRCLE;
 extern bool FLOAT_SURFACE;
 extern int MARKER_THREADS;
 extern double MITER_LIMIT;

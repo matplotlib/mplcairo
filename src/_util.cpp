@@ -34,7 +34,9 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 // Other useful values.
 std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE{};
 cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{}, FEATURES_KEY{};
-py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
+py::object RC_PARAMS{py::none{}},
+           PIXEL_MARKER{py::none{}},
+           UNIT_CIRCLE{py::none{}};
 bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
 double MITER_LIMIT{10.};
@@ -84,7 +86,8 @@ bool py_eq(py::object obj1, py::object obj2) {
 
 py::object rc_param(std::string key)
 {
-  return py::module::import("matplotlib").attr("rcParams")[key.c_str()];
+  return py::reinterpret_borrow<py::object>(  // Use a faster path.
+    PyDict_GetItemString(detail::RC_PARAMS.ptr(), key.data()));
 }
 
 cairo_format_t get_cairo_format() {
