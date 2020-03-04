@@ -1891,6 +1891,9 @@ Get library versions.
           unload_raqm();
         }
       }
+      if (auto const& debug = pop_option("_debug", bool{})) {
+        detail::DEBUG = *debug;
+      }
       if (py::bool_(kwargs)) {
         throw std::runtime_error{
           "unknown options passed to set_options: {}"_format(kwargs)
@@ -1902,24 +1905,28 @@ Set mplcairo options.
 Parameters
 ----------
 cairo_circles : bool, default: True
-  Whether to use cairo's circle drawing algorithm, rather than Matplotlib's
-  fixed spline approximation.
+    Whether to use cairo's circle drawing algorithm, rather than Matplotlib's
+    fixed spline approximation.
 
 float_surface : bool, default: False
-  Whether to use a floating point surface (more accurate, but uses more
-  memory).
+    Whether to use a floating point surface (more accurate, but uses more
+    memory).
 
 marker_threads : int, default: 0
-  Number of threads to use to render markers, if nonzero.
+    Number of threads to use to render markers, if nonzero.
 
 miter_limit : float, default: 10
-  Setting for cairo_set_miter_limit__.  If negative, use Matplotlib's (bad)
-  default of matching the linewidth.  The default matches cairo's default.
+    Setting for cairo_set_miter_limit__.  If negative, use Matplotlib's (bad)
+    default of matching the linewidth.  The default matches cairo's default.
 
-  __ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-set-miter-limit
+    __ https://www.cairographics.org/manual/cairo-cairo-t.html#cairo-set-miter-limit
 
 raqm : bool, default: if available
-  Whether to use Raqm for text rendering.
+    Whether to use Raqm for text rendering.
+
+_debug: bool, default: False
+    Whether to print debugging information.  This option is only intended for
+    debugging and is not part of the stable API.
 )__doc__");
   m.def(
     "get_options",
@@ -1929,7 +1936,8 @@ raqm : bool, default: if available
         "float_surface"_a=detail::FLOAT_SURFACE,
         "marker_threads"_a=detail::MARKER_THREADS,
         "miter_limit"_a=detail::MITER_LIMIT,
-        "raqm"_a=has_raqm());
+        "raqm"_a=has_raqm(),
+        "__debug__"_a=detail::DEBUG);
     }, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available
 options.

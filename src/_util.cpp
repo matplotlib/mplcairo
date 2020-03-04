@@ -38,6 +38,7 @@ py::object UNIT_CIRCLE{py::none{}}, PIXEL_MARKER{py::none{}};
 bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
 double MITER_LIMIT{10.};
+bool DEBUG{};
 MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{
   []() -> MplcairoScriptSurface {
     if (auto script_surface = std::getenv("MPLCAIRO_SCRIPT_SURFACE");
@@ -740,6 +741,14 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
       scaled_font, 0, 0, s.c_str(), s.size(),
       &gac.glyphs, &gac.num_glyphs,
       &gac.clusters, &gac.num_clusters, &gac.cluster_flags);
+  }
+  if (detail::DEBUG) {
+    py::print("string: {}"_format(s));
+    for (auto i = 0; i < gac.num_glyphs; ++i) {
+      auto const& glyph = gac.glyphs[i];
+      py::print(
+        "glyph: {}\tx: {}\ty: {}"_format(glyph.index, glyph.x, glyph.y));
+    }
   }
   return gac;
 }
