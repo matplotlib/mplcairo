@@ -34,7 +34,7 @@ import cairocffi
 
 
 # Prepare the directories.
-os.chdir(Path(__file__).parents[1])
+os.chdir(Path(__file__).resolve().parents[1])
 Path("build").mkdir(exist_ok=True)
 
 # Download the cairo headers from Arch Linux (<1Mb, vs >40Mb for the official
