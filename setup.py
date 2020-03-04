@@ -262,10 +262,9 @@ setup(
     license="MIT",
     classifiers=[
         "Development Status :: 4 - Beta",
+        "Framework :: Matplotlib",
         "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3.5",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3",
     ],
     cmdclass={"build_ext": build_ext},
     packages=find_packages("lib"),
