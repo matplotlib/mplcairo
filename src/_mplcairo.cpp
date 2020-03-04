@@ -1488,6 +1488,8 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
+    auto const& options = get_font_options();
+    cairo_set_font_options(cr_, options.get());  // Needed for correct aa.
     cairo_text_extents_t extents;
     auto const& gac = text_to_glyphs_and_clusters(cr_, s);
     cairo_glyph_extents(cr_, gac.glyphs, gac.num_glyphs, &extents);
