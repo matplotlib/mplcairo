@@ -300,8 +300,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                 {"ghostscript": backend_ps.gs_distill,
                  "xpdf": backend_ps.xpdf_distill}[
                      mpl.rcParams["ps.usedistiller"]](
-                         tmp_name, False, ptype=papertype)
-                with open(tmp_name, "rb") as tmp_file, \
+                         str(tmp_name), False, ptype=papertype)
+                with tmp_name.open("rb") as tmp_file, \
                      cbook.open_file_cm(path_or_stream, "wb") as stream:
                     shutil.copyfileobj(tmp_file, stream)
         else:
