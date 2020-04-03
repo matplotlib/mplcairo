@@ -388,13 +388,8 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
        -> cairo_status_t {
       auto const& write =
         py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
-      // FIXME[pybind11]: Work around lack of const buffers in pybind11.
-      auto const& buf_info = py::buffer_info{
-        const_cast<unsigned char*>(data),
-        sizeof(char), py::format_descriptor<char>::format(),
-        1, {length}, {sizeof(char)}};
       return
-        write(py::memoryview{buf_info}).cast<unsigned int>() == length
+        write(py::memoryview{{data, length}}).cast<unsigned int>() == length
         // NOTE: This does not appear to affect the context status.
         ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
     };

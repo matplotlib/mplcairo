@@ -15,7 +15,6 @@ MPLCAIRO_NO_UNITY_BUILD
 """
 
 from distutils.version import LooseVersion
-from enum import Enum
 import functools
 import json
 import os
@@ -78,10 +77,7 @@ def paths_from_link_libpaths():
 class build_ext(build_ext):
 
     def build_extensions(self):
-        try:
-            import importlib.metadata as importlib_metadata
-        except ImportError:
-            import importlib_metadata
+        import pybind11
 
         ext, = self.distribution.ext_modules
 
@@ -95,40 +91,8 @@ class build_ext(build_ext):
         else:
             ext.sources += [*map(str, Path("src").glob("*.cpp"))]
             ext.sources.remove("src/_unity_build.cpp")
-        ext.language = "c++"
 
-        # pybind11.get_include() is brittle (pybind #1425).
-        pybind11_include_path = next(
-            path for path in importlib_metadata.files("pybind11")
-            if path.name == "pybind11.h").locate().parents[1]
-        if not (pybind11_include_path / "pybind11/pybind11.h").exists():
-            # egg-install from setup_requires:
-            # importlib-metadata thinks the headers are at
-            #   .eggs/pybind11-VER-TAG.egg/pybind11-VER.data/headers/pybind11.h
-            # but they're actually at
-            #   .eggs/pybind11-VER-TAG.egg/pybind11.h
-            # pybind11_include_path is
-            #   /<...>/.eggs/pybind11-VER-TAG.egg/pybind11-VER.data
-            # so just create the proper structure there.
-            try:
-                is_egg = (pybind11_include_path.relative_to(
-                    Path(__file__).resolve().parent).parts[0] == ".eggs")
-            except ValueError:
-                # Arch Linux ships completely wrong metadata, but the headers
-                # are in the default include paths, so just leave things as is.
-                is_egg = False
-            if is_egg:
-                shutil.rmtree(pybind11_include_path / "pybind11",
-                              ignore_errors=True)
-                for file in [*pybind11_include_path.parent.glob("**/*")]:
-                    if file.is_dir():
-                        continue
-                    dest = (pybind11_include_path / "pybind11" /
-                            file.relative_to(pybind11_include_path.parent))
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(file, dest)
-
-        ext.include_dirs += [pybind11_include_path]
+        ext.include_dirs += [pybind11.get_include()]
 
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
@@ -272,9 +236,8 @@ setup(
     ext_modules=[Extension("mplcairo._mplcairo", [])],
     python_requires=">=3.6",
     setup_requires=[
-        "importlib_metadata>=0.8; python_version<'3.8'",  # Added files().
         "setuptools_scm",
-        "pybind11>=2.2.4",
+        "pybind11>=2.5.0",
         # Actually also a setup_requires on Linux, but in the manylinux build
         # we need to shim it.
         "pycairo>=1.16.0; sys_platform == 'darwin'",
