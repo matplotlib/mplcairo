@@ -548,9 +548,6 @@ Possible optimizations
 - Path simplification (although cairo appears to use vertex reduction and
   Douglas-Peucker internally?).
 - Use QtOpenGLWidget and the cairo-gl backend.
-- ``hexbin`` currently falls back on the slow implementation due to its use of
-  the ``offset_position`` parameter.  This should be fixed on Matplotlib's
-  side.
 
 What about the already existing cairo (gtk3/qt4/qt5/wx/tk/...cairo) backends?
 =============================================================================

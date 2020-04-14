@@ -1176,10 +1176,7 @@ void GraphicsContextRenderer::draw_path_collection(
   //   positions would be different on every stamp.  (NOTE: Actually it may be
   //   possible to use the hatch as the source and mask it with the pattern.)
   // - FIXME[matplotlib]: offset_position is set to "data".  This feature
-  //   is only used by hexbin(), so it should really just be deprecated;
-  //   hexbin() should provide its own Container class which correctly adjusts
-  //   the transforms at draw time (or just be drawn as a quadmesh, see
-  //   draw_quad_mesh).
+  //   is only used by hexbin(), and has been deprecated in mpl 3.3 (#13696).
   if (py::bool_(py::cast(this).attr("get_hatch")())
       || offset_position == "data") {
     py::module::import("matplotlib.backend_bases")
