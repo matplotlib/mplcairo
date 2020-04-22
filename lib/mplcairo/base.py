@@ -173,7 +173,7 @@ class GraphicsContextRendererCairo(
 def _check_print_extra_kwargs(*,
         # These arguments are already taken care of by print_figure().
         dpi=72, facecolor=None, edgecolor=None, orientation="portrait",
-        dryrun=False, bbox_inches_restore=None, pil_kwargs=None):
+        dryrun=False, bbox_inches_restore=None):
     pass
 
 
