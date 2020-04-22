@@ -63,10 +63,13 @@ steps:
       brew install https://raw.githubusercontent.com/sashkab/homebrew-core/996730866806cf0dd13a56beac47c664b1408d94/Formula/ghostscript.rb
       ;;
     win32)
+      # Pin inkscape until matplotlib#17210 lets us troubleshoot what's wrong
+      # with newer ones.
+      choco install --no-progress ghostscript &&
+      choco install --no-progress inkscape --version=0.92.4.20190121 &&
       git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
       python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
-      python tools/build-windows-wheel.py &&
-      choco install --no-progress ghostscript inkscape
+      python tools/build-windows-wheel.py
       ;;
     *)
       exit 1
