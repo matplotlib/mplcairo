@@ -99,12 +99,15 @@ steps:
 
 - bash: |
     cp dist/*.whl "$BUILD_ARTIFACTSTAGINGDIRECTORY"
+  condition: succeededOrFailed()
   displayName: 'Copy files'
 
 - task: PublishBuildArtifacts@1
   inputs:
     artifactName: 'wheels'
+  condition: succeededOrFailed()
 
 - task: DownloadBuildArtifacts@0
   inputs:
     artifactName: 'wheels'
+  condition: succeededOrFailed()
