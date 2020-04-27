@@ -61,11 +61,13 @@ class GraphicsContextRendererCairo(
         # _for_fmt_output.
         _mplcairo.GraphicsContextRendererCairo.__init__(
             self, width, height, dpi)
+        RendererBase.__init__(self)
 
     @classmethod
     def from_pycairo_ctx(cls, ctx, dpi):
         obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, ctx, dpi)
         _mplcairo.GraphicsContextRendererCairo.__init__(obj, ctx, dpi)
+        RendererBase.__init__(obj)
         return obj
 
     @classmethod
@@ -79,6 +81,7 @@ class GraphicsContextRendererCairo(
             pass  # In particular, stream.name is an int for TemporaryFile.
         else:
             obj._set_path(name)
+        RendererBase.__init__(obj)
         return obj
 
     _for_pdf_output = partialmethod(_for_fmt_output, _StreamSurfaceType.PDF)

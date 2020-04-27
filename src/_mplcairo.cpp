@@ -2072,20 +2072,6 @@ options.
       [](GraphicsContextRenderer& gcr) -> double {
         return gcr.get_additional_state().dpi;
       })
-    // Needed for usetex and patheffects.  These actually return constants.
-    .def_property_readonly(
-      "_texmanager",  // No need to instantiate *another* texmanager.
-      [](GraphicsContextRenderer& /* gcr */) -> py::object {
-        return
-          py::module::import("matplotlib.textpath")
-          .attr("text_to_path").attr("get_texmanager")();
-      })
-    .def_property_readonly(
-      "_text2path",
-      [](GraphicsContextRenderer& /* gcr */) -> py::object {
-        return py::module::import("matplotlib.textpath").attr("text_to_path");
-      })
-
     .def(
       "get_canvas_width_height",
       [](GraphicsContextRenderer& gcr) -> std::tuple<double, double> {
