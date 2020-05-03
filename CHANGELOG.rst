@@ -7,7 +7,7 @@ v0.3
   ``MPLCAIRO_BUILD_TYPE``.
 - Added support for OpenType font features.
 - Added support for ``pdftex.map`` font effects (as in Matplotlib's
-  ``usetex_fonteffects.py`` example.
+  ``usetex_fonteffects.py`` example).
 - Fix zooming on macosx.
 
 v0.2
