@@ -1,4 +1,4 @@
-next
+v0.3
 ====
 
 - Bumped dependencies to Python≥3.6, pybind11≥2.5.
