@@ -8,6 +8,7 @@ next
 - Added support for OpenType font features.
 - Added support for ``pdftex.map`` font effects (as in Matplotlib's
   ``usetex_fonteffects.py`` example.
+- Fix zooming on macosx.
 
 v0.2
 ====
