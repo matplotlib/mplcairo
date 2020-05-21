@@ -6,7 +6,7 @@ from .base import FigureCanvasCairo, GraphicsContextRendererCairo
 class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
     supports_blit = False
 
-    def _renderer_init(self):
+    def _renderer_init(self):  # matplotlib#17461 (matplotlib<3.3).
         pass
 
     def on_draw_event(self, widget, ctx):
