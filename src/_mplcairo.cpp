@@ -1933,7 +1933,7 @@ _debug: bool, default: False
         "marker_threads"_a=detail::MARKER_THREADS,
         "miter_limit"_a=detail::MITER_LIMIT,
         "raqm"_a=has_raqm(),
-        "__debug__"_a=detail::DEBUG);
+        "_debug"_a=detail::DEBUG);
     }, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available
 options.
