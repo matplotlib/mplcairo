@@ -154,17 +154,15 @@ class build_ext(build_ext):
             # Windows conda path for FreeType -- needs to be str, not Path.
             ext.library_dirs += [str(Path(sys.prefix, "Library/lib"))]
 
-        # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang +
-        # libstdc++ + std::variant = compilation error) and pybind11 #1604
-        # (-fsized-deallocation).  Note that `.compiler.compiler` only exists
-        # for UnixCCompiler.
+        # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang
+        # + libstdc++ + std::variant = compilation error).  Note that
+        # `.compiler.compiler` only exists for UnixCCompiler.
         if os.name == "posix":
             compiler_macros = subprocess.check_output(
                 [*self.compiler.compiler, "-dM", "-E", "-x", "c", "/dev/null"],
                 universal_newlines=True)
             if "__clang__" in compiler_macros:
-                ext.extra_compile_args += (
-                    ["-stdlib=libc++", "-fsized-deallocation"])
+                ext.extra_compile_args += ["-stdlib=libc++"]
                 # Explicitly linking to libc++ is required to avoid picking up
                 # the system C++ library (libstdc++ or an outdated libc++).
                 ext.extra_link_args += ["-lc++"]
