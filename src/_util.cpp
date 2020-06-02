@@ -2,6 +2,7 @@
 
 #include "_raqm.h"
 
+#include FT_TRUETYPE_TABLES_H
 #include <regex>
 #include <stack>
 
@@ -33,7 +34,8 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 
 // Other useful values.
 std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE{};
-cairo_user_data_key_t const REFS_KEY{}, STATE_KEY{}, FT_KEY{}, FEATURES_KEY{};
+cairo_user_data_key_t const
+  REFS_KEY{}, STATE_KEY{}, FT_KEY{}, FEATURES_KEY{}, IS_COLOR_FONT_KEY{};
 py::object RC_PARAMS{py::none{}},
            PIXEL_MARKER{py::none{}},
            UNIT_CIRCLE{py::none{}};
@@ -611,6 +613,28 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       [](void* ptr) -> void {
         delete static_cast<std::vector<std::string>*>(ptr);
       });
+    // FIXME[harfbuzz] (#2428) Disable raqm for color fonts.
+    if (FT_IS_SFNT(ft_face)) {
+      auto n_tables = FT_ULong{}, table_length = FT_ULong{};
+      FT_CHECK(FT_Sfnt_Table_Info, ft_face, 0, nullptr, &n_tables);
+      for (auto i = FT_ULong{}; i < n_tables; ++i) {
+        auto tag = FT_ULong{};
+        FT_CHECK(
+          FT_Sfnt_Table_Info, ft_face, i, &tag, &table_length);
+        if (tag == FT_MAKE_TAG('C', 'O', 'L', 'R')
+            || tag == FT_MAKE_TAG('C', 'P', 'A', 'L')
+            || tag == FT_MAKE_TAG('C', 'B', 'D', 'T')
+            || tag == FT_MAKE_TAG('C', 'B', 'L', 'C')
+            || tag == FT_MAKE_TAG('s', 'b', 'i', 'x')
+            || tag == FT_MAKE_TAG('S', 'V', 'G', ' ')) {
+          CAIRO_CLEANUP_CHECK(
+            { cairo_font_face_destroy(font_face); },
+            cairo_font_face_set_user_data,
+            font_face, &detail::IS_COLOR_FONT_KEY, font_face, nullptr);
+          break;
+        }
+      }
+    }
   }
   return font_face;
 }
@@ -641,20 +665,23 @@ long get_hinting_flag()
 }
 
 std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
-  get_font_options()
+  get_font_options(cairo_font_face_t* font_face)
 {
   auto const& options = cairo_font_options_create();
-  cairo_font_options_set_antialias(
-    options,
-    []() -> cairo_antialias_t {
-      auto aa = rc_param("text.antialiased");
-      try {
-        return aa.cast<cairo_antialias_t>();
-      } catch (py::cast_error&) {
-        return
-          aa.cast<bool>() ? CAIRO_ANTIALIAS_SUBPIXEL : CAIRO_ANTIALIAS_NONE;
-      }
-    }());
+  // FIXME[cairo] (#404) Don't set antialiasing for color fonts.
+  if (!cairo_font_face_get_user_data(font_face, &detail::IS_COLOR_FONT_KEY)) {
+    cairo_font_options_set_antialias(
+      options,
+      []() -> cairo_antialias_t {
+        auto aa = rc_param("text.antialiased");
+        try {
+          return aa.cast<cairo_antialias_t>();
+        } catch (py::cast_error&) {
+          return
+            aa.cast<bool>() ? CAIRO_ANTIALIAS_SUBPIXEL : CAIRO_ANTIALIAS_NONE;
+        }
+      }());
+  }
   return {options, cairo_font_options_destroy};
 }
 
@@ -671,7 +698,9 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
 {
   auto const& scaled_font = cairo_get_scaled_font(cr);
   auto gac = GlyphsAndClusters{};
-  if (has_raqm()) {
+  if (has_raqm()
+      && !cairo_font_face_get_user_data(cairo_get_font_face(cr),
+                                        &detail::IS_COLOR_FONT_KEY)) {
     auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
     auto const& scaled_font_unlock_cleanup =
       std::unique_ptr<

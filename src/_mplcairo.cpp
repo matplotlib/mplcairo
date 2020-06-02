@@ -1422,7 +1422,7 @@ void GraphicsContextRenderer::draw_text(
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
-    auto const& options = get_font_options();
+    auto const& options = get_font_options(font_face);
     cairo_set_font_options(cr_, options.get());
     auto const& gac = text_to_glyphs_and_clusters(cr_, s);
     // While the warning below perhaps belongs logically to
@@ -1480,7 +1480,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
-    auto const& options = get_font_options();
+    auto const& options = get_font_options(font_face);
     cairo_set_font_options(cr_, options.get());  // Needed for correct aa.
     cairo_text_extents_t extents;
     auto const& gac = text_to_glyphs_and_clusters(cr_, s);
@@ -1690,7 +1690,7 @@ void MathtextBackend::_draw(
     auto const& mtx = cairo_matrix_t{
       size * glyph.extend, 0, -size * glyph.slant * glyph.extend, size, 0, 0};
     cairo_set_font_matrix(cr, &mtx);
-    auto const& options = get_font_options();
+    auto const& options = get_font_options(font_face);
     cairo_set_font_options(cr, options.get());
     auto ft_face =
       static_cast<FT_Face>(

@@ -68,10 +68,11 @@ extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
 // Other useful values.
 extern std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE;
 extern cairo_user_data_key_t const
-  REFS_KEY,      // cairo_t -> kept alive Python objects.
-  STATE_KEY,     // cairo_t -> additional state.
-  FT_KEY,        // cairo_font_face_t -> FT_Face.
-  FEATURES_KEY;  // cairo_font_face_t -> OpenType features.
+  REFS_KEY,           // cairo_t -> kept alive Python objects.
+  STATE_KEY,          // cairo_t -> additional state.
+  FT_KEY,             // cairo_font_face_t -> FT_Face.
+  FEATURES_KEY,       // cairo_font_face_t -> OpenType features.
+  IS_COLOR_FONT_KEY;  // cairo_font_face_t -> non-null if a color font.
 extern py::object RC_PARAMS;
 extern py::object PIXEL_MARKER;
 extern py::object UNIT_CIRCLE;
@@ -149,7 +150,7 @@ cairo_font_face_t* font_face_from_path(py::object path);
 cairo_font_face_t* font_face_from_prop(py::object prop);
 long get_hinting_flag();
 std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
-  get_font_options();
+  get_font_options(cairo_font_face_t* font_face);
 void warn_on_missing_glyph(std::string s);
 GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s);
 
