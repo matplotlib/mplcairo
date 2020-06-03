@@ -606,8 +606,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       : std::sregex_token_iterator{},
       std::sregex_token_iterator{});
     CAIRO_CLEANUP_CHECK(
-      { cairo_font_face_destroy(font_face);
-        delete static_cast<std::vector<std::string>*>(features); },
+      { cairo_font_face_destroy(font_face); delete features; },
       cairo_font_face_set_user_data,
       font_face, &detail::FEATURES_KEY, features,
       [](void* ptr) -> void {
