@@ -217,15 +217,17 @@ The following additional dependencies are required:
 
 - cairo headers and import and dynamic libraries (``cairo.lib`` and
   ``cairo.dll``) *with FreeType support*.  Note that this excludes, in
-  particular, the Anaconda and conda-forge builds: they do not include
+  particular, most Anaconda and conda-forge builds: they do not include
   FreeType support.
 
-  I am in fact not aware of any such build available online, with the exception
-  of https://github.com/preshing/cairo-windows/releases; however, this specific
-  build appears to `misrender pdfs`_.  Instead, a solution is to get the
-  headers e.g. from a Linux distribution package, the DLL from Christoph
-  Gohlke's cairocffi_ build, and generate the import library oneself using
-  ``dumpbin`` and ``lib``.
+  The currently preferred solution is to get the headers e.g. from a Linux
+  distribution package, the DLL from Christoph Gohlke's cairocffi_ build, and
+  generate the import library oneself using ``dumpbin`` and ``lib``.
+
+  Alternatively, very recent conda-forge builds (≥1.16.0 build 1005) do
+  include FreeType support.  In order to use them, the include path needs to be
+  modified as described below.  (This is currently intentionally disabled by
+  default to avoid confusing errors if the cairo build is too old.)
 
 - FreeType headers and import and dynamic libraries (``freetype.lib`` and
   ``freetype.dll``), which can be retrieved from
@@ -234,7 +236,6 @@ The following additional dependencies are required:
 
      conda install -y freetype
 
-.. _misrender pdfs: https://preshing.com/20170529/heres-a-standalone-cairo-dll-for-windows/#IDComment1047546463
 .. _cairocffi: https://www.lfd.uci.edu/~gohlke/pythonlibs/#cairocffi
 
 The (standard) |CL|_ and |LINK|_ environment variables (which always get
@@ -244,6 +245,9 @@ should be set as follows::
    set CL=/IC:\path\to\dir\containing\cairo.h /IC:\same\for\ft2build.h
    set LINK=/LIBPATH:C:\path\to\dir\containing\cairo.lib /LIBPATH:C:\same\for\freetype.lib
 
+In particular, in order to use a conda-forge cairo (as described above),
+``{sys.prefix}\Library\include\cairo`` needs to be added to the include path.
+
 Moreover, we also need to find ``cairo.dll`` and ``freetype.dll`` and copy
 them next to ``mplcairo``'s extension module.  As the dynamic libraries are
 typically found next to import libraries, we search the ``/LIBPATH:`` entries
@@ -251,7 +255,7 @@ in the ``LINK`` environment variable and copy the first ``cairo.dll`` and
 ``freetype.dll`` found there.
 
 The script ``tools/build-windows-wheel.py`` automates the retrieval of the
-cairo (assuming that a Gohlke cairocffi is already installed) and FreeType and
+cairo (assuming that a Gohlke cairocffi is already installed) and FreeType, and
 the wheel build.
 
 .. |CL| replace:: ``CL``
