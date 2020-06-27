@@ -43,8 +43,8 @@ def _get_drawn_subarray_and_bounds(img):
     x_nz, = drawn.any(axis=0).nonzero()
     y_nz, = drawn.any(axis=1).nonzero()
     if len(x_nz) and len(y_nz):
-        l, r = drawn.any(axis=0).nonzero()[0][[0, -1]]
-        b, t = drawn.any(axis=1).nonzero()[0][[0, -1]]
+        l, r = x_nz[[0, -1]]
+        b, t = y_nz[[0, -1]]
         return img[b:t+1, l:r+1], (l, b, r - l + 1, t - b + 1)
     else:
         return np.zeros((0, 0, 4), dtype=np.uint8), (0, 0, 0, 0)
