@@ -55,21 +55,17 @@ steps:
       ;;
     darwin)
       # python2 unlinking needed until brew sorts that out.
-      # gs<9.50 is needed until matplotlib#15556 (matplotlib<3.2.0rc2).
       brew update >/dev/null &&
       brew unlink python@2 &&
       brew install cairo pkg-config &&
       PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
-      brew install https://raw.githubusercontent.com/sashkab/homebrew-core/996730866806cf0dd13a56beac47c664b1408d94/Formula/ghostscript.rb
+      brew install ghostscript
       ;;
     win32)
-      # Pin inkscape until matplotlib#17210 lets us troubleshoot what's wrong
-      # with newer ones.
-      choco install --no-progress ghostscript &&
-      choco install --no-progress inkscape --version=0.92.4.20190121 &&
       git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
       python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
-      python tools/build-windows-wheel.py
+      python tools/build-windows-wheel.py &&
+      choco install --no-progress ghostscript inkscape
       ;;
     *)
       exit 1
@@ -77,7 +73,7 @@ steps:
     esac &&
 
     python -mpip install dist/*.whl &&
-    python -mpip install matplotlib &&
+    python -mpip install --upgrade --pre matplotlib &&
     python tools/ensure-mpl-test-data.py &&
     # pytest-{instafail,timeout} useful for hanging tests.
     python -mpip install pytest pytest-instafail pytest-timeout
