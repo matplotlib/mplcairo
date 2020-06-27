@@ -93,7 +93,7 @@ class GraphicsContextRendererCairo(
 
     @classmethod
     def _for_svgz_output(cls, stream, width, height, dpi):
-        gzip_file = GzipFile(fileobj=stream)
+        gzip_file = GzipFile(fileobj=stream, mode="w")
         obj = cls._for_svg_output(gzip_file, width, height, dpi)
         try:
             name = os.fsdecode(stream.name)
@@ -226,6 +226,9 @@ class FigureCanvasCairo(FigureCanvasBase):
     def draw(self):
         self.get_renderer(_ensure_cleared=True, _ensure_drawn=True)
         super().draw()
+
+    def buffer_rgba(self):  # NOTE: Needed for tests.
+        return self.get_renderer(_ensure_drawn=True).buffer_rgba()
 
     def copy_from_bbox(self, bbox):
         return self.get_renderer(_ensure_drawn=True).copy_from_bbox(bbox)

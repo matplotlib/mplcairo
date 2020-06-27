@@ -17,7 +17,7 @@ Fix needed
 ==========
 
 test_image
-   test_figimage0[pdf], test_figimage1[pdf], test_interp_nearest_vs_none[pdf,svg], test_rasterize_dpi[pdf,svg]
+   test_figimage[pdf], test_figimage0[pdf], test_figimage1[pdf], test_interp_nearest_vs_none[pdf,svg], test_rasterize_dpi[pdf,svg]
       Invalid dpi manipulations in vector output.
 
    test_jpeg_alpha
@@ -122,9 +122,18 @@ We do not support writing PS to text-mode streams. ::
 
    test_backend_ps::test_savefig_to_stringio
 
+We support mixed usetex/non-usetex PS. ::
+
+   test_backend_ps::test_partial_usetex
+
 Tight bboxes are different. ::
 
    test_bbox_tight::test_bbox_inches_tight_suptile_legend
+   test_polar::test_get_tightbbox_polar
+
+We already raise on invalid savefig kwargs. ::
+
+   test_figure::test_savefig_warns
 
 ``--tolerance`` subverts Matplotlib's test interface. ::
 
