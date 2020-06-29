@@ -1,6 +1,3 @@
-#define XSTR(s) STR(s)
-#define STR(s) #s
-
 #define TRUE_CHECK(func, ...) { \
   if (auto const& error_ = func(__VA_ARGS__); !error_) { \
     throw \

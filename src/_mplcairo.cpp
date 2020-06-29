@@ -1844,9 +1844,9 @@ PYBIND11_MODULE(_mplcairo, m)
         + std::to_string(ft_minor) + "."
         + std::to_string(ft_patch);
       auto const& pybind11_version =
-        XSTR(PYBIND11_VERSION_MAJOR) "."
-        XSTR(PYBIND11_VERSION_MINOR) "."
-        XSTR(PYBIND11_VERSION_PATCH);
+        Py_STRINGIFY(PYBIND11_VERSION_MAJOR) "."
+        Py_STRINGIFY(PYBIND11_VERSION_MINOR) "."
+        Py_STRINGIFY(PYBIND11_VERSION_PATCH);
       auto const& raqm_version =
         has_raqm()
         ? std::optional<std::string>{raqm::version_string()} : std::nullopt;
