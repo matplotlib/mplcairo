@@ -1,3 +1,8 @@
+next
+====
+
+- Improve snapping of codeful paths.
+
 v0.3
 ====
 

@@ -186,7 +186,9 @@ AdditionalState& get_additional_state(cairo_t* cr)
 // Set the current path of `cr` to `path`, after transformation by `matrix`,
 // ignoring the CTM ("exact").
 //
-// TODO: Path clipping and snapping in the general case (with codes present).
+// TODO: Path clipping in the general case (with codes present), and snapping
+// in the presence of CLOSEPOLY (likely the correct solution is to preload the
+// whole path and adjust for snapping).
 // NOTE: Matplotlib also *rounds* the linewidth in some cases (see
 // RendererAgg::_draw_path), which helps with snappiness.  We do not provide
 // this behavior; instead, one should set the default linewidths appropriately
@@ -265,6 +267,7 @@ void load_path_exact(
       "lengths of vertices ({}) and codes ({}) are mistached "_format(
         n, codes.shape(0)).cast<std::string>()};
   }
+  auto force_snap_next_lineto = bool{};
   auto const& snapper = lpc.snapper;
   // Main loop.
   for (auto i = 0; i < n; ++i) {
@@ -279,14 +282,34 @@ void load_path_exact(
         break;
       case PathCode::MOVETO:
         if (is_finite) {
-          cairo_move_to(cr, snapper(x0), snapper(y0));
+          // See comments re: snapping in the codeless path.
+          if (lpc.snap && i + 1 < n
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
+              && (x0 == vertices(i + 1, 0) || y0 == vertices(i + 1, 1))) {
+            x0 = snapper(x0);
+            y0 = snapper(y0);
+            force_snap_next_lineto = true;
+          }
+          cairo_move_to(cr, x0, y0);
         } else {
           cairo_new_sub_path(cr);
         }
         break;
       case PathCode::LINETO:
         if (is_finite) {
-          cairo_line_to(cr, snapper(x0), snapper(y0));
+          if (force_snap_next_lineto) {
+            x0 = snapper(x0);
+            y0 = snapper(y0);
+          }
+          force_snap_next_lineto = false;
+          if (lpc.snap && i + 1 < n
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
+              && (x0 == vertices(i + 1, 0) || y0 == vertices(i + 1, 1))) {
+            x0 = snapper(x0);
+            y0 = snapper(y0);
+            force_snap_next_lineto = true;
+          }
+          cairo_line_to(cr, x0, y0);
         } else {
           cairo_new_sub_path(cr);
         }
@@ -303,15 +326,22 @@ void load_path_exact(
         if (last_finite) {
           x1 = std::clamp(x1, min, max);
           y1 = std::clamp(y1, min, max);
+          if (lpc.snap && i + 1 < n
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
+              && (x1 == vertices(i + 1, 0) || y1 == vertices(i + 1, 1))) {
+            x1 = snapper(x1);
+            y1 = snapper(y1);
+            force_snap_next_lineto = true;
+          }
           if (is_finite && cairo_has_current_point(cr)) {
             double x_prev, y_prev;
             cairo_get_current_point(cr, &x_prev, &y_prev);
             cairo_curve_to(cr,
               (x_prev + 2 * x0) / 3, (y_prev + 2 * y0) / 3,
               (2 * x0 + x1) / 3, (2 * y0 + y1) / 3,
-              snapper(x1), snapper(y1));
+              x1, y1);
           } else {
-            cairo_move_to(cr, snapper(x1), snapper(y1));
+            cairo_move_to(cr, x1, y1);
           }
         } else {
           cairo_new_sub_path(cr);
@@ -330,11 +360,18 @@ void load_path_exact(
           y1 = std::clamp(y1, min, max);
           x2 = std::clamp(x2, min, max);
           y2 = std::clamp(y2, min, max);
+          if (lpc.snap && i + 1 < n
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
+              && (x0 == vertices(i + 1, 0) || y0 == vertices(i + 1, 1))) {
+            x2 = snapper(x2);
+            y2 = snapper(y2);
+            force_snap_next_lineto = true;
+          }
           if (is_finite && std::isfinite(x1) && std::isfinite(y1)
               && cairo_has_current_point(cr)) {
-            cairo_curve_to(cr, x0, y0, x1, y1, snapper(x2), snapper(y2));
+            cairo_curve_to(cr, x0, y0, x1, y1, x2, y2);
           } else {
-            cairo_move_to(cr, snapper(x2), snapper(y2));
+            cairo_move_to(cr, x2, y2);
           }
         } else {
           cairo_new_sub_path(cr);
