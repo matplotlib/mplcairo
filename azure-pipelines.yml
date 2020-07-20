@@ -73,7 +73,6 @@ steps:
     esac &&
 
     python -mpip install dist/*.whl &&
-    python -mpip install --upgrade --pre matplotlib &&
     python tools/ensure-mpl-test-data.py &&
     # pytest-{instafail,timeout} useful for hanging tests.
     python -mpip install pytest pytest-instafail pytest-timeout
