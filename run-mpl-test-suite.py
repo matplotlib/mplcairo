@@ -124,7 +124,12 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
                 "test_backend_ps.py::test_partial_usetex",
-                "test_backend_ps.py::test_savefig_to_stringio[",
+                "test_backend_ps.py::test_savefig_to_stringio[ps-landscape]",
+                "test_backend_ps.py::test_savefig_to_stringio[ps-portrait]",
+                "test_backend_ps.py::test_savefig_to_stringio[eps-landscape]",
+                "test_backend_ps.py::test_savefig_to_stringio[eps-portrait]",
+                "test_backend_ps.py::test_savefig_to_stringio[eps afm-landscape]",
+                "test_backend_ps.py::test_savefig_to_stringio[eps afm-portrait]",
                 "test_backend_ps.py::test_source_date_epoch",
                 "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svg_default_metadata",
@@ -165,8 +170,8 @@ def pytest_collection_modifyitems(session, config, items):
     for item in items:
         reason = (xfail_modules.get(item.module.__name__)
                   or xfail_nodeids.get(item.nodeid)
-                  or xfail_nodeids.get(item.nodeid.split("[")[0] + "["
-                                       if "[" in item.nodeid else object()))
+                  or (xfail_nodeids.get(item.nodeid.split("[")[0] + "[")
+                      if "[" in item.nodeid else None))
         if reason:
             xfails.append(item)
             item.add_marker(pytest.mark.xfail(reason=reason))

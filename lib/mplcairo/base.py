@@ -1,3 +1,4 @@
+import codecs
 import functools
 from functools import partial, partialmethod
 import gc
@@ -30,6 +31,16 @@ _log = logging.getLogger()
 _LOCK = RLock()  # FreeType2 is thread-unsafe.
 MathTextParser._backend_mapping["mplcairo"] = \
     _mplcairo.MathtextBackendCairo
+
+
+class _BytesWritingWrapper:
+    def __init__(self, stream, encoding):
+        self._stream = stream
+        self._encoding = encoding
+
+    def write(self, data):
+        # codecs.decode can directly work with memoryviews.
+        return self._stream.write(codecs.decode(data, self._encoding))
 
 
 @functools.lru_cache(1)
@@ -72,6 +83,14 @@ class GraphicsContextRendererCairo(
 
     @classmethod
     def _for_fmt_output(cls, fmt, stream, width, height, dpi):
+        if cbook.file_requires_unicode(stream):
+            if fmt in [_StreamSurfaceType.PS, _StreamSurfaceType.EPS]:
+                # PS is (typically) ASCII -- Language Reference, section 3.2.
+                stream = _BytesWritingWrapper(stream, "ascii")
+            elif fmt is _StreamSurfaceType.SVG:
+                # cairo outputs SVG with encoding="UTF-8".
+                stream = _BytesWritingWrapper(stream, "utf-8")
+            # (No default encoding for pdf, which is a binary format.)
         args = fmt, stream, width, height, dpi
         obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
         _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
@@ -307,8 +326,11 @@ class FigureCanvasCairo(FigureCanvasBase):
                  "xpdf": backend_ps.xpdf_distill}[
                      mpl.rcParams["ps.usedistiller"]](
                          str(tmp_name), False, ptype=papertype)
-                with tmp_name.open("rb") as tmp_file, \
-                     cbook.open_file_cm(path_or_stream, "wb") as stream:
+                # If path_or_stream is *already* a text-mode stream then
+                # tmp_name needs to be opened in text-mode too.
+                with cbook.open_file_cm(path_or_stream, "wb") as stream, \
+                     tmp_name.open("r" if cbook.file_requires_unicode(stream)
+                                   else "rb") as tmp_file:
                     shutil.copyfileobj(tmp_file, stream)
         else:
             print_method(path_or_stream, metadata=metadata, **kwargs)

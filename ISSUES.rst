@@ -81,6 +81,9 @@ cairo does not cull out-of-bounds markers. ::
 
 cairo PS does not support SOURCE_DATE_EPOCH. ::
 
+   test_backend_ps::test_savefig_to_stringio[ps-*]
+   test_backend_ps::test_savefig_to_stringio[eps-*]
+   test_backend_ps::test_savefig_to_stringio[eps afm-*]
    test_backend_ps::test_source_date_epoch
 
 cairo does not support custom ids, text, or URLs in SVG output. ::
