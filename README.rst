@@ -245,8 +245,8 @@ in the ``LINK`` environment variable and copy the first ``cairo.dll`` and
 ``freetype.dll`` found there.
 
 The script ``tools/build-windows-wheel.py`` automates the retrieval of the
-cairo (assuming that a Gohlke cairocffi is already installed) and FreeType, and
-the wheel build.
+cairo (assuming that a Gohlke pycairo is already installed) and FreeType dlls,
+and the wheel build.
 
 .. |CL| replace:: ``CL``
 .. _CL: https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables

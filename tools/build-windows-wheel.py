@@ -17,7 +17,6 @@ __ https://github.com/ubawurinna/freetype-windows-binaries
 from ctypes import (
     c_bool, c_char_p, c_ulong, c_void_p, c_wchar_p, POINTER,
     byref, create_unicode_buffer, sizeof, windll)
-from distutils import ccompiler
 import os
 from pathlib import Path
 import shutil
@@ -25,7 +24,8 @@ import subprocess
 import sys
 import urllib.request
 
-import cairo
+import cairo  # Needed to load the cairo dll.
+import setuptools
 
 
 def enum_process_modules(func_name=None):
@@ -86,9 +86,17 @@ for archive_path, url in urls.items():
 Path("cairo/win64").mkdir(parents=True)
 cairo_dll, = enum_process_modules(b"cairo_ft_font_face_create_for_ft_face")
 shutil.copyfile(cairo_dll, "cairo/win64/cairo.dll")
-# Build the import library.
-cc = ccompiler.new_compiler()
+# Get hold of a CCompiler object, by creating a dummy Distribution with a list
+# of extension modules that claims to be truthy (but is actually empty) and
+# running its build_ext command.  Prior to the deprecation of distutils, this
+# was just ``cc = distutils.ccompiler.new_compiler(); cc.initialize()``.
+class L(list): __bool__ = lambda self: True
+be = setuptools.Distribution({"ext_modules": L()}).get_command_obj("build_ext")
+be.finalize_options()
+be.run()
+cc = be.compiler
 cc.initialize()
+# Build the import library.
 cc.spawn(
     ["dumpbin", "/EXPORTS", "/OUT:cairo/win64/cairo.exports",
      "cairo/win64/cairo.dll"])
