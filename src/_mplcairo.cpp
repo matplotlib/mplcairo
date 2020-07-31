@@ -1465,8 +1465,6 @@ GraphicsContextRenderer::get_text_width_height_descent(
   // - "height" includes "descent", and "descent" is (normally) positive
   // (see MathtextBackendAgg.get_results()).
   // - "ismath" can be True, False, "TeX" (i.e., usetex).
-  // FIXME[matplotlib]: RendererAgg relies on the text.usetex rcParam, whereas
-  // RendererBase relies (correctly?) on the value of ismath.
   if (py_eq(ismath, py::cast("TeX"))) {
     return
       py::module::import("matplotlib.backend_bases").attr("RendererBase")
