@@ -1,13 +1,14 @@
 #include "_os.h"
 
 #if defined __linux__ || defined __APPLE__
-#include <dlfcn.h>
+  #include <dlfcn.h>
+  #include <execinfo.h>
+  #include <signal.h>
 #elif defined _WIN32
-#include <memory>
-
-#define NOMINMAX
-#include <psapi.h>
-#include <Windows.h>
+  #include <memory>
+  #define NOMINMAX
+  #include <psapi.h>
+  #include <Windows.h>
 #endif
 
 #include <pybind11/pybind11.h>
@@ -20,40 +21,62 @@ namespace py = pybind11;
 using library_t = void*;
 using symbol_t = void*;
 
-library_t dlopen(char const* filename) {
+library_t dlopen(char const* filename)
+{
   return ::dlopen(filename, RTLD_LAZY);
 }
 
-bool dlclose(library_t handle) {
+bool dlclose(library_t handle)
+{
   return ::dlclose(handle);
 }
 
-symbol_t dlsym(library_t handle, char const* symbol) {
+symbol_t dlsym(library_t handle, char const* symbol)
+{
   return ::dlsym(handle, symbol);
 }
 
-void throw_dlerror() {
+void throw_dlerror()
+{
   PyErr_SetString(PyExc_OSError, ::dlerror());
   throw py::error_already_set{};
+}
+
+void abrt_handler(int signal)
+{
+  auto buf = std::array<void*, 64>{};
+  auto size{backtrace(buf.data(), 64)};
+  fprintf(stderr, "Error: signal %d:\n", signal);
+  backtrace_symbols_fd(buf.data(), size, STDERR_FILENO);
+  exit(1);
+}
+
+void install_abrt_handler()
+{
+  signal(SIGABRT, abrt_handler);
 }
 
 #elif defined _WIN32
 using library_t = HMODULE;
 using symbol_t = FARPROC;
 
-library_t dlopen(char const* filename) {
+library_t dlopen(char const* filename)
+{
   return LoadLibrary(filename);
 }
 
-bool dlclose(library_t handle) {
+bool dlclose(library_t handle)
+{
   return !FreeLibrary(handle);
 }
 
-symbol_t dlsym(library_t handle, char const* symbol) {
+symbol_t dlsym(library_t handle, char const* symbol)
+{
   return GetProcAddress(handle, symbol);
 }
 
-symbol_t dlsym(char const* symbol) {
+symbol_t dlsym(char const* symbol)
+{
   auto hProcess = GetCurrentProcess();
   auto cbNeeded = DWORD{};
   EnumProcessModules(hProcess, nullptr, 0, &cbNeeded);
@@ -69,9 +92,14 @@ symbol_t dlsym(char const* symbol) {
   return nullptr;
 }
 
-void throw_dlerror() {
+void throw_dlerror()
+{
   PyErr_SetFromWindowsErr(0);
   throw py::error_already_set{};
+}
+
+void install_abrt_handler()
+{
 }
 
 #endif

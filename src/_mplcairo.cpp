@@ -1866,6 +1866,8 @@ PYBIND11_MODULE(_mplcairo, m)
         "raqm"_a=raqm_version);
     }, R"__doc__(
 Get library versions.
+
+Only intended for debugging purposes.
 )__doc__");
   m.def(
     "set_options",
@@ -1953,6 +1955,14 @@ _debug: bool, default: False
     }, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available
 options.
+)__doc__");
+  m.def(
+    "install_abrt_handler",
+    os::install_abrt_handler,
+    R"__doc__(
+Install a handler that dumps a backtrace on SIGABRT (POSIX only).
+
+Only intended for debugging purposes.
 )__doc__");
 
   // Export classes.

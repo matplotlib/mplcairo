@@ -22,4 +22,6 @@ bool dlclose(library_t handle);
 symbol_t dlsym(library_t handle, char const* symbol);
 void throw_dlerror();
 
+void install_abrt_handler();
+
 }

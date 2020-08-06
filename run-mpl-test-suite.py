@@ -92,6 +92,8 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
 
     plt.switch_backend("agg")
 
+    mplcairo._mplcairo.install_abrt_handler()
+
     return pytest.main(
         ["--rootdir", str(Path(mpl.__file__).parents[1]), "-p", "__main__",
          *rest])
