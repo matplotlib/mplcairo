@@ -22,7 +22,6 @@ class FigureCanvasTkCairo(FigureCanvasCairo, FigureCanvasTk):
         buf = _util.cairo_to_premultiplied_rgba8888(
             self.get_renderer()._get_buffer())
         _tk_blit(self._tkphoto, buf, bbox=bbox)
-        self._master.update_idletasks()
 
 
 @_BackendTk.export
