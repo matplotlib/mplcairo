@@ -611,9 +611,7 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
 cairo_font_face_t* font_face_from_path(std::string pathspec)
 {
   auto& font_face = detail::FONT_CACHE[pathspec];
-  if (font_face) {
-    cairo_font_face_reference(font_face);
-  } else {
+  if (!font_face) {
     auto match = std::smatch{};
     if (!std::regex_match(pathspec, match,
                           std::regex{"(.*?)(#(\\d+))?(\\|(.*))?"})) {
@@ -672,6 +670,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       }
     }
   }
+  cairo_font_face_reference(font_face);
   return font_face;
 }
 

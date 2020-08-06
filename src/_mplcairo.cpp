@@ -291,6 +291,9 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 GraphicsContextRenderer::~GraphicsContextRenderer()
 {
   if (detail::FONT_CACHE.size() > 64) {  // font_manager._get_font cache size.
+    for (auto& [pathspec, font_face]: detail::FONT_CACHE) {
+      cairo_font_face_destroy(font_face);
+    }
     detail::FONT_CACHE.clear();  // Naive cache mechanism.
   }
   try {

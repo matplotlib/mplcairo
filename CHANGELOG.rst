@@ -2,6 +2,7 @@ next
 ====
 
 - Improve snapping of codeful paths.
+- Fix failure to increase cairo refcount of font cache entries.
 
 v0.3
 ====
