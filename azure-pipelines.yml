@@ -1,7 +1,3 @@
-# Notes:
-# The macOS build does not install inkscape as building it from source is a bit
-# silly.
-
 strategy:
   matrix:
     Linux_py36:
@@ -54,7 +50,8 @@ steps:
       sudo apt install ghostscript inkscape
       ;;
     darwin)
-      # python2 unlinking needed until brew sorts that out.
+      # - python2 unlinking needed until brew sorts that out.
+      # - Don't install inkscape: building it from source is a bit silly.
       brew update >/dev/null &&
       brew unlink python@2 &&
       brew install cairo pkg-config &&
@@ -62,10 +59,11 @@ steps:
       brew install ghostscript
       ;;
     win32)
+      # Don't install inkscape (see note in run-mpl-test-suite.py).
       git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
       python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
       python tools/build-windows-wheel.py &&
-      choco install --no-progress ghostscript inkscape
+      choco install --no-progress ghostscript
       ;;
     *)
       exit 1

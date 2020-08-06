@@ -27,6 +27,15 @@ import pytest
 _IGNORED_FAILURES = {}
 
 
+if sys.platform == "win32":
+    # Inkscape>=1.0 testing is broken on Windows as of Matplotlib 3.3 (earlier
+    # versions of Matplotlib don't support Inkscape>=1.0 at all): Inkscape
+    # installs both inkscape.exe and inkscape.com, but only the latter supports
+    # shell usage whereas e.g. chocolatey only adds the former to %PATH% (via a
+    # shim).
+    mpl.testing.compare.converter.pop("inkscape", None)
+
+
 def main(argv=None):
     parser = ArgumentParser(
         description="""\
