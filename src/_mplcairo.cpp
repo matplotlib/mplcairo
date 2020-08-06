@@ -294,8 +294,11 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
     detail::FONT_CACHE.clear();  // Naive cache mechanism.
   }
   try {
+#ifdef _WIN32
+    std::cerr << std::flush;  // See below.
+#endif
     cairo_destroy(cr_);
-  } catch (std::exception const& e) {
+  } catch (py::error_already_set const& e) {
     // Exceptions would cause a fatal abort from the destructor if _finish is
     // not called on e.g. a SVG surface before the GCR gets GC'd. e.g. comment
     // out this catch, and _finish() in base.py, and run
@@ -305,6 +308,11 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
     //        plt.gcf().savefig(file, format="svg")
     //    plt.close("all")
     //    gc.collect()
+    //
+    // On Windows, the stream *must* be flushed first, *in the try block* (not
+    // elsewhere, including via initialization of a static variable or via
+    // Python's sys.stderr); otherwise a fatal abort may be triggered (possibly
+    // due to a bad interaction with pytest captures?).
     std::cerr << "Exception ignored in destructor: " << e.what() << "\n";
   }
 }
