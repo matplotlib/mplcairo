@@ -149,8 +149,7 @@ cairo_font_face_t* font_face_from_path(std::string path);
 cairo_font_face_t* font_face_from_path(py::object path);
 cairo_font_face_t* font_face_from_prop(py::object prop);
 long get_hinting_flag();
-std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
-  get_font_options(cairo_font_face_t* font_face);
+void adjust_font_options(cairo_t* cr);
 void warn_on_missing_glyph(std::string s);
 GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s);
 

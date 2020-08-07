@@ -699,9 +699,9 @@ long get_hinting_flag()
     .attr("get_hinting_flag")().cast<long>();
 }
 
-std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
-  get_font_options(cairo_font_face_t* font_face)
+void adjust_font_options(cairo_t* cr)
 {
+  auto const& font_face = cairo_get_font_face(cr);
   auto const& options = cairo_font_options_create();
   // FIXME[cairo] (#404) Don't set antialiasing for color fonts.
   if (!cairo_font_face_get_user_data(font_face, &detail::IS_COLOR_FONT_KEY)) {
@@ -717,10 +717,14 @@ std::unique_ptr<cairo_font_options_t, decltype(&cairo_font_options_destroy)>
         }
       }());
   }
-  return {options, cairo_font_options_destroy};
+  // The hint style is not set here: it is passed directly as load_flags to
+  // cairo_ft_font_face_create_for_ft_face.
+  cairo_set_font_options(cr, options);
+  cairo_font_options_destroy(options);
 }
 
-void warn_on_missing_glyph(std::string s) {
+void warn_on_missing_glyph(std::string s)
+{
   PY_CHECK(
     PyErr_WarnEx,
     nullptr,
