@@ -258,30 +258,30 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
   // May already have been set by cr_from_fileformat_args.
   if (!cairo_get_user_data(cr, &detail::REFS_KEY)) {
-    CAIRO_CHECK(
+    CAIRO_CHECK_SET_USER_DATA(
       cairo_set_user_data, cr, &detail::REFS_KEY,
       new std::vector<py::object>{},
       [](void* data) -> void {
         delete static_cast<std::vector<py::object>*>(data);
       });
   }
-  auto const& stack = new std::stack<AdditionalState>{{{
-    /* width */           width,
-    /* height */          height,
-    /* dpi */             dpi,
-    /* alpha */           {},
-    /* antialias */       {true},
-    /* clip_rectangle */  {},
-    /* clip_path */       {{}, {nullptr, cairo_path_destroy}},
-    /* hatch */           {},
-    /* hatch_color */     {},  // Lazily loaded by get_hatch_color.
-    /* hatch_linewidth */ {},  // Lazily loaded by get_hatch_linewidth.
-    /* sketch */          {},
-    /* snap */            true,  // Defaults to None, i.e. True for us.
-    /* url */             {}
-  }}};
-  CAIRO_CHECK(
-    cairo_set_user_data, cr, &detail::STATE_KEY, stack,
+  CAIRO_CHECK_SET_USER_DATA(
+    cairo_set_user_data, cr, &detail::STATE_KEY,
+    (new std::stack<AdditionalState>{{{
+      /* width */           width,
+      /* height */          height,
+      /* dpi */             dpi,
+      /* alpha */           {},
+      /* antialias */       {true},
+      /* clip_rectangle */  {},
+      /* clip_path */       {{}, {nullptr, cairo_path_destroy}},
+      /* hatch */           {},
+      /* hatch_color */     {},  // Lazily loaded by get_hatch_color.
+      /* hatch_linewidth */ {},  // Lazily loaded by get_hatch_linewidth.
+      /* sketch */          {},
+      /* snap */            true,  // Defaults to None, i.e. True for us.
+      /* url */             {}
+    }}}),
     [](void* data) -> void {
       // Just calling operator delete would not invoke the destructor.
       delete static_cast<std::stack<AdditionalState>*>(data);
@@ -411,7 +411,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   cairo_surface_set_fallback_resolution(surface, dpi, dpi);
   auto const& cr = cairo_create(surface);
   cairo_surface_destroy(surface);
-  CAIRO_CHECK(
+  CAIRO_CHECK_SET_USER_DATA(
     cairo_set_user_data, cr, &detail::REFS_KEY,
     new std::vector<py::object>{{write}},
     [](void* data) -> void {

@@ -17,12 +17,17 @@
   } \
 } (void)0
 
-#define CAIRO_CLEANUP_CHECK(cleanup, func, ...) { \
-  if (auto const& status_ = func(__VA_ARGS__); status_ != CAIRO_STATUS_SUCCESS) { \
-    cleanup \
+#define CAIRO_CHECK_SET_USER_DATA(set_user_data, obj, key, user_data, destroy) { \
+  if (auto const& status_ = set_user_data(obj, key, user_data, destroy); \
+      status_ != CAIRO_STATUS_SUCCESS) { \
+    [&](auto destroy_arg) { \
+      if constexpr (!std::is_null_pointer_v<decltype(destroy_arg)>) { \
+        destroy_arg(user_data); \
+      } \
+    }(destroy); \
     throw \
       std::runtime_error{ \
-        #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed " \
+        #set_user_data " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed " \
         "with error: " + std::string{cairo_status_to_string(status_)}}; \
   } \
 } (void)0

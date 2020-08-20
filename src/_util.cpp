@@ -626,10 +626,13 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       FT_New_Face, detail::ft_library, path.c_str(), face_index, &ft_face);
     font_face =
       cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
-    CAIRO_CLEANUP_CHECK(
-      { cairo_font_face_destroy(font_face); FT_Done_Face(ft_face); },
-      cairo_font_face_set_user_data,
-      font_face, &detail::FT_KEY, ft_face,
+    auto font_face_cleanup =  // In case set_user_data fails; released at end.
+      std::unique_ptr<
+        std::remove_pointer_t<cairo_font_face_t>,
+        decltype(&cairo_font_face_destroy)>{
+          font_face, cairo_font_face_destroy};
+    CAIRO_CHECK_SET_USER_DATA(
+      cairo_font_face_set_user_data, font_face, &detail::FT_KEY, ft_face,
       [](void* ptr) -> void {
         FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr));
       });
@@ -640,8 +643,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
           features_s.begin(), features_s.end(), comma, -1}
       : std::sregex_token_iterator{},
       std::sregex_token_iterator{});
-    CAIRO_CLEANUP_CHECK(
-      { cairo_font_face_destroy(font_face); delete features; },
+    CAIRO_CHECK_SET_USER_DATA(
       cairo_font_face_set_user_data,
       font_face, &detail::FEATURES_KEY, features,
       [](void* ptr) -> void {
@@ -661,14 +663,14 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
             || tag == FT_MAKE_TAG('C', 'B', 'L', 'C')
             || tag == FT_MAKE_TAG('s', 'b', 'i', 'x')
             || tag == FT_MAKE_TAG('S', 'V', 'G', ' ')) {
-          CAIRO_CLEANUP_CHECK(
-            { cairo_font_face_destroy(font_face); },
+          CAIRO_CHECK_SET_USER_DATA(
             cairo_font_face_set_user_data,
             font_face, &detail::IS_COLOR_FONT_KEY, font_face, nullptr);
           break;
         }
       }
     }
+    font_face_cleanup.release();
   }
   cairo_font_face_reference(font_face);
   return font_face;
@@ -743,15 +745,13 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
     auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
     auto const& scaled_font_unlock_cleanup =
       std::unique_ptr<
-        std::remove_pointer_t<std::remove_reference_t<decltype(scaled_font)>>,
+        std::remove_pointer_t<cairo_scaled_font_t>,
         decltype(&cairo_ft_scaled_font_unlock_face)>{
           scaled_font, cairo_ft_scaled_font_unlock_face};
     auto const& rq = raqm::create();
     auto const& rq_cleanup =
-      std::unique_ptr<
-        std::remove_pointer_t<std::remove_reference_t<decltype(rq)>>,
-        decltype(raqm::destroy)>{
-          rq, raqm::destroy};
+      std::unique_ptr<std::remove_pointer_t<raqm_t>, decltype(raqm::destroy)>{
+        rq, raqm::destroy};
     if (!rq) {
       throw std::runtime_error{"failed to compute text layout"};
     }
