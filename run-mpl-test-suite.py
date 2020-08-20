@@ -143,6 +143,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-portrait]",
                 "test_backend_ps.py::test_source_date_epoch",
                 "test_backend_svg.py::test_gid",
+                "test_backend_svg.py::test_svg_clear_all_metadata",
+                "test_backend_svg.py::test_svg_clear_default_metadata",
                 "test_backend_svg.py::test_svg_default_metadata",
                 "test_backend_svg.py::test_svg_metadata",
                 "test_backend_svg.py::test_svgnone_with_data_coordinates",
