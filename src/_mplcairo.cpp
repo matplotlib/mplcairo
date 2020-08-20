@@ -16,7 +16,7 @@
 #include "_macros.h"
 
 P11X_DECLARE_ENUM(
-  "antialias_t", Py_antialias_t,
+  "antialias_t", "enum.Enum",
   {"DEFAULT", CAIRO_ANTIALIAS_DEFAULT},
   {"NONE", CAIRO_ANTIALIAS_NONE},
   {"GRAY", CAIRO_ANTIALIAS_GRAY},
@@ -26,7 +26,7 @@ P11X_DECLARE_ENUM(
   {"BEST", CAIRO_ANTIALIAS_BEST}
 )
 P11X_DECLARE_ENUM(
-  "operator_t", Py_operator_t,
+  "operator_t", "enum.Enum",
   {"CLEAR", CAIRO_OPERATOR_CLEAR},
   {"SOURCE", CAIRO_OPERATOR_SOURCE},
   {"OVER", CAIRO_OPERATOR_OVER},
@@ -57,7 +57,7 @@ P11X_DECLARE_ENUM(
   {"HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY}
 )
 P11X_DECLARE_ENUM(  // Only for error messages.
-  "_format_t", Py_format_t,
+  "_format_t", "enum.Enum",
   {"INVALID", CAIRO_FORMAT_INVALID},
   {"ARGB32", CAIRO_FORMAT_ARGB32},
   {"RGB24", CAIRO_FORMAT_RGB24},
@@ -67,7 +67,7 @@ P11X_DECLARE_ENUM(  // Only for error messages.
   {"RGB30", CAIRO_FORMAT_RGB30}
 )
 P11X_DECLARE_ENUM(  // Only for error messages.
-  "_surface_type_t", Py_surface_type_t,
+  "_surface_type_t", "enum.Enum",
   {"IMAGE", CAIRO_SURFACE_TYPE_IMAGE},
   {"PDF", CAIRO_SURFACE_TYPE_PDF},
   {"PS", CAIRO_SURFACE_TYPE_PS},
@@ -95,7 +95,7 @@ P11X_DECLARE_ENUM(  // Only for error messages.
   {"COGL", CAIRO_SURFACE_TYPE_COGL}
 )
 P11X_DECLARE_ENUM(
-  "_StreamSurfaceType", Py_StreamSurfaceType,
+  "_StreamSurfaceType", "enum.Enum",
   {"PDF", mplcairo::StreamSurfaceType::PDF},
   {"PS", mplcairo::StreamSurfaceType::PS},
   {"EPS", mplcairo::StreamSurfaceType::EPS},
@@ -1830,14 +1830,6 @@ PYBIND11_MODULE(_mplcairo, m)
     }
   );
 
-  // Export symbols.
-
-  P11X_BIND_ENUM(m, Py_antialias_t, "enum.Enum");
-  P11X_BIND_ENUM(m, Py_operator_t, "enum.Enum");
-  P11X_BIND_ENUM(m, Py_format_t, "enum.Enum");
-  P11X_BIND_ENUM(m, Py_surface_type_t, "enum.Enum");
-  P11X_BIND_ENUM(m, Py_StreamSurfaceType, "enum.Enum");
-
   // Export functions.
   m.def(
     "get_versions",
@@ -1963,6 +1955,7 @@ Only intended for debugging purposes.
 )__doc__");
 
   // Export classes.
+  p11x::bind_enums(m);
 
   // Exposed only for patching Agg (but internally used for copy_from_bbox /
   // restore_region).
