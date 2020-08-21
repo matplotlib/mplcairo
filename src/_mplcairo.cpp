@@ -1861,7 +1861,6 @@ Only intended for debugging purposes.
   m.def(
     "set_options",
     [](py::kwargs kwargs) -> void {
-      // FIXME[pybind11]: Redo once they pybind11 has kwonly args.
       auto const& pop_option =
         [&](std::string key, auto dummy) -> std::optional<decltype(dummy)> {
           return
@@ -1904,6 +1903,13 @@ Only intended for debugging purposes.
       }
     }, R"__doc__(
 Set mplcairo options.
+
+Note that the defaults below refer to the initial values of the options;
+options not passed to `set_options` are left unchanged.
+
+At import time, mplcairo will set the initial values of the options from the
+``MPLCAIRO_<OPTION_NAME>`` environment variables (loading them as Python
+literals), if any such variables are set.
 
 Parameters
 ----------

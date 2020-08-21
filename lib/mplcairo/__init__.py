@@ -1,3 +1,5 @@
+import ast
+import os
 import sys
 
 try:
@@ -26,11 +28,29 @@ __all__ = [
     "get_raw_buffer",
 ]
 
-set_options(cairo_circles=True)
-try:
-    set_options(raqm=True)
-except OSError:
-    pass
+
+def _init_options():
+    # Hard-coded defaults.
+    set_options(cairo_circles=True)
+    try:
+        set_options(raqm=True)
+    except OSError:
+        pass
+    # Load from environment variables.
+    for key in get_options():  # Easy way to list them.
+        env_key = f"MPLCAIRO_{key.upper()}"
+        env_val = os.environ.get(env_key)
+        if env_val:
+            try:
+                val = ast.literal_eval(env_val)
+            except (SyntaxError, ValueError):
+                warnings.warn(f"Ignoring unparsable environment variable "
+                              f"{env_key}={env_val!r}")
+            else:
+                set_options(**{key: val})
+
+
+_init_options()
 
 
 def get_versions():
@@ -55,7 +75,7 @@ def get_raw_buffer(canvas):
 
     This is normally a uint8 buffer of shape ``(m, n, 4)`` in
     ARGB32 order, unless the canvas was created after calling
-    ``set_options(float_surfaces=True)`` in which case this is
+    ``set_options(float_surface=True)`` in which case this is
     a float32 buffer of shape ``(m, n, 4)`` in RGBA128F order.
     """
     return canvas._get_buffer()
