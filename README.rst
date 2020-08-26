@@ -166,22 +166,12 @@ will be mis-linked and fail to load.
 
 The manylinux wheel is built using `tools/build-manylinux-wheel.sh`_.
 
-.. _tools/build-manylinux-wheel.sh: tools/build-manylinux-wheel.sh
-
-**NOTE**: On Arch Linux, the python-pillow (Arch) package includes an invalid
-version of ``raqm.h`` (https://bugs.archlinux.org/task/57492) and must not be
-installed while building mplcairo with the system Python, even in a virtualenv
-(it can be installed when *using* mplcairo without causing any problems).  One
-solution is to temporarily uninstall the package; another one is to package it
-yourself using e.g. pypi2pkgbuild_.
-
+.. _conda-build-2523: https://github.com/conda/conda-build/issues/2523
 .. [#] ``distutils`` uses ``CC`` for *compiling* C++ sources but ``CXX`` for
    linking them (don't ask).  You may run into additional issues if ``CC`` or
    ``CXX`` has multiple words; e.g., if ``CC`` is set to ``ccache g++``, you
    also need to set ``CXX`` to ``ccache gcc``.
-
-.. _conda-build-2523: https://github.com/conda/conda-build/issues/2523
-.. _pypi2pkgbuild: https://github.com/anntzer/pypi2pkgbuild
+.. _tools/build-manylinux-wheel.sh: tools/build-manylinux-wheel.sh
 
 macOS
 `````

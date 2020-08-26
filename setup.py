@@ -45,7 +45,7 @@ MANYLINUX = bool(os.environ.get("MPLCAIRO_MANYLINUX", ""))
 UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
 
-def get_pkg_config(info, lib):
+def get_pkgconfig(info, lib):
     if MANYLINUX:
         if info.startswith("--atleast-version"):
             if lib == "raqm":
@@ -97,25 +97,40 @@ class build_ext(build_ext):
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
         tmp_include_dir.mkdir(parents=True, exist_ok=True)
-        ext.include_dirs += [tmp_include_dir]
+        # On Arch Linux, the python-pillow (Arch) package
+        # includes a version of ``raqm.h`` that is both invalid
+        # (https://bugs.archlinux.org/task/57492) and now outdated (it is
+        # missing a declaration for `raqm_version_string`), but placed in an
+        # non-overridable directory for distutils.  Thus, on that distro, force
+        # the use of a cleanly downloaded header.
         try:
-            get_pkg_config(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
-        except (FileNotFoundError, CalledProcessError):
+            is_arch = "Arch Linux" in Path("/etc/os-release").read_text()
+        except OSError:
+            is_arch = False
+        has_pkgconfig_raqm = False
+        if not is_arch:
+            try:
+                has_pkgconfig_raqm = get_pkgconfig(
+                    f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
+            except (FileNotFoundError, CalledProcessError):
+                pass
+        if not has_pkgconfig_raqm:
             (tmp_include_dir / "raqm-version.h").write_text("")  # Touch it.
             with urllib.request.urlopen(
                     f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
                     f"v{MIN_RAQM_VERSION}/src/raqm.h") as request, \
                  (tmp_include_dir / "raqm.h").open("wb") as file:
                 file.write(request.read())
+            ext.include_dirs += [tmp_include_dir]
 
         if sys.platform == "linux":
             import cairo
-            get_pkg_config(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
+            get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
             ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += [
                 "-std=c++1z", "-fvisibility=hidden", "-flto",
                 "-Wall", "-Wextra", "-Wpedantic",
-                *get_pkg_config("--cflags", "cairo"),
+                *get_pkgconfig("--cflags", "cairo"),
             ]
             ext.extra_link_args += ["-flto"]
             if MANYLINUX:
@@ -123,7 +138,7 @@ class build_ext(build_ext):
 
         elif sys.platform == "darwin":
             import cairo
-            get_pkg_config(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
+            get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
             ext.include_dirs += [cairo.get_include()]
             # On OSX<10.14, version-min=10.9 avoids deprecation warning wrt.
             # libstdc++, but assumes that the build uses non-Xcode-provided
@@ -135,7 +150,7 @@ class build_ext(build_ext):
             ext.extra_compile_args += [
                 "-std=c++1z", "-fvisibility=hidden", "-flto",
                 f"-mmacosx-version-min={macosx_min_version}",
-                *get_pkg_config("--cflags", "cairo"),
+                *get_pkgconfig("--cflags", "cairo"),
             ]
             ext.extra_link_args += [
                 # version-min needs to be repeated to avoid a warning.
