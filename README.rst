@@ -18,7 +18,7 @@ A (new) cairo backend for Matplotlib
    image:: https://dev.azure.com/matplotlib/mplcairo/_apis/build/status/matplotlib.mplcairo
    :target: https://dev.azure.com/matplotlib/mplcairo/_build/latest?definitionId=1
 
-.. _fedora-package: https://apps.fedoraproject.org/packages/python-mplcairo
+.. _fedora-package: https://src.fedoraproject.org/rpms/python-mplcairo
 
 .. contents:: :local:
 
