@@ -713,7 +713,7 @@ void adjust_font_options(cairo_t* cr)
         auto aa = rc_param("text.antialiased");
         try {
           return aa.cast<cairo_antialias_t>();
-        } catch (py::cast_error&) {
+        } catch (py::cast_error const&) {
           return
             aa.cast<bool>() ? CAIRO_ANTIALIAS_SUBPIXEL : CAIRO_ANTIALIAS_NONE;
         }

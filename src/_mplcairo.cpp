@@ -1678,7 +1678,13 @@ void MathtextBackend::render_rect_filled(
 MathtextBackend& MathtextBackend::get_results(
   py::object box, py::object /* used_characters */)
 {
-  py::module::import("matplotlib.mathtext").attr("ship")(0, 0, box);
+  auto ship = py::object{};
+  try {
+    ship = py::module::import("matplotlib._mathtext").attr("ship");
+  } catch (py::error_already_set const&) {  // mpl<3.4 (#18378).
+    ship = py::module::import("matplotlib.mathtext").attr("ship");
+  }
+  ship(0, 0, box);
   return *this;
 }
 
