@@ -86,6 +86,10 @@ cairo PS does not support SOURCE_DATE_EPOCH. ::
    test_backend_ps::test_savefig_to_stringio[eps afm-*]
    test_backend_ps::test_source_date_epoch
 
+cairo PS does not emit HiResBoundingBox. ::
+
+   test_backend_ps::test_bbox
+
 cairo does not support custom ids, text, or URLs in SVG output. ::
 
    test_backend_svg::test_gid

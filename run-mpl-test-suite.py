@@ -134,6 +134,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_pdf.py::test_multipage_keep_empty",
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
+                "test_backend_ps.py::test_bbox",
                 "test_backend_ps.py::test_partial_usetex",
                 "test_backend_ps.py::test_savefig_to_stringio[ps-landscape]",
                 "test_backend_ps.py::test_savefig_to_stringio[ps-portrait]",
