@@ -399,10 +399,10 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
        -> cairo_status_t {
       auto const& write =
         py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
-      return
-        write(py::memoryview{{data, length}}).cast<unsigned int>() == length
-        // NOTE: This does not appear to affect the context status.
-        ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
+      auto const& written =
+        write(py::memoryview::from_memory(data, length)).cast<unsigned int>();
+      return  // NOTE: This does not appear to affect the context status.
+        written == length ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
     };
   auto const& write = file.attr("write");
 
@@ -1874,11 +1874,13 @@ Only intended for debugging purposes.
             .cast<std::optional<decltype(dummy)>>();
       };
       if (auto const& cairo_circles = pop_option("cairo_circles", bool{})) {
-        detail::UNIT_CIRCLE =
-          *cairo_circles
-          ? py::module::import("matplotlib.path").attr("Path")
-            .attr("unit_circle")()
-          : py::none{};
+        if (*cairo_circles) {
+          detail::UNIT_CIRCLE =
+            py::module::import("matplotlib.path").attr("Path")
+            .attr("unit_circle")();
+        } else {
+          Py_XDECREF(detail::UNIT_CIRCLE.release().ptr());
+        }
       }
       if (auto const& float_surface = pop_option("float_surface", bool{})) {
         if (cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
@@ -1947,7 +1949,7 @@ _debug: bool, default: False
     "get_options",
     []() -> py::dict {
       return py::dict(
-        "cairo_circles"_a=!detail::UNIT_CIRCLE.is_none(),
+        "cairo_circles"_a=bool(detail::UNIT_CIRCLE),
         "float_surface"_a=detail::FLOAT_SURFACE,
         "marker_threads"_a=detail::MARKER_THREADS,
         "miter_limit"_a=detail::MITER_LIMIT,

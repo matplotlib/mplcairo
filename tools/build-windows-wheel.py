@@ -94,10 +94,12 @@ subprocess.run(
     [sys.executable, "-mpip", "install", "--upgrade", "pip", "wheel"],
     check=True)
 os.environ.update(
-    CL=(f"/I{Path()}/build/cairo/usr/include/cairo "
+    CL=(f"{os.environ.get('CL', '')} "
+        f"/I{Path()}/build/cairo/usr/include/cairo "
         f"/I{Path()}/build/fontconfig/usr/include "
         f"/I{Path()}/build/freetype/include "),
-    LINK=(f"/LIBPATH:{Path()}/build/cairo/win64 "
+    LINK=(f"{os.environ.get('LINK', '')} "
+          f"/LIBPATH:{Path()}/build/cairo/win64 "
           f"/LIBPATH:{Path()}/build/freetype/win64 "),
 )
 subprocess.run(

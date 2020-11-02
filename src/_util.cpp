@@ -36,9 +36,9 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE{};
 cairo_user_data_key_t const
   REFS_KEY{}, STATE_KEY{}, FT_KEY{}, FEATURES_KEY{}, IS_COLOR_FONT_KEY{};
-py::object RC_PARAMS{py::none{}},
-           PIXEL_MARKER{py::none{}},
-           UNIT_CIRCLE{py::none{}};
+py::object RC_PARAMS{},
+           PIXEL_MARKER{},
+           UNIT_CIRCLE{};
 bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
 double MITER_LIMIT{10.};

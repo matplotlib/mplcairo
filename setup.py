@@ -250,7 +250,7 @@ setup(
     python_requires=">=3.6",
     setup_requires=[
         "setuptools_scm",
-        "pybind11>=2.5.0",
+        "pybind11>=2.6.0",
         # Actually also a setup_requires on Linux, but in the manylinux build
         # we need to shim it.
         "pycairo>=1.16.0; sys_platform == 'darwin'",

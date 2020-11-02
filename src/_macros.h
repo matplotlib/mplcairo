@@ -90,6 +90,7 @@ namespace p11x {
     namespace { \
       [[maybe_unused]] auto const P11X_CAT(enum_placeholder_, __COUNTER__) = \
         [](auto args) { \
+          py::gil_scoped_acquire gil; \
           using int_t = std::underlying_type_t<decltype(args[0].second)>; \
           auto pairs = std::vector<std::pair<std::string, int_t>>{}; \
           for (auto& [k, v]: args) { \

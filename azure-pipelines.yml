@@ -9,6 +9,9 @@ strategy:
     Linux_py38:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.8'
+    Linux_py39:
+      vmImage: 'ubuntu-16.04'
+      pythonVersion: '3.9'
     macOS_py36:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.6'
@@ -18,6 +21,9 @@ strategy:
     macOS_py38:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.8'
+    macOS_py39:
+      vmImage: 'macOS-10.14'
+      pythonVersion: '3.9'
     Windows_py36:
       vmImage: 'windows-2019'
       pythonVersion: '3.6'
@@ -27,6 +33,9 @@ strategy:
     Windows_py38:
       vmImage: 'windows-2019'
       pythonVersion: '3.8'
+    Windows_py39:
+      vmImage: 'windows-2019'
+      pythonVersion: '3.9'
 
 pool:
   vmImage: '$(vmImage)'
@@ -47,7 +56,8 @@ steps:
     linux)
       sudo PY_VERS="$PYTHONVERSION" tools/build-manylinux-wheel.sh &&
       sudo apt update &&
-      sudo apt install ghostscript inkscape
+      sudo apt install ghostscript inkscape &&
+      pip install 'pycairo<1.20'  # 1.20 requires too-recent cairo for Ubuntu 16.04.
       ;;
     darwin)
       # - python2 unlinking needed until brew sorts that out.

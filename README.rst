@@ -65,7 +65,7 @@ mplcairo requires
 
 Additionally, building mplcairo from source requires
 
-- pybind11≥2.5.0 [#]_ (declared as ``setup_requires``),
+- pybind11≥2.6.0 [#]_ (declared as ``setup_requires``),
 - on Linux and macOS, pycairo≥1.16.0 (declared as ``setup_requires`` on macOS,
   but not on Linux).
 
@@ -114,8 +114,7 @@ https://github.com/HOST-Oman/libraqm-cmake for Windows build scripts.
    of cairo, it is suggested to use a commit ≥dfe3aa6, as the latter further
    fixes another bug that can cause crashes in mplcairo.
 
-.. [#] pybind11 2.5.0 is the earliest version that supports being added as
-   ``setup_requires`` (and read-only buffers).
+.. [#] pybind11 2.6.0 is needed to support Python 3.9.
 
 On Fedora, the package is available as `python-mplcairo <fedora-package_>`_.
 
