@@ -13,8 +13,8 @@ v0.3
 - ``pybind11`` is now a ``setup_requires`` and ``-march=native`` is no longer
   passed as compilation option by default; drop support for
   ``MPLCAIRO_BUILD_TYPE``.
-- Added support for OpenType font features.
-- Added support for ``pdftex.map`` font effects (as in Matplotlib's
+- Support for OpenType font features.
+- Support for ``pdftex.map`` font effects (as in Matplotlib's
   ``usetex_fonteffects.py`` example).
 - Fix zooming on macosx.
 
