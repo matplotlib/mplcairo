@@ -4,6 +4,7 @@ next
 - Bumped dependencies to pybind11≥2.6.
 - Improve snapping of codeful paths.
 - Fix failure to increase cairo refcount of font cache entries.
+- Support ``rcParams["pdf.compression"] = 0``.
 
 v0.3
 ====

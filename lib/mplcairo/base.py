@@ -92,8 +92,17 @@ class GraphicsContextRendererCairo(
                 stream = _BytesWritingWrapper(stream, "utf-8")
             # (No default encoding for pdf, which is a binary format.)
         args = fmt, stream, width, height, dpi
-        obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
-        _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        cairo_debug_pdf = os.environ.get("CAIRO_DEBUG_PDF")
+        if mpl.rcParams["pdf.compression"]:
+            os.environ.setdefault("CAIRO_DEBUG_PDF", "1")
+        try:
+            obj = _mplcairo.GraphicsContextRendererCairo.__new__(cls, *args)
+            _mplcairo.GraphicsContextRendererCairo.__init__(obj, *args)
+        finally:
+            if cairo_debug_pdf is None:
+                os.environ.pop("CAIRO_DEBUG_PDF", None)
+            else:
+                os.environ["CAIRO_DEBUG_PDF"] = cairo_debug_pdf
         try:
             name = os.fsdecode(stream.name)
         except (AttributeError, TypeError):
