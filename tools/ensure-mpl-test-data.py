@@ -27,7 +27,7 @@ except Exception:  # ImportError if patched out, IOError by mpl itself.
                 Path(list(pkg.__path__)[0], "tests"), ignore_errors=True)
             shutil.move(
                 str(Path(tmpdir, f"matplotlib-{mpl.__version__}",
-                         "lib", pkg.__name__, "tests")),  # bpo#32689.
+                         "lib", pkg.__name__, "tests")),  # bpo#32689 (Py<3.9).
                 list(pkg.__path__)[0])
 else:
     print("Matplotlib test data already present.")

@@ -58,7 +58,7 @@ Installation
 
 mplcairo requires
 
-- Python≥3.6,
+- Python≥3.7,
 - Matplotlib≥2.2 (declared as ``install_requires``),
 - on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).

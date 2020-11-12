@@ -247,7 +247,7 @@ setup(
     packages=find_packages("lib"),
     package_dir={"": "lib"},
     ext_modules=[Extension("mplcairo._mplcairo", [])],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     setup_requires=[
         "setuptools_scm",
         "pybind11>=2.6.0",

@@ -1,8 +1,5 @@
 strategy:
   matrix:
-    Linux_py36:
-      vmImage: 'ubuntu-16.04'
-      pythonVersion: '3.6'
     Linux_py37:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.7'
@@ -12,9 +9,6 @@ strategy:
     Linux_py39:
       vmImage: 'ubuntu-16.04'
       pythonVersion: '3.9'
-    macOS_py36:
-      vmImage: 'macOS-10.14'
-      pythonVersion: '3.6'
     macOS_py37:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.7'
@@ -24,9 +18,6 @@ strategy:
     macOS_py39:
       vmImage: 'macOS-10.14'
       pythonVersion: '3.9'
-    Windows_py36:
-      vmImage: 'windows-2019'
-      pythonVersion: '3.6'
     Windows_py37:
       vmImage: 'windows-2019'
       pythonVersion: '3.7'
