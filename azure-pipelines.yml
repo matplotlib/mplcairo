@@ -60,10 +60,8 @@ steps:
       pip install 'pycairo<1.20'  # 1.20 requires too-recent cairo for Ubuntu 16.04.
       ;;
     darwin)
-      # - python2 unlinking needed until brew sorts that out.
       # - Don't install inkscape: building it from source is a bit silly.
       brew update >/dev/null &&
-      brew unlink python@2 &&
       brew install cairo pkg-config &&
       PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
       brew install ghostscript
