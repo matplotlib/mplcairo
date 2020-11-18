@@ -114,9 +114,9 @@ Region::Region(
 
 py::array_t<uint8_t> Region::get_st_rgba8888_array() {
   auto const& [x0, y0, width, height] = bbox;
+  (void)x0; (void)y0;
   auto st_rgba8888_array = py::array_t<uint8_t>{{height, width, 4}};
-  auto st_rgba8888_ptr =
-    st_rgba8888_array.mutable_unchecked<3>().mutable_data(0, 0, 0);
+  auto st_rgba8888_ptr = st_rgba8888_array.mutable_data();
   for (auto y = 0; y < height; ++y) {
     for (auto x = 0; x < width; ++x) {
       auto argb32 =
@@ -136,6 +136,7 @@ py::array_t<uint8_t> Region::get_st_rgba8888_array() {
 
 py::bytes Region::get_st_argb32_bytes() {
   auto const& [x0, y0, width, height] = bbox;
+  (void)x0; (void)y0;
   auto st_argb32_bytes = py::bytes{nullptr, size_t(height * width * 4)};
   uint32_t* st_argb32_ptr = {};
   auto len = ssize_t{};
@@ -292,6 +293,7 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
 {
   if (detail::FONT_CACHE.size() > 64) {  // font_manager._get_font cache size.
     for (auto& [pathspec, font_face]: detail::FONT_CACHE) {
+      (void)pathspec;
       cairo_font_face_destroy(font_face);
     }
     detail::FONT_CACHE.clear();  // Naive cache mechanism.
