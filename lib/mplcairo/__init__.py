@@ -78,7 +78,7 @@ def get_raw_buffer(canvas):
     ``set_options(float_surface=True)`` in which case this is
     a float32 buffer of shape ``(m, n, 4)`` in RGBA128F order.
     """
-    return canvas._get_buffer()
+    return canvas.renderer._get_buffer()
 
 
 def _operator_patch_artist(op, artist):
