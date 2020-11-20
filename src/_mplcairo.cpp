@@ -1838,33 +1838,6 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Export functions.
   m.def(
-    "get_versions",
-    []() -> py::dict {
-      auto const& cairo_version = cairo_version_string();
-      auto ft_major = 0, ft_minor = 0, ft_patch = 0;
-      FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
-      auto const& freetype_version =
-        std::to_string(ft_major) + "."
-        + std::to_string(ft_minor) + "."
-        + std::to_string(ft_patch);
-      auto const& pybind11_version =
-        Py_STRINGIFY(PYBIND11_VERSION_MAJOR) "."
-        Py_STRINGIFY(PYBIND11_VERSION_MINOR) "."
-        Py_STRINGIFY(PYBIND11_VERSION_PATCH);
-      auto const& raqm_version =
-        has_raqm()
-        ? std::optional<std::string>{raqm::version_string()} : std::nullopt;
-      return py::dict(
-        "cairo"_a=cairo_version,
-        "freetype"_a=freetype_version,
-        "pybind11"_a=pybind11_version,
-        "raqm"_a=raqm_version);
-    }, R"__doc__(
-Get library versions.
-
-Only intended for debugging purposes.
-)__doc__");
-  m.def(
     "set_options",
     [](py::kwargs kwargs) -> void {
       auto const& pop_option =
@@ -1958,6 +1931,33 @@ _debug: bool, default: False
     }, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available
 options.
+)__doc__");
+  m.def(
+    "get_versions",
+    []() -> py::dict {
+      auto const& cairo_version = cairo_version_string();
+      auto ft_major = 0, ft_minor = 0, ft_patch = 0;
+      FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
+      auto const& freetype_version =
+        std::to_string(ft_major) + "."
+        + std::to_string(ft_minor) + "."
+        + std::to_string(ft_patch);
+      auto const& pybind11_version =
+        Py_STRINGIFY(PYBIND11_VERSION_MAJOR) "."
+        Py_STRINGIFY(PYBIND11_VERSION_MINOR) "."
+        Py_STRINGIFY(PYBIND11_VERSION_PATCH);
+      auto const& raqm_version =
+        has_raqm()
+        ? std::optional<std::string>{raqm::version_string()} : std::nullopt;
+      return py::dict(
+        "cairo"_a=cairo_version,
+        "freetype"_a=freetype_version,
+        "pybind11"_a=pybind11_version,
+        "raqm"_a=raqm_version);
+    }, R"__doc__(
+Get library versions.
+
+Only intended for debugging purposes.
 )__doc__");
   m.def(
     "install_abrt_handler",
