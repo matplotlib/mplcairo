@@ -197,4 +197,14 @@ class MathtextBackend {
   std::tuple<double, double, double> get_text_width_height_descent() const;
 };
 
+py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_argb32(
+  std::variant<py::array_t<uint8_t, py::array::c_style>,
+               py::array_t<float, py::array::c_style>> buf);
+py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_rgba8888(
+  std::variant<py::array_t<uint8_t, py::array::c_style>,
+               py::array_t<float, py::array::c_style>> buf);
+py::array_t<uint8_t, py::array::c_style> cairo_to_straight_rgba8888(
+  std::variant<py::array_t<uint8_t, py::array::c_style>,
+               py::array_t<float, py::array::c_style>> buf);
+
 }

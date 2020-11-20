@@ -125,10 +125,10 @@ py::array_t<uint8_t> Region::get_st_rgba8888_array() {
                 & r = (argb32 & 0x00ff0000) >> 16,
                 & g = (argb32 & 0x0000ff00) >> 8,
                 & b = (argb32 & 0x000000ff) >> 0;
-      *(st_rgba8888_ptr++) = (r * 0xff + a / 2) / a;
-      *(st_rgba8888_ptr++) = (g * 0xff + a / 2) / a;
-      *(st_rgba8888_ptr++) = (b * 0xff + a / 2) / a;
-      *(st_rgba8888_ptr++) = a;
+      *st_rgba8888_ptr++ = a ? (r * 0xff + a / 2) / a : 0;
+      *st_rgba8888_ptr++ = a ? (g * 0xff + a / 2) / a : 0;
+      *st_rgba8888_ptr++ = a ? (b * 0xff + a / 2) / a : 0;
+      *st_rgba8888_ptr++ = a;
     }
   }
   return st_rgba8888_array;
@@ -150,9 +150,9 @@ py::bytes Region::get_st_argb32_bytes() {
                 & r = (argb32 & 0x00ff0000) >> 16,
                 & g = (argb32 & 0x0000ff00) >> 8,
                 & b = (argb32 & 0x000000ff) >> 0;
-      *(st_argb32_ptr++) =
+      *st_argb32_ptr++ =
         (uint8_t(a) << 24)
-        | (uint8_t((r * 0xff + a / 2) / a) << 16)
+        | (uint8_t((r * 0xff + a / 2) / a) << 16)  // As in cairo-png.c.
         | (uint8_t((g * 0xff + a / 2) / a) << 8)
         | (uint8_t((b * 0xff + a / 2) / a) << 0);
     }
@@ -840,7 +840,7 @@ void GraphicsContextRenderer::draw_image(
                 & g = im_raw(i, j, 1),
                 & b = im_raw(i, j, 2),
                 & a = im_raw(i, j, 3);
-      *(ptr++) =
+      *ptr++ =
         (uint8_t(a) << 24)
         | (uint8_t(a / 255. * r) << 16)
         | (uint8_t(a / 255. * g) << 8)
@@ -1778,6 +1778,81 @@ MathtextBackend::get_text_width_height_descent() const
   return {xmax_ - xmin_, ymax_ - ymin_, -ymin_};
 }
 
+py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_argb32(
+  std::variant<py::array_t<uint8_t, py::array::c_style>,
+               py::array_t<float, py::array::c_style>> buf)
+{
+  return std::visit(overloaded {
+    [](py::array_t<uint8_t, py::array::c_style> buf) {
+      return buf;
+    },
+    [](py::array_t<float, py::array::c_style> buf) {
+      auto f32_ptr = buf.data(0);
+      auto const& size = buf.size();
+      auto u8 = py::array_t<uint8_t, py::array::c_style>{buf.request().shape};
+      auto u32_ptr = reinterpret_cast<uint32_t*>(u8.mutable_data(0));
+      for (auto i = 0; i < size; i += 4) {
+        auto const& r = *f32_ptr++, g = *f32_ptr++, b = *f32_ptr++, a = *f32_ptr++;
+        *u32_ptr++ =
+          (uint32_t(uint8_t(a * 0xff)) << 24)
+          + (uint32_t(uint8_t(r * 0xff)) << 16)
+          + (uint32_t(uint8_t(g * 0xff)) << 8)
+          + (uint32_t(uint8_t(b * 0xff)) << 0);
+      }
+      return u8;
+    }
+  },
+  buf);
+}
+
+py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_rgba8888(
+  std::variant<py::array_t<uint8_t, py::array::c_style>,
+               py::array_t<float, py::array::c_style>> buf)
+{
+  auto u8 = std::visit(overloaded {
+    [](py::array_t<uint8_t, py::array::c_style> buf) {
+      return
+        buf.attr("copy")().cast<py::array_t<uint8_t, py::array::c_style>>();
+    },
+    [](py::array_t<float, py::array::c_style> buf) {
+      return cairo_to_premultiplied_argb32(buf);
+    },
+  }, buf);
+  auto const& size = u8.size();
+  // Much faster than `np.take(..., [2, 1, 0, 3] / [1, 2, 3, 0], axis=2)`.
+  if (*reinterpret_cast<uint16_t const*>("\0\xff") > 0x100) {  // little-endian
+    uint8_t* u8_ptr = u8.mutable_data();
+    for (auto i = 0; i < size; i += 4) {
+      std::swap(u8_ptr[i], u8_ptr[i + 2]);  // BGRA->RGBA
+    }
+  } else {  // big-endian
+    auto u32_ptr = reinterpret_cast<uint32_t*>(u8.mutable_data());
+    for (auto i = 0; i < size; i += 4) {
+      u32_ptr[i] = (u32_ptr[i] << 8) + (u32_ptr[i] >> 24);  // ARGB->RGBA
+    }
+  }
+  return u8;
+}
+
+py::array_t<uint8_t, py::array::c_style> cairo_to_straight_rgba8888(
+  std::variant<py::array_t<uint8_t, py::array::c_style>,
+               py::array_t<float, py::array::c_style>> buf)
+{
+  auto rgba = cairo_to_premultiplied_rgba8888(buf);
+  auto u8_ptr = rgba.mutable_data(0);
+  auto const& size = rgba.size();
+  for (auto i = 0; i < size; i += 4) {
+    auto r = u8_ptr++, g = u8_ptr++, b = u8_ptr++, a = u8_ptr++;
+    if (*a && *a < 0xff) {
+      // As in cairo-png.c, but also skip the (slow!) division if *a == 0xff.
+      *r = (uint32_t(*r) * 0xff + *a / 2) / *a;
+      *g = (uint32_t(*g) * 0xff + *a / 2) / *a;
+      *b = (uint32_t(*b) * 0xff + *a / 2) / *a;
+    }
+  }
+  return rgba;
+}
+
 PYBIND11_MODULE(_mplcairo, m)
 {
   m.doc() = "A cairo backend for matplotlib.";
@@ -1931,6 +2006,21 @@ _debug: bool, default: False
     }, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available
 options.
+)__doc__");
+  m.def(
+    "cairo_to_premultiplied_argb32", cairo_to_premultiplied_argb32, R"__doc__(
+Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
+premultiplied ARGB32.
+)__doc__");
+  m.def(
+    "cairo_to_premultiplied_rgba8888", cairo_to_premultiplied_rgba8888, R"__doc__(
+Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
+premultiplied RGBA8888.
+)__doc__");
+  m.def(
+    "cairo_to_straight_rgba8888", cairo_to_straight_rgba8888, R"__doc__(
+Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
+straight RGBA8888.
 )__doc__");
   m.def(
     "get_versions",
