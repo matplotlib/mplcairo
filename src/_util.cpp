@@ -27,6 +27,7 @@ std::unordered_map<FT_Error, std::string> ft_errors =
 #include FT_ERRORS_H
 ;
 FT_Library ft_library{};
+bool has_pycairo{};
 
 #define DEFINE_API(name) decltype(name) name;
 ITER_CAIRO_OPTIONAL_API(DEFINE_API)

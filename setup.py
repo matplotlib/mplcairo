@@ -5,13 +5,13 @@ mplcairo build
 Environment variables:
 
 MPLCAIRO_MANYLINUX
-    - If set, build a manylinux wheel: pkg-config is shimmed and libstdc++ is
-      statically linked.
+    If set, build a manylinux wheel: pkg-config is shimmed, pycairo is not
+    declared as setup_requires, and libstdc++ is statically linked.
 
 MPLCAIRO_NO_UNITY_BUILD
-    - If set, compile the various cpp files separately, instead of as a single
-      compilation unit.  Unity builds tend to be faster even when using ccache,
-      because linking is rather time-consuming.
+    If set, compile the various cpp files separately, instead of as a single
+    compilation unit.  Unity builds tend to be faster even when using ccache,
+    because linking is rather time-consuming.
 """
 
 import functools
@@ -80,6 +80,7 @@ class build_ext(build_ext):
             super().finalize_options()
             return
 
+        import cairo
         from pybind11.setup_helpers import Pybind11Extension
 
         self.distribution.ext_modules[:] = ext, = [Pybind11Extension(
@@ -94,6 +95,7 @@ class build_ext(build_ext):
                 *map(str, Path("src").glob("*.cpp")),
             ],
             cxx_std=17,
+            include_dirs=[cairo.get_include()],
         )]
 
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
@@ -126,9 +128,7 @@ class build_ext(build_ext):
             ext.include_dirs += [tmp_include_dir]
 
         if os.name == "posix":
-            import cairo
             get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
-            ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += [
                 "-flto", "-Wall", "-Wextra", "-Wpedantic",
                 *get_pkgconfig("--cflags", "cairo"),
@@ -215,9 +215,7 @@ setup(
     setup_requires=[
         "setuptools_scm",
         "pybind11>=2.6.0",
-        # Actually also a setup_requires on Linux, but in the manylinux build
-        # we need to shim it.
-        "pycairo>=1.16.0; sys_platform == 'darwin'",
+        *(["pycairo>=1.16.0"] if not MANYLINUX else []),
     ],
     use_scm_version={  # xref __init__.py
         "version_scheme": "post-release",

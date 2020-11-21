@@ -19,6 +19,7 @@ namespace detail {
 
 extern std::unordered_map<FT_Error, std::string> ft_errors;
 extern FT_Library ft_library;
+extern bool has_pycairo;
 
 // Optional parts of cairo, backported from 1.15.
 // Copy-pasted from cairo.h.

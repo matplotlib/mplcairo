@@ -69,6 +69,11 @@ def get_versions():
     }
 
 
+def get_context(canvas):
+    """Get ``cairo.Context`` used to draw onto the canvas."""
+    return canvas.renderer._get_context()
+
+
 def get_raw_buffer(canvas):
     """
     Get the canvas' raw internal buffer.

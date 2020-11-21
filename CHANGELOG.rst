@@ -1,7 +1,9 @@
 next
 ====
 
-- Bumped dependencies to Python≥3.7, pybind11≥2.6.
+- Bumped dependencies to Python≥3.7, pybind11≥2.6; Windows build also
+  ``setup_requires`` pycairo.
+- Added ``get_context``.
 - Improve snapping of codeful paths.
 - Fix failure to increase cairo refcount of font cache entries.
 - Support ``rcParams["pdf.compression"] = 0``.

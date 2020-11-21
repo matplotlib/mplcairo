@@ -66,8 +66,7 @@ mplcairo requires
 Additionally, building mplcairo from source requires
 
 - pybind11≥2.6.0 [#]_ (declared as ``setup_requires``),
-- on Linux and macOS, pycairo≥1.16.0 (declared as ``setup_requires`` on macOS,
-  but not on Linux).
+- pycairo≥1.16.0 (declared as ``setup_requires``).
 
 As usual, install using pip:
 
@@ -95,9 +94,6 @@ https://github.com/HOST-Oman/libraqm-cmake for Windows build scripts.
 
    On Windows, this strategy is (AFAIK) not possible, so we explicitly link
    against the cairo DLL.
-
-   pycairo is not declared as a ``setup_requires`` on Linux because the
-   manylinux wheel builder needs to work around it.
 
 .. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
 
@@ -210,7 +206,7 @@ The following additional dependencies are required:
   FreeType support.
 
   The currently preferred solution is to get the headers e.g. from a Linux
-  distribution package, the DLL from Christoph Gohlke's cairocffi_ build, and
+  distribution package, the DLL from Christoph Gohlke's pycairo_ build, and
   generate the import library oneself using ``dumpbin`` and ``lib``.
 
   Alternatively, very recent conda-forge builds (≥1.16.0 build 1005) do
@@ -225,7 +221,7 @@ The following additional dependencies are required:
 
      conda install -y freetype
 
-.. _cairocffi: https://www.lfd.uci.edu/~gohlke/pythonlibs/#cairocffi
+.. _pycairo: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycairo
 
 The (standard) |CL|_ and |LINK|_ environment variables (which always get
 prepended respectively to the invocations of the compiler and the linker)

@@ -5,9 +5,7 @@
 #include "_raqm.h"
 #include "_util.h"
 
-#ifndef _WIN32
 #include <py3cairo.h>
-#endif
 #include <cairo-script.h>
 
 #include <stack>
@@ -338,9 +336,11 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     std::floor(width), std::floor(height), dpi}
 {}
 
-#ifndef _WIN32
 cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
 {
+  if (!detail::has_pycairo) {
+    throw std::runtime_error{"pycairo is not available"};
+  }
   if (!py::isinstance(
         ctx, py::handle(reinterpret_cast<PyObject*>(&PycairoContext_Type)))) {
     throw std::invalid_argument{
@@ -359,7 +359,6 @@ GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
     ctx.attr("get_target")().attr("get_height")().cast<double>(),
     dpi}
 {}
-#endif
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   StreamSurfaceType type, py::object file,
@@ -562,6 +561,17 @@ void GraphicsContextRenderer::_set_size(
 void GraphicsContextRenderer::_show_page()
 {
   cairo_show_page(cr_);
+}
+
+py::object GraphicsContextRenderer::_get_context()
+{
+  if (detail::has_pycairo) {
+    cairo_reference(cr_);
+    return py::reinterpret_steal<py::object>(
+      PycairoContext_FromContext(cr_, &PycairoContext_Type, nullptr));
+  } else {
+    throw std::runtime_error{"pycairo is not available"};
+  }
 }
 
 py::array GraphicsContextRenderer::_get_buffer()
@@ -1861,11 +1871,17 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Setup global values.
 
+  if (import_cairo() >= 0) {
+    detail::has_pycairo = true;
+  } else {
 #ifndef _WIN32
-  if (import_cairo() < 0) {
     throw py::error_already_set{};
+#else
+    PyErr_Clear();
+#endif
   }
 
+#ifndef _WIN32
   auto const& ctypes = py::module::import("ctypes"),
             & _cairo = py::module::import("cairo._cairo");
   auto const& dll = ctypes.attr("CDLL")(_cairo.attr("__file__"));
@@ -2072,9 +2088,7 @@ Only intended for debugging purposes.
     // The RendererAgg signature, which is also expected by MixedModeRenderer
     // (with doubles!).
     .def(py::init<double, double, double>())
-#ifndef _WIN32
     .def(py::init<py::object, double>())
-#endif
     .def(py::init<StreamSurfaceType, py::object, double, double, double>())
     .def(
       py::pickle(
@@ -2105,6 +2119,7 @@ Only intended for debugging purposes.
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
+    .def("_get_context", &GraphicsContextRenderer::_get_context)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
     .def("_finish", &GraphicsContextRenderer::_finish)
 

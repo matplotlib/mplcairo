@@ -2,14 +2,14 @@
 Fetch dependencies and build a Windows wheel
 ============================================
 
-This script depends on cairocffi being installed to provide cairo.dll.  Note
-that in practice, the only cairocffi build whose cairo.dll includes FreeType
+This script depends on pycairo being installed to provide cairo.dll.  Note
+that in practice, the only pycairo build whose cairo.dll includes FreeType
 support that I am aware of is Christoph Gohlke's build__, for which I have set
 up a mirror__.  (The only other freestanding cairo.dll that includes FreeType
 support that I am aware of__ appears to misrender pdfs.)
 
-__ https://www.lfd.uci.edu/~gohlke/pythonlibs/#cairocffi
-__ https://github.com/anntzer/cairocffi-windows-wheel
+__ https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycairo
+__ https://github.com/anntzer/pycairo-windows-wheel
 __ https://github.com/preshing/cairo-windows
 __ https://preshing.com/20170529/heres-a-standalone-cairo-dll-for-windows/#IDComment1047546463
 
@@ -30,7 +30,7 @@ import subprocess
 import sys
 import urllib.request
 
-import cairocffi
+import cairo
 
 
 # Prepare the directories.
@@ -60,11 +60,11 @@ for archive_path, url in urls.items():
     shutil.rmtree(dest, ignore_errors=True)
     shutil.unpack_archive(archive_path, dest)
 
-# Get cairo.dll from cairocffi, and build the import library.
+# Get cairo.dll from pycairo, and build the import library.
 # cffi appends ".lib" to the filename.
 Path("cairo/win64").mkdir(parents=True)
 shutil.copyfile(
-    Path(cairocffi.cairo.__name__).with_suffix(""),
+    Path(cairo.__file__).with_name("cairo.dll"),
     "cairo/win64/cairo.dll")
 # Build the import library.
 cc = ccompiler.new_compiler()

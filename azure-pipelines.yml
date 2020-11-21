@@ -59,8 +59,8 @@ steps:
       ;;
     win32)
       # Don't install inkscape (see note in run-mpl-test-suite.py).
-      git clone --depth 1 https://github.com/anntzer/cairocffi-windows-wheels &&
-      python -mpip install --find-links cairocffi-windows-wheels --prefer-binary cairocffi &&
+      git clone --depth 1 https://github.com/anntzer/pycairo-windows-wheels &&
+      python -mpip install --find-links pycairo-windows-wheels --prefer-binary pycairo &&
       python tools/build-windows-wheel.py &&
       choco install --no-progress ghostscript
       ;;

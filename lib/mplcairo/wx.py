@@ -21,6 +21,8 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
 
     def draw(self, drawDC=None):
         super().draw()
+        # This is essentially the same as wx.lib.wxcairo.BitmapFromImageSurface
+        # but also works for RGBA128F.
         buf = _util.cairo_to_premultiplied_argb32(
             self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
