@@ -181,14 +181,15 @@ class GraphicsContextRendererCairo(
 
     # "Undocumented" APIs needed to patch Agg.
 
-    lock = _LOCK  # Needed for webagg_core; fixed by matplotlib#10708.
+    lock = _LOCK  # For webagg_core; matplotlib#10708 (<3.0).
 
-    def buffer_rgba(self):  # Needed for webagg_core.
+    def buffer_rgba(self):  # For tkagg, webagg_core.
         return _util.cairo_to_straight_rgba8888(self._get_buffer())
 
-    _renderer = property(buffer_rgba)  # Needed for tkagg.
+    _renderer = property(buffer_rgba)  # For tkagg; matplotlib#18993 (<3.4).
 
-    def tostring_rgba_minimized(self):  # Needed for MixedModeRenderer.
+    # For MixedModeRenderer; matplotlib#17788 (<3.4).
+    def tostring_rgba_minimized(self):
         img, bounds = _get_drawn_subarray_and_bounds(
             _util.cairo_to_straight_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds

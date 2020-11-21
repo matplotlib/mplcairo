@@ -37,7 +37,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         self._draw_rect_callback(painter)
         painter.end()
 
-    def blit(self, bbox=None):  # matplotlib#17478 (matplotlib<3.3).
+    def blit(self, bbox=None):  # matplotlib#17478 (<3.3).
         # See above: we always repaint the full canvas.
         self.repaint(self.rect())
 
