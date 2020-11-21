@@ -27,7 +27,7 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
         self.bitmap = wx.Bitmap(width, height, 32)
         self.bitmap.CopyFromBuffer(buf, wx.BitmapBufferFormat_ARGB32)
         self._isDrawn = True
-        self.gui_repaint(drawDC=drawDC, origin="WXCairo")
+        self.gui_repaint(drawDC=drawDC)
 
     def blit(self, bbox=None):
         self.draw()
