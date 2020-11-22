@@ -1,10 +1,6 @@
-#if __cplusplus < 201703
+#include <pybind11/pybind11.h>
+#ifndef PYBIND11_CPP17
   #error "A compiler supporting C++17 is required."
-#endif
-
-#include <ciso646>
-#if defined __clang__ && !defined _LIBCPP_VERSION
-  #error "Compilation with Clang requires using libc++, not libstdc++."
 #endif
 
 #include <cairo.h>

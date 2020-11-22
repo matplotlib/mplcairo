@@ -14,12 +14,10 @@ MPLCAIRO_NO_UNITY_BUILD
       because linking is rather time-consuming.
 """
 
-from distutils.version import LooseVersion
 import functools
 import json
 import os
 from pathlib import Path
-import platform
 import re
 import shlex
 import shutil
@@ -76,23 +74,27 @@ def paths_from_link_libpaths():
 
 class build_ext(build_ext):
 
-    def build_extensions(self):
-        import pybind11
+    def finalize_options(self):
+        if not self.distribution.have_run.get("egg_info", 1):
+            # Just listing the MANIFEST; setup_requires are not available yet.
+            super().finalize_options()
+            return
 
-        ext, = self.distribution.ext_modules
+        from pybind11.setup_helpers import Pybind11Extension
 
-        ext.depends += [
-            "setup.py",
-            *map(str, Path("src").glob("*.h")),
-            *map(str, Path("src").glob("*.cpp")),
-        ]
-        if UNITY_BUILD:
-            ext.sources += ["src/_unity_build.cpp"]
-        else:
-            ext.sources += [*map(str, Path("src").glob("*.cpp"))]
-            ext.sources.remove("src/_unity_build.cpp")
-
-        ext.include_dirs += [pybind11.get_include()]
+        self.distribution.ext_modules[:] = ext, = [Pybind11Extension(
+            "mplcairo._mplcairo",
+            sources=(
+                ["src/_unity_build.cpp"] if UNITY_BUILD else
+                sorted({*map(str, Path("src").glob("*.cpp"))}
+                       - {"src/_unity_build.cpp"})),
+            depends=[
+                "setup.py",
+                *map(str, Path("src").glob("*.h")),
+                *map(str, Path("src").glob("*.cpp")),
+            ],
+            cxx_std=17,
+        )]
 
         tmp_include_dir = Path(self.get_finalized_command("build").build_base,
                                "include")
@@ -123,85 +125,47 @@ class build_ext(build_ext):
                 file.write(request.read())
             ext.include_dirs += [tmp_include_dir]
 
-        if sys.platform == "linux":
+        if os.name == "posix":
             import cairo
             get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
             ext.include_dirs += [cairo.get_include()]
             ext.extra_compile_args += [
-                "-std=c++1z", "-fvisibility=hidden", "-flto",
-                "-Wall", "-Wextra", "-Wpedantic",
+                "-flto", "-Wall", "-Wextra", "-Wpedantic",
                 *get_pkgconfig("--cflags", "cairo"),
             ]
             ext.extra_link_args += ["-flto"]
             if MANYLINUX:
                 ext.extra_link_args += ["-static-libgcc", "-static-libstdc++"]
 
-        elif sys.platform == "darwin":
-            import cairo
-            get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
-            ext.include_dirs += [cairo.get_include()]
-            # On OSX<10.14, version-min=10.9 avoids deprecation warning wrt.
-            # libstdc++, but assumes that the build uses non-Xcode-provided
-            # LLVM.
-            # On OSX>=10.14, assume that the build uses the normal toolchain.
-            macosx_min_version = (
-                "10.14" if LooseVersion(platform.mac_ver()[0]) >= "10.14"
-                else "10.9")
-            ext.extra_compile_args += [
-                "-std=c++1z", "-fvisibility=hidden", "-flto",
-                f"-mmacosx-version-min={macosx_min_version}",
-                *get_pkgconfig("--cflags", "cairo"),
-            ]
-            ext.extra_link_args += [
-                # version-min needs to be repeated to avoid a warning.
-                "-flto", f"-mmacosx-version-min={macosx_min_version}",
-            ]
-
-        elif sys.platform == "win32":
+        elif os.name == "nt":
             # Windows conda path for FreeType.
             ext.include_dirs += [Path(sys.prefix, "Library/include")]
             ext.extra_compile_args += [
-                "/std:c++17", "/Zc:__cplusplus", "/experimental:preprocessor",
-                "/EHsc", "/D_USE_MATH_DEFINES",
-                "/wd4244", "/wd4267",
-            ]  # cf. gcc -Wconversion.
+                "/experimental:preprocessor",
+                "/wd4244", "/wd4267",  # cf. gcc -Wconversion.
+            ]
             ext.libraries += ["psapi", "cairo", "freetype"]
             # Windows conda path for FreeType -- needs to be str, not Path.
             ext.library_dirs += [str(Path(sys.prefix, "Library/lib"))]
 
-        # Workaround https://bugs.llvm.org/show_bug.cgi?id=33222 (clang
-        # + libstdc++ + std::variant = compilation error).  Note that
-        # `.compiler.compiler` only exists for UnixCCompiler.
-        if os.name == "posix":
-            compiler_macros = subprocess.check_output(
-                [*self.compiler.compiler, "-dM", "-E", "-x", "c", "/dev/null"],
-                universal_newlines=True)
-            if "__clang__" in compiler_macros:
-                ext.extra_compile_args += ["-stdlib=libc++"]
-                # Explicitly linking to libc++ is required to avoid picking up
-                # the system C++ library (libstdc++ or an outdated libc++).
-                ext.extra_link_args += ["-lc++"]
+        super().finalize_options()
 
-        super().build_extensions()
-
-        if sys.platform == "win32":
+    def _copy_dlls_to(self, dest):
+        if os.name == "nt":
             for dll in ["cairo.dll", "freetype.dll"]:
                 for path in paths_from_link_libpaths():
                     if (path / dll).exists():
-                        shutil.copy2(path / dll,
-                                     Path(self.build_lib, "mplcairo"))
+                        shutil.copy2(path / dll, dest)
                         break
+
+    def build_extensions(self):
+        super().build_extensions()
+        self._copy_dlls_to(Path(self.build_lib, "mplcairo"))
 
     def copy_extensions_to_source(self):
         super().copy_extensions_to_source()
-        if sys.platform == "win32":
-            for dll in ["cairo.dll", "freetype.dll"]:
-                for path in paths_from_link_libpaths():
-                    if (path / dll).exists():
-                        shutil.copy2(path / dll,
-                                     self.get_finalized_command("build_py")
-                                     .get_package_dir("mplcairo"))
-                        break
+        self._copy_dlls_to(
+            self.get_finalized_command("build_py").get_package_dir("mplcairo"))
 
 
 @setup.register_pth_hook("mplcairo.pth")
@@ -246,7 +210,7 @@ setup(
     cmdclass={"build_ext": build_ext},
     packages=find_packages("lib"),
     package_dir={"": "lib"},
-    ext_modules=[Extension("mplcairo._mplcairo", [])],
+    ext_modules=[Extension("", [])],
     python_requires=">=3.7",
     setup_requires=[
         "setuptools_scm",

@@ -1434,7 +1434,7 @@ void GraphicsContextRenderer::draw_text(
     // Need to set the current point (otherwise later texts will just follow,
     // regardless of cairo_translate).
     cairo_translate(cr_, x, y);
-    cairo_rotate(cr_, -angle * M_PI / 180);
+    cairo_rotate(cr_, -angle * std::acos(-1) / 180);
     cairo_move_to(cr_, 0, 0);
     auto const& font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
@@ -1702,7 +1702,7 @@ void MathtextBackend::_draw(
   auto const& cr = gcr.cr_;
   auto const& dpi = get_additional_state(cr).dpi;
   cairo_translate(cr, x, y);
-  cairo_rotate(cr, -angle * M_PI / 180);
+  cairo_rotate(cr, -angle * std::acos(-1) / 180);
   cairo_translate(cr, 0, -bearing_y_);
   for (auto const& glyph: glyphs_) {
     auto const& font_face = font_face_from_path(glyph.path);
