@@ -131,7 +131,7 @@ void PatternCache::mask(
     : CacheKey{
       path, matrix, draw_func, linewidth, dash,
       cairo_get_line_cap(cr), cairo_get_line_join(cr)};
-  auto const& draw_direct = [&]() -> void {
+  auto const& draw_direct = [&] {
     double r, g, b, a;
     CAIRO_CHECK(cairo_pattern_get_rgba, cairo_get_source(cr), &r, &g, &b, &a);
     key.draw(cr, x, y, {r, g, b, a});

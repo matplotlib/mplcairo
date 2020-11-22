@@ -43,19 +43,16 @@ bool FLOAT_SURFACE{};
 int MARKER_THREADS{};
 double MITER_LIMIT{10.};
 bool DEBUG{};
-MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{
-  []() -> MplcairoScriptSurface {
-    if (auto script_surface = std::getenv("MPLCAIRO_SCRIPT_SURFACE");
-        script_surface) {
-      if (script_surface == "raster"s) {
-        return MplcairoScriptSurface::Raster;
-      } else if (script_surface == "vector"s) {
-        return MplcairoScriptSurface::Vector;
-      }
+MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{[] {
+  if (auto script_surface = std::getenv("MPLCAIRO_SCRIPT_SURFACE")) {
+    if (script_surface == "raster"s) {
+      return MplcairoScriptSurface::Raster;
+    } else if (script_surface == "vector"s) {
+      return MplcairoScriptSurface::Vector;
     }
-    return MplcairoScriptSurface::None;
-  }()
-};
+  }
+  return MplcairoScriptSurface::None;
+}()};
 
 }
 
@@ -709,7 +706,7 @@ void adjust_font_options(cairo_t* cr)
   if (!cairo_font_face_get_user_data(font_face, &detail::IS_COLOR_FONT_KEY)) {
     cairo_font_options_set_antialias(
       options,
-      []() -> cairo_antialias_t {
+      [] {
         auto aa = rc_param("text.antialiased");
         try {
           return aa.cast<cairo_antialias_t>();

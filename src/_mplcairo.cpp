@@ -1108,7 +1108,7 @@ void GraphicsContextRenderer::draw_path(
   auto path_loaded = false;
   auto matrix =
     matrix_from_transform(transform, get_additional_state().height);
-  auto const& load_path = [&]() -> void {
+  auto const& load_path = [&] {
     if (!path_loaded) {
       load_path_exact(cr_, path, &matrix);
       path_loaded = true;
@@ -1897,26 +1897,22 @@ PYBIND11_MODULE(_mplcairo, m)
     .attr("MathTextParser")("mplcairo").attr("parse");
 
   py::module::import("atexit").attr("register")(
-    py::cpp_function{
-      [&]() -> void {
-        FT_Done_FreeType(detail::ft_library);
-        // Make sure that these objects don't outlive the Python interpreter.
-        // (It appears that sometimes, a weakref callback to the module doesn't
-        // get called at shutdown, so if we rely on that approach instead of
-        // using `atexit.register`, we may get a segfault when Python tries to
-        // deallocate the type objects (via a decref by the C++ destructor) too
-        // late in the shutdown sequence.)
-        detail::RC_PARAMS = {};
-        detail::PIXEL_MARKER = {};
-        detail::UNIT_CIRCLE = {};
-      }
-    }
-  );
+    py::cpp_function{[] {
+      FT_Done_FreeType(detail::ft_library);
+      // Make sure that these objects don't outlive the Python interpreter.
+      // (It appears that sometimes, a weakref callback to the module doesn't
+      // get called at shutdown, so if we rely on that approach instead of
+      // using `atexit.register`, we may get a segfault when Python tries to
+      // deallocate the type objects (via a decref by the C++ destructor) too
+      // late in the shutdown sequence.)
+      detail::RC_PARAMS = {};
+      detail::PIXEL_MARKER = {};
+      detail::UNIT_CIRCLE = {};
+    }});
 
   // Export functions.
   m.def(
-    "set_options",
-    [](py::kwargs kwargs) -> void {
+    "set_options", [](py::kwargs kwargs) -> void {
       auto const& pop_option =
         [&](std::string key, auto dummy) -> std::optional<decltype(dummy)> {
           return
@@ -1996,8 +1992,7 @@ _debug: bool, default: False
     debugging and is not part of the stable API.
 )__doc__");
   m.def(
-    "get_options",
-    []() -> py::dict {
+    "get_options", [] {
       return py::dict(
         "cairo_circles"_a=bool(detail::UNIT_CIRCLE),
         "float_surface"_a=detail::FLOAT_SURFACE,
@@ -2025,8 +2020,7 @@ Convert a buffer from cairo's ARGB32 (premultiplied) or RGBA128F to
 straight RGBA8888.
 )__doc__");
   m.def(
-    "get_versions",
-    []() -> py::dict {
+    "get_versions", [] {
       auto const& cairo_version = cairo_version_string();
       auto ft_major = 0, ft_minor = 0, ft_patch = 0;
       FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
@@ -2052,9 +2046,7 @@ Get library versions.
 Only intended for debugging purposes.
 )__doc__");
   m.def(
-    "install_abrt_handler",
-    os::install_abrt_handler,
-    R"__doc__(
+    "install_abrt_handler", os::install_abrt_handler, R"__doc__(
 Install a handler that dumps a backtrace on SIGABRT (POSIX only).
 
 Only intended for debugging purposes.
