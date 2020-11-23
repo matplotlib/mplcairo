@@ -110,53 +110,30 @@ Region::Region(
   bbox{bbox}, buffer{std::move(buffer)}
 {}
 
-py::array_t<uint8_t> Region::get_st_rgba8888_array() {
+py::buffer_info Region::get_straight_rgba8888_buffer_info() {
   auto const& [x0, y0, width, height] = bbox;
   (void)x0; (void)y0;
-  auto st_rgba8888_array = py::array_t<uint8_t>{{height, width, 4}};
-  auto st_rgba8888_ptr = st_rgba8888_array.mutable_data();
-  for (auto y = 0; y < height; ++y) {
-    for (auto x = 0; x < width; ++x) {
-      auto argb32 =
-        *(reinterpret_cast<uint32_t const*>(buffer.get()) + y * width + x);
-      auto const& a = (argb32 & 0xff000000) >> 24,
-                & r = (argb32 & 0x00ff0000) >> 16,
-                & g = (argb32 & 0x0000ff00) >> 8,
-                & b = (argb32 & 0x000000ff) >> 0;
-      *st_rgba8888_ptr++ = a ? (r * 0xff + a / 2) / a : 0;
-      *st_rgba8888_ptr++ = a ? (g * 0xff + a / 2) / a : 0;
-      *st_rgba8888_ptr++ = a ? (b * 0xff + a / 2) / a : 0;
-      *st_rgba8888_ptr++ = a;
-    }
-  }
-  return st_rgba8888_array;
+  auto array = cairo_to_straight_rgba8888(
+    py::array_t<uint8_t, py::array::c_style>{
+      {height, width, 4}, buffer.get()});
+  return array.request();
 }
 
-py::bytes Region::get_st_argb32_bytes() {
-  auto const& [x0, y0, width, height] = bbox;
-  (void)x0; (void)y0;
-  auto st_argb32_bytes = py::bytes{nullptr, size_t(height * width * 4)};
-  uint32_t* st_argb32_ptr = {};
-  auto len = ssize_t{};
-  PY_CHECK(
-    PyBytes_AsStringAndSize,
-    st_argb32_bytes.ptr(), reinterpret_cast<char**>(&st_argb32_ptr), &len);
-  for (auto y = 0; y < height; ++y) {
-    for (auto x = 0; x < width; ++x) {
-      auto argb32 =
-        *(reinterpret_cast<uint32_t const*>(buffer.get()) + y * width + x);
-      auto const& a = (argb32 & 0xff000000) >> 24,
-                & r = (argb32 & 0x00ff0000) >> 16,
-                & g = (argb32 & 0x0000ff00) >> 8,
-                & b = (argb32 & 0x000000ff) >> 0;
-      *st_argb32_ptr++ =
-        (uint8_t(a) << 24)
-        | (uint8_t((r * 0xff + a / 2) / a) << 16)  // As in cairo-png.c.
-        | (uint8_t((g * 0xff + a / 2) / a) << 8)
-        | (uint8_t((b * 0xff + a / 2) / a) << 0);
+py::bytes Region::get_straight_argb32_bytes() {
+  auto buf = get_straight_rgba8888_buffer_info();
+  auto const& size = buf.size;
+  if (*reinterpret_cast<uint16_t const*>("\0\xff") > 0x100) {  // little-endian
+    uint8_t* u8_ptr = static_cast<uint8_t*>(buf.ptr);
+    for (auto i = 0; i < size; i += 4) {
+      std::swap(u8_ptr[i], u8_ptr[i + 2]);  // RGBA->BGRA
+    }
+  } else {  // big-endian
+    auto u32_ptr = static_cast<uint32_t*>(buf.ptr);
+    for (auto i = 0; i < size; i += 4) {
+      u32_ptr[i] = (u32_ptr[i] >> 8) + (u32_ptr[i] << 24);  // RGBA->ARGB
     }
   }
-  return st_argb32_bytes;
+  return py::bytes{static_cast<char const*>(buf.ptr), size_t(size)};
 }
 
 GraphicsContextRenderer::AdditionalContext::AdditionalContext(
@@ -2071,18 +2048,11 @@ Only intended for debugging purposes.
   // Export classes.
   p11x::bind_enums(m);
 
-  // Exposed only for patching Agg (but internally used for copy_from_bbox /
-  // restore_region).
   py::class_<Region>(m, "_Region", py::buffer_protocol())
-    .def_buffer(  // mpl 3+
-      [](Region& r) -> py::buffer_info {
-        return r.get_st_rgba8888_array().request();
-      })
-    .def(
-      "to_string_argb",  // mpl 2.2
-      [](Region& r) -> py::bytes {
-        return r.get_st_argb32_bytes();
-      });
+    // Only for patching Agg...
+    .def_buffer(&Region::get_straight_rgba8888_buffer_info)  // on mpl 3+.
+    .def("to_string_argb", &Region::get_straight_argb32_bytes)  // on mpl 2.2.
+    ;
 
   py::class_<GraphicsContextRenderer>(m, "GraphicsContextRendererCairo")
     // The RendererAgg signature, which is also expected by MixedModeRenderer
@@ -2263,7 +2233,8 @@ Only intended for debugging purposes.
 
     // Canvas API.
     .def("copy_from_bbox", &GraphicsContextRenderer::copy_from_bbox)
-    .def("restore_region", &GraphicsContextRenderer::restore_region);
+    .def("restore_region", &GraphicsContextRenderer::restore_region)
+    ;
 
   py::class_<MathtextBackend>(m, "MathtextBackendCairo", R"__doc__(
 Backend rendering mathtext to a cairo recording surface.
@@ -2279,7 +2250,8 @@ Backend rendering mathtext to a cairo recording surface.
       "get_hinting_type",
       [](MathtextBackend& /* mb */) -> long {
         return get_hinting_flag();
-      });
+      })
+    ;
 }
 
 }

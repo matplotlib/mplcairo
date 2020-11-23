@@ -15,8 +15,8 @@ struct Region {
   std::unique_ptr<uint8_t const[]> buffer;  // Not const, to allow move()ing.
 
   Region(cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t const[]> buffer);
-  py::array_t<uint8_t> get_st_rgba8888_array();
-  py::bytes get_st_argb32_bytes();
+  py::buffer_info get_straight_rgba8888_buffer_info();
+  py::bytes get_straight_argb32_bytes();
 };
 
 class GraphicsContextRenderer {
