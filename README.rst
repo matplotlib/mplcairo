@@ -2,21 +2,20 @@
 A (new) cairo backend for Matplotlib
 ====================================
 
-| |GitHub| |PyPI| |Fedora Rawhide|
-| |Azure Pipelines|
+| |GitHub| |PyPI| |Fedora Rawhide| |Azure Pipelines|
 
 .. |GitHub|
    image:: https://img.shields.io/badge/github-anntzer%2Fmplcairo-brightgreen
    :target: https://github.com/anntzer/mplcairo
 .. |PyPI|
-   image:: https://img.shields.io/pypi/v/mplcairo.svg
+   image:: https://img.shields.io/pypi/v/mplcairo.svg?color=brightgreen
    :target: https://pypi.python.org/pypi/mplcairo
 .. |Fedora Rawhide|
    image:: https://repology.org/badge/version-for-repo/fedora_rawhide/python:mplcairo.svg?header=Fedora%20Rawhide
    :target: fedora-package_
 .. |Azure Pipelines|
-   image:: https://dev.azure.com/matplotlib/mplcairo/_apis/build/status/matplotlib.mplcairo
-   :target: https://dev.azure.com/matplotlib/mplcairo/_build/latest?definitionId=1
+   image:: https://img.shields.io/azure-devops/build/matplotlib/86ce5a4c-000c-483c-88a3-8b5612c62517/3
+   :target: https://dev.azure.com/matplotlib/mplcairo/_build/latest?definitionId=3
 
 .. _fedora-package: https://src.fedoraproject.org/rpms/python-mplcairo
 
