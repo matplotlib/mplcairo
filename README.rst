@@ -62,6 +62,8 @@ mplcairo requires
 - on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as ``install_requires``),
 - on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
 
+It is recommended to use cairo≥1.17.4.
+
 Additionally, building mplcairo from source requires
 
 - pybind11≥2.6.0 [#]_ (declared as ``setup_requires``),
@@ -101,13 +103,11 @@ https://github.com/HOST-Oman/libraqm-cmake for Windows build scripts.
 
    cairo 1.17.2 added support for floating point surfaces, usable with
    ``mplcairo.set_options(float_surface=True)``; the presence of this feature
-   is detected at runtime.
+   is detected at runtime.  However, cairo 1.17.2 (and only that version) also
+   has a bug that causes (in particular) polar gridlines to be incorrectly
+   cropped.  This bug was fixed in 2d1a137.
 
-   Note that cairo 1.17.2 (and only that version) has a bug that causes (in
-   particular) polar gridlines to be incorrectly cropped.  This bug was fixed
-   in 2d1a137.  However, if you are already using a non-tagged, >1.17.2 version
-   of cairo, it is suggested to use a commit ≥dfe3aa6, as the latter further
-   fixes another bug that can cause crashes in mplcairo.
+   cairo 1.17.4 fixed a long-standing rasterization bug (in dfe3aa6).
 
 .. [#] pybind11 2.6.0 is needed to support Python 3.9.
 
