@@ -2,16 +2,8 @@
 Fetch dependencies and build a Windows wheel
 ============================================
 
-This script depends on pycairo being installed to provide cairo.dll.  Note
-that in practice, the only pycairo build whose cairo.dll includes FreeType
-support that I am aware of is Christoph Gohlke's build__, for which I have set
-up a mirror__.  (The only other freestanding cairo.dll that includes FreeType
-support that I am aware of__ appears to misrender pdfs.)
-
-__ https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycairo
-__ https://github.com/anntzer/pycairo-windows-wheel
-__ https://github.com/preshing/cairo-windows
-__ https://preshing.com/20170529/heres-a-standalone-cairo-dll-for-windows/#IDComment1047546463
+This script depends on pycairo being installed to provide cairo.dll; cairo.dll
+must have been built with FreeType support.
 
 The cairo headers (and their dependencies) are fetched from the Arch Linux
 repositories (the official cairo release tarball contains unbuilt headers (e.g.
@@ -22,6 +14,9 @@ build__ listed on FreeType's website.
 __ https://github.com/ubawurinna/freetype-windows-binaries
 """
 
+from ctypes import (
+    c_bool, c_char_p, c_ulong, c_void_p, c_wchar_p, POINTER,
+    byref, create_unicode_buffer, sizeof, windll)
 from distutils import ccompiler
 import os
 from pathlib import Path
@@ -31,6 +26,32 @@ import sys
 import urllib.request
 
 import cairo
+
+
+def enum_process_modules(func_name=None):
+    k32 = windll.kernel32
+    psapi = windll.psapi
+    k32.GetCurrentProcess.restype = c_void_p
+    k32.GetModuleFileNameW.argtypes = [c_void_p, c_wchar_p, c_ulong]
+    k32.GetModuleFileNameW.restype = c_ulong
+    k32.GetProcAddress.argtypes = [c_void_p, c_char_p]
+    k32.GetProcAddress.restypes = c_void_p
+    psapi.EnumProcessModules.argtypes = [
+        c_void_p, POINTER(c_void_p), c_ulong, POINTER(c_ulong)]
+    psapi.EnumProcessModules.restype = c_bool
+
+    process = k32.GetCurrentProcess()
+    needed = c_ulong()
+    psapi.EnumProcessModules(process, None, 0, byref(needed))
+    modules = (c_void_p * (needed.value // sizeof(c_void_p)))()
+    if not psapi.EnumProcessModules(
+            process, modules, sizeof(modules), byref(needed)):
+        raise OSError("Failed to enumerate process modules")
+    path = create_unicode_buffer(1024)
+    for module in modules:
+        if func_name is None or k32.GetProcAddress(module, func_name):
+            k32.GetModuleFileNameW(module, path, len(path))
+            yield path.value
 
 
 # Prepare the directories.
@@ -60,12 +81,11 @@ for archive_path, url in urls.items():
     shutil.rmtree(dest, ignore_errors=True)
     shutil.unpack_archive(archive_path, dest)
 
-# Get cairo.dll from pycairo, and build the import library.
-# cffi appends ".lib" to the filename.
+# Get cairo.dll (normally loaded by pycairo), checking that it include
+# FreeType support.
 Path("cairo/win64").mkdir(parents=True)
-shutil.copyfile(
-    Path(cairo.__file__).with_name("cairo.dll"),
-    "cairo/win64/cairo.dll")
+cairo_dll, = enum_process_modules(b"cairo_ft_font_face_create_for_ft_face")
+shutil.copyfile(cairo_dll, "cairo/win64/cairo.dll")
 # Build the import library.
 cc = ccompiler.new_compiler()
 cc.initialize()
