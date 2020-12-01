@@ -1,5 +1,6 @@
 from matplotlib import font_manager as fm, pyplot as plt
 
+
 path = fm.findfont("DejaVu Sans")
 fig = plt.figure()
 fig.text(.2, .7, "style (default)",

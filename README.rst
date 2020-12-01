@@ -82,8 +82,13 @@ Help for packaging would be welcome.
 
 mplcairo can use Raqm_ (≥0.2) for complex text layout and handling of
 OpenType font features.  Refer to the instructions on that project's
-website for installation on Linux and macOS.  You may want to look at
-https://github.com/HOST-Oman/libraqm-cmake for Windows build scripts.
+website for installation on Linux and macOS.  On Windows, consider using
+Christoph Gohlke's `build <gohlke-libraqm_>`_ (the directory containing
+``libraqm.dll`` and ``libfribidi-0.dll`` need to be added to the `DLL search
+path <add_dll_directory_>`_).
+
+.. _gohlke-libraqm: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pillow
+.. _add_dll_directory: https://docs.python.org/3/library/os.html#os.add_dll_directory
 
 .. [#] pycairo 1.16.0 added ``get_include()``.
 
@@ -205,8 +210,9 @@ The following additional dependencies are required:
   FreeType support.
 
   The currently preferred solution is to get the headers e.g. from a Linux
-  distribution package, the DLL from Christoph Gohlke's pycairo_ build, and
-  generate the import library oneself using ``dumpbin`` and ``lib``.
+  distribution package, the DLL from Christoph Gohlke's `pycairo
+  <gohlke-pycairo>`_ build, and generate the import library oneself using
+  ``dumpbin`` and ``lib``.
 
   Alternatively, very recent conda-forge builds (≥1.16.0 build 1005) do
   include FreeType support.  In order to use them, the include path needs to be
@@ -220,7 +226,7 @@ The following additional dependencies are required:
 
      conda install -y freetype
 
-.. _pycairo: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycairo
+.. _gohlke-pycairo: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycairo
 
 The (standard) |CL|_ and |LINK|_ environment variables (which always get
 prepended respectively to the invocations of the compiler and the linker)

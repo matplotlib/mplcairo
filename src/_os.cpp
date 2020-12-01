@@ -62,7 +62,8 @@ using symbol_t = FARPROC;
 
 library_t dlopen(char const* filename)
 {
-  return LoadLibrary(filename);
+  // Respect os.add_dll_directory.
+  return LoadLibraryExA(filename, nullptr, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 }
 
 bool dlclose(library_t handle)
