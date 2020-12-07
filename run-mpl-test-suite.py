@@ -103,27 +103,29 @@ def pytest_collection_modifyitems(session, config, items):
     if len(items) == 0:
         pytest.exit("No tests found; Matplotlib was likely installed without "
                     "test data.")
-    knownfail_message = "Test known to fail with mplcairo."
-    irrelevant_message = "Test irrelevant for mplcairo."
-    textfail_message = ("Test failure with large diff due to different text "
-                        "rendering by mplcairo.")
-    xfail_modules = {
-        "matplotlib.tests.test_compare_images": irrelevant_message,
-        "matplotlib.tests.test_mathtext": textfail_message,
-        "matplotlib.tests.test_constrainedlayout": textfail_message,
-        "matplotlib.tests.test_tightlayout": textfail_message,
+    knownfail = pytest.mark.xfail(reason="Test known to fail with mplcairo.")
+    irrelevant = pytest.mark.xfail(reason="Test irrelevant for mplcairo.")
+    textfail = pytest.mark.xfail(reason=
+        "Test failure with large diff due to different text rendering by "
+        "mplcairo.")
+    debugskip = pytest.mark.skip(reason="Temporarily skipped for debugging.")
+    module_markers = {
+        "matplotlib.tests.test_compare_images": irrelevant,
+        "matplotlib.tests.test_mathtext": textfail,
+        "matplotlib.tests.test_constrainedlayout": textfail,
+        "matplotlib.tests.test_tightlayout": textfail,
     }
-    xfail_nodeids = {
-        "matplotlib/tests/" + nodeid: message
-        for message, nodeids in [
-            (knownfail_message, [
+    nodeid_markers = {
+        "matplotlib/tests/" + nodeid: marker
+        for marker, nodeids in [
+            (knownfail, [
                 "test_image.py::test_jpeg_alpha",
                 "test_image.py::test_figimage[pdf-False]",
                 "test_image.py::test_figimage[pdf-True]",
                 "test_image.py::test_figimage0[pdf]",
                 "test_image.py::test_figimage1[pdf]",
             ]),
-            (irrelevant_message, [
+            (irrelevant, [
                 "test_agg.py::test_repeated_save_with_alpha",
                 "test_artist.py::test_cull_markers",
                 "test_axes.py::test_log_scales[png]",
@@ -159,46 +161,48 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_scale.py::test_logscale_mask[png]",
                 "test_simplification.py::test_throw_rendering_complexity_exceeded",
             ]),
-            (textfail_message, [
+            (textfail, [
                 "test_axes.py::test_gettightbbox_ignoreNaN",
                 "test_figure.py::test_align_labels[",
                 "test_figure.py::test_tightbbox",
+            ]),
+            (debugskip, [
             ])
         ]
         for nodeid in nodeids
     }
     if LooseVersion(mpl.__version__) < "3.0":
-        xfail_modules.update({
-            "matplotlib.sphinxext.test_tinypages": irrelevant_message,  # matplotlib#11360.
+        module_markers.update({
+            "matplotlib.sphinxext.test_tinypages": irrelevant,  # matplotlib#11360.
         })
-        xfail_nodeids.update({
-            "matplotlib/tests" + nodeid: message
-            for message, nodeids in [
-                (irrelevant_message, [
+        nodeid_markers.update({
+            "matplotlib/tests" + nodeid: marker
+            for marker, nodeids in [
+                (irrelevant, [
                     "test_backend_pdf.py::test_empty_rasterised",
                 ])
             ]
             for nodeid in nodeids
         })
-    xfails = []
+    markers = []
     for item in items:
-        reason = (xfail_modules.get(item.module.__name__)
-                  or xfail_nodeids.get(item.nodeid)
-                  or (xfail_nodeids.get(item.nodeid.split("[")[0] + "[")
+        marker = (module_markers.get(item.module.__name__)
+                  or nodeid_markers.get(item.nodeid)
+                  or (nodeid_markers.get(item.nodeid.split("[")[0] + "[")
                       if "[" in item.nodeid else None))
-        if reason:
-            xfails.append(item)
-            item.add_marker(pytest.mark.xfail(reason=reason))
+        if marker:
+            markers.append(item)
+            item.add_marker(marker)
     if config.getoption("file_or_dir") == ["matplotlib"]:
-        invalid_xfails = (
-            ({*xfail_modules} - {item.module.__name__ for item in xfails})
-            | ({*xfail_nodeids}
-               - {item.nodeid for item in xfails}
-               - {item.nodeid.split("[")[0] + "[" for item in xfails
+        invalid_markers = (
+            ({*module_markers} - {item.module.__name__ for item in markers})
+            | ({*nodeid_markers}
+               - {item.nodeid for item in markers}
+               - {item.nodeid.split("[")[0] + "[" for item in markers
                   if "[" in item.nodeid}))
-        if invalid_xfails:
+        if invalid_markers:
             warnings.warn("Unused xfails:\n    {}"
-                          .format("\n    ".join(sorted(invalid_xfails))))
+                          .format("\n    ".join(sorted(invalid_markers))))
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus):
