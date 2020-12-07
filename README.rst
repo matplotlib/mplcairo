@@ -34,8 +34,8 @@ Noteworthy points include:
 
 - Improved accuracy (e.g., with marker positioning, quad meshes, and text
   kerning; floating point surfaces are supported with cairo≥1.17.2).
-- Support for a wider variety of font formats, such as otf and pfb, for vector
-  (PDF, PS, SVG) backends (Matplotlib's Agg backend also supports such fonts).
+- Improved font embedding in vector formats (fonts are typically subsetted and
+  embedded in their native format).
 - Optional support for complex text layout (right-to-left languages, etc.) and
   OpenType font features (see `examples/opentype_features.py`_) using Raqm_.
   **Note** that Raqm depends on Fribidi,
