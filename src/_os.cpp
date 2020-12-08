@@ -42,18 +42,15 @@ void throw_dlerror()
   throw py::error_already_set{};
 }
 
-void abrt_handler(int signal)
-{
-  auto buf = std::array<void*, 64>{};
-  auto size{backtrace(buf.data(), 64)};
-  fprintf(stderr, "Error: signal %d:\n", signal);
-  backtrace_symbols_fd(buf.data(), size, STDERR_FILENO);
-  exit(1);
-}
-
 void install_abrt_handler()
 {
-  signal(SIGABRT, abrt_handler);
+  signal(SIGABRT, [](int signal) {
+    auto buf = std::array<void*, 64>{};
+    auto size = backtrace(buf.data(), 64);
+    fprintf(stderr, "Error: signal %d:\n", signal);
+    backtrace_symbols_fd(buf.data(), size, STDERR_FILENO);
+    exit(1);
+  });
 }
 
 #elif defined _WIN32
