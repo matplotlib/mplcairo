@@ -9,8 +9,8 @@ from .base import FigureCanvasCairo
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
     def paintEvent(self, event):
-        if self._update_dpi():
-            return
+        if hasattr(self, "_update_dpi") and self._update_dpi():
+            return  # matplotlib#19123 (<3.4).
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
@@ -27,6 +27,10 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
             qimage_setDevicePixelRatio = qimage.setDevicePixelRatio
         except AttributeError:
             def qimage_setDevicePixelRatio(scaleFactor): pass
+        try:  # matplotlib#19126 (<3.4).
+            pixel_ratio = self.pixel_ratio
+        except AttributeError:
+            pixel_ratio = self._dpi_ratio
         qimage_setDevicePixelRatio(self._dpi_ratio)
         # FIXME[PySide{,2}]: https://bugreports.qt.io/browse/PYSIDE-140
         if qt_compat.QT_API.startswith("PySide"):

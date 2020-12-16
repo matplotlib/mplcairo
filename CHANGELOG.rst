@@ -3,6 +3,7 @@ next
 
 - Bumped dependencies to Python≥3.7, pybind11≥2.6; Windows build also
   ``setup_requires`` pycairo.
+- Fixed support for Matplotlib 3.4.
 - Added ``get_context``.
 - Improve snapping of codeful paths.
 - Fix failure to increase cairo refcount of font cache entries.
