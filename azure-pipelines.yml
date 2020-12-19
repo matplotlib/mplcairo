@@ -74,8 +74,9 @@ steps:
 
     python -mpip install dist/*.whl &&
     python tools/ensure-mpl-test-data.py &&
+    # pytest 6.2 is incompatible with matplotlib<3.4
     # pytest-{instafail,timeout} useful for hanging tests.
-    python -mpip install pytest pytest-instafail pytest-timeout
+    python -mpip install 'pytest<6.2' pytest-instafail pytest-timeout
 
   displayName: 'Build & install'
 
