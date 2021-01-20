@@ -1,7 +1,7 @@
 import ctypes
 
-from matplotlib.backends import qt_compat
-from matplotlib.backends.backend_qt5 import QtGui, _BackendQT5, FigureCanvasQT
+from matplotlib.backends.backend_qt5 import _BackendQT5, FigureCanvasQT
+from matplotlib.backends.qt_compat import QtGui
 
 from . import _util
 from .base import FigureCanvasCairo
@@ -21,8 +21,13 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # in the ARGB32 case (each scanline is 32-bit aligned) happens to
         # match what QImage requires; in the RGBA128F case the documented Qt
         # requirement does not seem necessary?
-        qimage = QtGui.QImage(buf, width, height,
-                              QtGui.QImage.Format_ARGB32_Premultiplied)
+        if QtGui.__name__.startswith("PyQt6"):
+            from PyQt6 import sip
+            ptr = sip.voidptr(buf)
+        else:
+            ptr = buf
+        qimage = QtGui.QImage(
+            ptr, width, height, QtGui.QImage.Format(6))  # ARGB32_Premultiplied
         try:
             qimage_setDevicePixelRatio = qimage.setDevicePixelRatio
         except AttributeError:
@@ -33,7 +38,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
             pixel_ratio = self._dpi_ratio
         qimage_setDevicePixelRatio(self._dpi_ratio)
         # FIXME[PySide{,2}]: https://bugreports.qt.io/browse/PYSIDE-140
-        if qt_compat.QT_API.startswith("PySide"):
+        if QtGui.__name__.startswith("PySide"):
             ctypes.c_long.from_address(id(buf)).value -= 1
         painter = QtGui.QPainter(self)
         painter.eraseRect(self.rect())
