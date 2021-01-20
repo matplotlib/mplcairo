@@ -705,17 +705,12 @@ void adjust_font_options(cairo_t* cr)
   auto const& options = cairo_font_options_create();
   // FIXME[cairo] (#404) Don't set antialiasing for color fonts.
   if (!cairo_font_face_get_user_data(font_face, &detail::IS_COLOR_FONT_KEY)) {
+    auto aa = rc_param("text.antialiased");  // Normally *exactly* a bool.
     cairo_font_options_set_antialias(
       options,
-      [] {
-        auto aa = rc_param("text.antialiased");
-        try {
-          return aa.cast<cairo_antialias_t>();
-        } catch (py::cast_error const&) {
-          return
-            aa.cast<bool>() ? CAIRO_ANTIALIAS_SUBPIXEL : CAIRO_ANTIALIAS_NONE;
-        }
-      }());
+      aa.ptr() == Py_True ? CAIRO_ANTIALIAS_SUBPIXEL
+      : aa.ptr() == Py_False ? CAIRO_ANTIALIAS_NONE
+      : aa.cast<cairo_antialias_t>());
   }
   // The hint style is not set here: it is passed directly as load_flags to
   // cairo_ft_font_face_create_for_ft_face.
