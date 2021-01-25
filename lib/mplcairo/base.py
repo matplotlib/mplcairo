@@ -22,7 +22,7 @@ from matplotlib.backend_bases import (
 from matplotlib.backends import backend_ps
 from matplotlib.mathtext import MathTextParser
 
-from . import _mplcairo, _util
+from . import _mplcairo, _util, get_versions
 from ._backports import get_glyph_name
 from ._mplcairo import _StreamSurfaceType
 
@@ -406,7 +406,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             return
         metadata = {
             "Software":
-            f"matplotlib version {mpl.__version__}, https://matplotlib.org",
+            f"matplotlib version {get_versions()['matplotlib']}, "
+            f"https://matplotlib.org",
             **(metadata if metadata is not None else {}),
         }
         if pil_kwargs is None:

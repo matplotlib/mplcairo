@@ -1,9 +1,11 @@
 """A cairo backend for Matplotlib."""
 
 import ast
+import functools
 import os
 import sys
 import warnings
+
 
 try:
     from ._version import version as __version__
@@ -56,17 +58,31 @@ def _init_options():
 _init_options()
 
 
+@functools.lru_cache(1)
+def _get_mpl_version():
+    # Don't trigger a git subprocess for Matplotlib's __version__ resolution if
+    # possible, and cache the result as early versions of importlib.metadata
+    # are slow.  We can't cache get_versions() directly as the result depends
+    # on whether raqm is loaded.
+    try:
+        import importlib.metadata
+        return importlib.metadata.version("matplotlib")
+    except ImportError:
+        # No importlib.metadata on Py<3.8 *or* not-installed Matplotlib.
+        return mpl.__version__
+
+
 def get_versions():
     """
     Return a mapping indicating the versions of mplcairo and its dependencies.
 
-    This function is solely intended to help gather information for bug
-    reports; its output may change without notice.
+    This function is intended to help gather information for bug reports, and
+    not part of the stable API.
     """
     return {
         "python": sys.version,
         "mplcairo": __version__,
-        "matplotlib": mpl.__version__,
+        "matplotlib": _get_mpl_version(),
         **_mplcairo.get_versions(),
     }
 
