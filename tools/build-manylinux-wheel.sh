@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Build script for the manylinux wheel.  Depends on git and docker.
-# Set the PY_VERS environment variable to a space-separated list of dotted
-# Python versions ('3.x 3.y') to build the wheels only for these versions.
+# Build script for the manylinux wheel.  Depends on git and docker/podman
+# (set via $DOCKER).  Set $PY_VERS to a space-separated list of dotted Python
+# versions ('3.x 3.y') to build the wheels only for these versions.
 
 set -eo pipefail
 set -x
@@ -14,10 +14,10 @@ if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
     trap 'rm -rf "$tmpdir"' EXIT INT TERM
     git clone "$toplevel" "$tmpdir/mplcairo"
     # Apparently realpath --relative-to is too recent for travis...
-    docker run \
+    ${DOCKER:-docker} run \
         -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.7 3.8 3.9}" \
-        --mount type=bind,source="$tmpdir/mplcairo",target=/io/mplcairo \
-        quay.io/pypa/manylinux1_x86_64 \
+        --volume "$tmpdir/mplcairo":/io/mplcairo:Z \
+        quay.io/pypa/manylinux2010_x86_64 \
         "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"
 
     user="${SUDO_USER:-$USER}"
@@ -27,30 +27,11 @@ if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
 
 else
 
-    export MFLAG=-m64
-    export PATH="/toolchain/bin:$PATH"
-    export CFLAGS="-I/toolchain/include $MFLAG"
-    export CXXFLAGS="-I/toolchain/include $MFLAG"
-    export LD_LIBRARY_PATH="/toolchain/lib64:/toolchain/lib:$LD_LIBRARY_PATH"
-
-    cd /
-    mkdir workdir
-
-    echo 'Setting up gcc.'
-    (
-        cd workdir
-        curl -L \
-            https://github.com/Noctem/pogeo-toolchain/releases/download/v1.5/gcc-7.3-centos5-x86-64.tar.bz2 \
-            -o toolchain.tar.bz2
-        tar -C / -xf toolchain.tar.bz2
-    )
-
-    echo 'Setting up xz.'
-    yum install -y xz
-
     echo 'Setting up headers for dependencies.'
     (
-        cd workdir
+        yum install -y xz
+        mkdir /workdir
+        cd /workdir
         # Use the last versions before Arch switched to zstd.
         filenames=(
             cairo-1.17.2%2B17%2Bg52a7c79fd-2-x86_64.pkg.tar.xz
@@ -82,7 +63,7 @@ else
             cd /io/mplcairo
             # Force a rebuild of the extension.
             "$PY_PREFIX/bin/python" setup.py bdist_wheel
-            auditwheel -v repair -wdist \
+            AUDITWHEEL_PLAT= auditwheel -v repair -wdist \
                 "dist/mplcairo-$("$PY_PREFIX/bin/python" setup.py --version)-$PY_VER_ABI_TAG-"*".whl"
         )
     done
