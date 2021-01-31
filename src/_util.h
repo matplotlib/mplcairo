@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 namespace detail {
 
-extern std::unordered_map<FT_Error, std::string> ft_errors;
+extern std::unordered_map<FT_Error, std::string> const ft_errors;
 extern FT_Library ft_library;
 extern bool has_pycairo;
 
