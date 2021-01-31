@@ -19,7 +19,7 @@ class FigureCanvasTkCairo(FigureCanvasCairo, FigureCanvasTk):
         self.blit()
 
     def blit(self, bbox=None):
-        buf = _util.cairo_to_premultiplied_rgba8888(
+        buf = _util.cairo_to_straight_rgba8888(
             self.get_renderer()._get_buffer())
         _tk_blit(self._tkphoto, buf, bbox=bbox)
 

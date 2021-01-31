@@ -21,13 +21,13 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
 
     def draw(self, drawDC=None):
         super().draw()
-        # This is essentially the same as wx.lib.wxcairo.BitmapFromImageSurface
-        # but also works for RGBA128F.
-        buf = _util.cairo_to_premultiplied_argb32(
+        # The source of wx.lib.wxcairo.BitmapFromImageSurface seems to suggest
+        # that one can directly pass premultiplied RGBA to wx.Bitmap, but this
+        # is incorrect (likely a bug?).
+        buf = _util.cairo_to_straight_rgba8888(
             self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
-        self.bitmap = wx.Bitmap(width, height, 32)
-        self.bitmap.CopyFromBuffer(buf, wx.BitmapBufferFormat_ARGB32)
+        self.bitmap = wx.Bitmap.FromBufferRGBA(width, height, buf)
         self._isDrawn = True
         self.gui_repaint(drawDC=drawDC)
 
