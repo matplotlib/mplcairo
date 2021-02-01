@@ -1,4 +1,5 @@
 import multiprocessing
+import sys
 
 import pytest
 
@@ -8,7 +9,7 @@ import numpy as np
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import mplcairo
-from mplcairo import antialias_t
+from mplcairo import _util, antialias_t
 from mplcairo.base import FigureCanvasCairo
 
 # Import an autouse fixture.
@@ -16,6 +17,28 @@ from matplotlib.testing.conftest import mpl_test_settings
 
 
 _canvas_classes = [FigureCanvasAgg, FigureCanvasCairo]
+
+
+@pytest.mark.parametrize(
+    "buf_name", ["random_alpha", "alpha_rows", "opaque"])
+def test_cairo_to_straight_rgba8888(benchmark, buf_name):
+    assert sys.byteorder == "little"  # BGRA8888
+    buf = np.random.RandomState(0).randint(
+        0x100, size=(256, 256, 4), dtype=np.uint8)
+    if buf_name == "random_alpha":
+        buf[..., :3] = buf[..., :3] * (buf[..., 3:] / 0xff)
+        s = 29756813
+    elif buf_name == "alpha_rows":  # Repeatedly use the same alpha values.
+        buf[..., 3] = np.arange(256)[:, None]
+        buf[..., :3] = buf[..., :3] * (buf[..., 3:] / 0xff)
+        s = 29752202
+    elif buf_name == "opaque":
+        buf[..., 3] = 0xff
+        s = 41774594
+    else:
+        assert False
+    benchmark(_util.cairo_to_straight_rgba8888, buf)
+    assert _util.cairo_to_straight_rgba8888(buf).sum() == s
 
 
 @pytest.fixture
