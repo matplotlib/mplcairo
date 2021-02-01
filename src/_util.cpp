@@ -28,6 +28,16 @@ std::unordered_map<FT_Error, std::string> const ft_errors
 ;
 FT_Library ft_library{};
 bool has_pycairo{};
+std::array<uint8_t, 0x10000> unpremultiplication_table{[]() {
+  auto table = decltype(unpremultiplication_table){};
+  // As in cairo-png.c (unpremultiply 0 => 0).
+  for (auto a = 1; a < 0x100; ++a) {
+    for (auto c = 0; c <= a; ++c) {
+      table[(a << 8) + c] = (c * 0xff + a / 2) / a;
+    }
+  }
+  return table;
+} ()};
 
 #define DEFINE_API(name) decltype(name) name;
 ITER_CAIRO_OPTIONAL_API(DEFINE_API)

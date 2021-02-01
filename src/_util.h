@@ -20,6 +20,7 @@ namespace detail {
 extern std::unordered_map<FT_Error, std::string> const ft_errors;
 extern FT_Library ft_library;
 extern bool has_pycairo;
+extern std::array<uint8_t, 0x10000> unpremultiplication_table;
 
 // Optional parts of cairo, backported from 1.15.
 // Copy-pasted from cairo.h.

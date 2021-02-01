@@ -1832,11 +1832,13 @@ py::array_t<uint8_t, py::array::c_style> cairo_to_straight_rgba8888(
   auto const& size = rgba.size();
   for (auto i = 0; i < size; i += 4) {
     auto r = u8_ptr++, g = u8_ptr++, b = u8_ptr++, a = u8_ptr++;
-    if (*a && *a < 0xff) {
-      // As in cairo-png.c, but also skip the (slow!) division if *a == 0xff.
-      *r = (uint32_t(*r) * 0xff + *a / 2) / *a;
-      *g = (uint32_t(*g) * 0xff + *a / 2) / *a;
-      *b = (uint32_t(*b) * 0xff + *a / 2) / *a;
+    if (*a != 0xff) {
+      // Relying on a precomputed table yields a ~2x speedup, but avoiding the
+      // table lookup in the opaque case is still faster.
+      auto subtable = &detail::unpremultiplication_table[*a << 8];
+      *r = subtable[*r];
+      *g = subtable[*g];
+      *b = subtable[*b];
     }
   }
   return rgba;
