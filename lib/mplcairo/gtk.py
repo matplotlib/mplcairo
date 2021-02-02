@@ -1,4 +1,5 @@
-from matplotlib.backends.backend_gtk3 import _BackendGTK3, FigureCanvasGTK3
+from matplotlib.backends.backend_gtk3 import (
+    Gtk, _BackendGTK3, FigureCanvasGTK3)
 
 from .base import FigureCanvasCairo
 
@@ -11,6 +12,10 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
+        allocation = self.get_allocation()
+        Gtk.render_background(
+            self.get_style_context(), ctx,
+            allocation.x, allocation.y, allocation.width, allocation.height)
         surface = \
             self.get_renderer(_ensure_drawn=True)._get_context().get_target()
         surface.flush()
