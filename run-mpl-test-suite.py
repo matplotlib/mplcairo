@@ -75,8 +75,7 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
     mpl.backends.backend_agg = \
         sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
 
-    with warnings.catch_warnings():  # mpl 3.0
-        warnings.filterwarnings("ignore")
+    with warnings.catch_warnings(record=True):  # mpl 3.0
         mpl.use("agg", force=True)
     from matplotlib import pyplot as plt
 
