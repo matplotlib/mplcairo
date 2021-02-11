@@ -290,9 +290,10 @@ class FigureCanvasCairo(FigureCanvasBase):
         #    plot(); savefig("/tmp/test.pdf", bbox_inches="tight")
         gc.collect()
 
-    def _print_method(self, renderer_factory,
-                      path_or_stream, *, metadata=None, dpi=72, **kwargs):
+    def _print_vector(self, renderer_factory,
+                      path_or_stream, *, metadata=None, **kwargs):
         _check_print_extra_kwargs(**kwargs)
+        dpi = self.figure.get_dpi()
         self.figure.set_dpi(72)
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(
@@ -305,14 +306,14 @@ class FigureCanvasCairo(FigureCanvasBase):
             renderer._finish()
 
     print_pdf = partialmethod(
-        _print_method, GraphicsContextRendererCairo._for_pdf_output)
+        _print_vector, GraphicsContextRendererCairo._for_pdf_output)
     print_svg = partialmethod(
-        _print_method, GraphicsContextRendererCairo._for_svg_output)
+        _print_vector, GraphicsContextRendererCairo._for_svg_output)
     print_svgz = partialmethod(
-        _print_method, GraphicsContextRendererCairo._for_svgz_output)
+        _print_vector, GraphicsContextRendererCairo._for_svgz_output)
     if os.environ.get("MPLCAIRO_SCRIPT_SURFACE") in ["raster", "vector"]:
         print_cairoscript = partialmethod(
-            _print_method, GraphicsContextRendererCairo._for_script_output)
+            _print_vector, GraphicsContextRendererCairo._for_script_output)
 
     def _print_ps_impl(self, is_eps, path_or_stream, *,
                        metadata=None, orientation="portrait", papertype=None,
@@ -336,7 +337,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             dsc_comments.append("%%Title: {}".format(metadata.pop("Title")))
         if not is_eps:
             dsc_comments.append(f"%%DocumentPaperSizes: {papertype}")
-        print_method = partial(self._print_method,
+        print_method = partial(self._print_vector,
                                GraphicsContextRendererCairo._for_eps_output
                                if is_eps else
                                GraphicsContextRendererCairo._for_ps_output)
