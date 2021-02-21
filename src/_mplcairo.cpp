@@ -2030,11 +2030,15 @@ straight RGBA8888.
       auto const& raqm_version =
         has_raqm()
         ? std::optional<std::string>{raqm::version_string()} : std::nullopt;
+      auto const& hb_version =
+        has_raqm() && hb::version_string
+        ? std::optional<std::string>{hb::version_string()} : std::nullopt;
       return py::dict(
         "cairo"_a=cairo_version,
         "freetype"_a=freetype_version,
         "pybind11"_a=pybind11_version,
-        "raqm"_a=raqm_version);
+        "raqm"_a=raqm_version,
+        "hb"_a=hb_version);
     }, R"__doc__(
 Get library versions.
 

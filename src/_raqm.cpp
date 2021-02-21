@@ -9,16 +9,15 @@
 namespace mplcairo {
 
 namespace raqm {
-
 namespace {
 os::library_t _handle;
 }
+}
 
-#define DEFINE_API(name) decltype(raqm_##name)* name{};
+#define DEFINE_API(name) decltype(raqm_##name)* raqm::name{};
 ITER_RAQM_API(DEFINE_API)
 #undef DEFINE_API
-
-}
+decltype(hb::version_string) hb::version_string{};
 
 void load_raqm() {
   if (!raqm::_handle) {
@@ -43,7 +42,12 @@ void load_raqm() {
         os::throw_dlerror(); \
       }
     ITER_RAQM_API(LOAD_API)
-    #undef DLLOAD_API
+    #undef LOAD_API
+    // Trying to retrieve hb_version_string from the raqm shared object
+    // normally only works on POSIX, so we just allow this to be nullptr and
+    // check that at the call site.
+    hb::version_string = reinterpret_cast<decltype(hb::version_string)>(
+      os::dlsym(raqm::_handle, "hb_version_string"));
   }
 }
 

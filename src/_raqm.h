@@ -30,4 +30,10 @@ ITER_RAQM_API(DECLARE_API)
 
 }
 
+namespace hb {
+
+extern char const* (*version_string)();
+
+}
+
 }
