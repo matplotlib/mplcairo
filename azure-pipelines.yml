@@ -81,10 +81,9 @@ steps:
 
 - bash: |
     python -mpip list &&
-    export PYTHONFAULTHANDLER=1 &&
     ./run-mpl-test-suite.py --tolerance=50 \
       --instafail --timeout=300 --capture=no --verbose --junitxml=junit/test-results.xml &&
-    PYTHONIOENCODING=utf-8 ./run-examples.py
+    PYTHONFAULTHANDLER=1 PYTHONIOENCODING=utf-8 ./run-examples.py
   displayName: 'Test'
 
 - task: PublishTestResults@2
