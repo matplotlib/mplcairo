@@ -37,9 +37,9 @@ Noteworthy points include:
 - Improved font embedding in vector formats (fonts are typically subsetted and
   embedded in their native format).
 - Optional support for complex text layout (right-to-left languages, etc.) and
-  OpenType font features (see `examples/opentype_features.py`_) using Raqm_.
-  **Note** that Raqm depends on Fribidi,
-  which is licensed under the LGPLv2.1+.
+  OpenType font features (see `examples/opentype_features.py`_), and partial
+  support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm
+  depends on Fribidi, which is licensed under the LGPLv2.1+.
 - Support for embedding URLs in PDF (but not SVG) output (requires
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
@@ -465,8 +465,16 @@ The syntaxes for selecting TTC subfonts and OpenType font features are
 **experimental** and may change, especially if such features are implemented in
 Matplotlib itself.
 
-Note that Matplotlib's (default) Agg backend will handle most (single-face)
-fonts equally well (ultimately, both backends relies on FreeType for
+Color fonts (e.g. emojis) are handled, but emojis that rely on ligatures (1_,
+2_) run into `limitations of HarfBuzz`_ and are currently rendered correctly
+only if they are the *only* glyph in the rendered string.
+
+.. _1: https://en.wikipedia.org/wiki/Emoji#Joining
+.. _2: https://en.wikipedia.org/wiki/Regional_indicator_symbol
+.. _limitations of HarfBuzz: https://github.com/harfbuzz/harfbuzz/issues/2428
+
+Note that Matplotlib's (default) Agg backend will handle most single-face
+monochrome fonts equally well (ultimately, both backends relies on FreeType for
 rasterization).  It is Matplotlib's vector backends (PS, PDF, and, for pfb
 fonts, SVG) that do not support these fonts, whereas mplcairo support these
 fonts in all output formats.

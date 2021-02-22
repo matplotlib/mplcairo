@@ -657,6 +657,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       [](void* ptr) -> void {
         delete static_cast<std::vector<std::string>*>(ptr);
       });
+    // FIXME[cairo] (#404) Don't set antialiasing for color fonts.
     // FIXME[harfbuzz] (#2428) Disable raqm for color fonts.
     if (FT_IS_SFNT(ft_face)) {
       auto n_tables = FT_ULong{}, table_length = FT_ULong{};
@@ -742,9 +743,7 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
 {
   auto const& scaled_font = cairo_get_scaled_font(cr);
   auto gac = GlyphsAndClusters{};
-  if (has_raqm()
-      && !cairo_font_face_get_user_data(cairo_get_font_face(cr),
-                                        &detail::IS_COLOR_FONT_KEY)) {
+  if (has_raqm()) {
     auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
     auto const& scaled_font_unlock_cleanup =
       std::unique_ptr<
@@ -769,6 +768,15 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
     TRUE_CHECK(raqm::layout, rq);
     auto num_glyphs = size_t{};
     auto const& rq_glyphs = raqm::get_glyphs(rq, &num_glyphs);
+    // FIXME[harfbuzz] (#2428) With raqm, glyphs of color fonts end up way too
+    // big.  However, shaping is actually necessary to handle various ligature
+    // emojis, and if only a single glyph is to be drawn, then things are
+    // actually OK (even metrics-wise), so allow that case.
+    if (num_glyphs > 1
+        && cairo_font_face_get_user_data(cairo_get_font_face(cr),
+                                         &detail::IS_COLOR_FONT_KEY)) {
+      goto no_raqm;
+    }
     gac.num_glyphs = num_glyphs;
     gac.glyphs = cairo_glyph_allocate(gac.num_glyphs);
     auto x = 0., y = 0.;
@@ -810,6 +818,7 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
       prev_cluster = rq_glyph.cluster;
     }
   } else {
+    no_raqm:
     CAIRO_CHECK(
       cairo_scaled_font_text_to_glyphs,
       scaled_font, 0, 0, s.c_str(), s.size(),
