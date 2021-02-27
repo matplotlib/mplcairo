@@ -17,7 +17,7 @@ def fix_ipython_backend2gui():  # matplotlib#12637 (<3.1).
     # --auto`).  This cannot be done at import time due to ordering issues (so
     # we do it when creating a canvas) and should only be done once (hence the
     # `lru_cache(1)`).
-    if "IPython" not in sys.modules:
+    if sys.modules.get("IPython") is None:  # Can be explicitly set to None.
         return
     import IPython
     ip = IPython.get_ipython()
