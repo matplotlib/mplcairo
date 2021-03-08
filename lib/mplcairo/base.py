@@ -280,16 +280,6 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.get_renderer().restore_region(region)
         super().draw()
 
-    def print_figure(self, *args, **kwargs):
-        super().print_figure(*args, **kwargs)
-        # When using bbox_inches = "tight", an additional renderer is created
-        # to measure the figure bbox, but that renderer needs to be gc'd now;
-        # otherwise it may be gc'd at shutdown, where cairo's attempt to
-        # finalize() the surface will segfault due to already torn down
-        # structures.  Repro with
-        #    plot(); savefig("/tmp/test.pdf", bbox_inches="tight")
-        gc.collect()
-
     def _print_vector(self, renderer_factory,
                       path_or_stream, *, metadata=None, **kwargs):
         _check_print_extra_kwargs(**kwargs)
@@ -299,8 +289,24 @@ class FigureCanvasCairo(FigureCanvasBase):
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
             renderer._set_metadata(metadata)
-            with _LOCK:
-                self.figure.draw(renderer)
+            try:
+                with _LOCK:
+                    self.figure.draw(renderer)
+            finally:
+                # When using bbox_inches = "tight", an additional renderer is
+                # created to measure the figure bbox, but drawing on that
+                # renderer must be disabled now.  Otherwise, when it gets gc'd
+                # at shutdown, cairo's attempt to finalize() the surface will
+                # segfault due to already torn down structures.  (This is only
+                # needed on Matplotlib 3.2.0; earlier versions used a different
+                # approach ("dryrun") and later versions already perform the
+                # disabling.)  See also matplotlib#16731, or repro with
+                #    plot(); savefig("/tmp/test.pdf", bbox_inches="tight")
+                # Alternatively, one could call gc.collect() after print_figure
+                # to gc the renderer earlier, but that is very slow.
+                for name in dir(RendererBase):
+                    if name.startswith("draw_"):
+                        setattr(renderer, name, lambda *args, **kwargs: None)
             # _finish() corresponds finalize() in Matplotlib's PDF and SVG
             # backends; it is inlined in Matplotlib's PS backend.
             renderer._finish()
