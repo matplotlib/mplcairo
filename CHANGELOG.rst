@@ -8,6 +8,8 @@ next
 - Improve snapping of codeful paths.
 - Fix failure to increase cairo refcount of font cache entries.
 - Support ``rcParams["pdf.compression"] = 0``.
+- Dropped support for the JPEG-specific *quality*, *optimize*, and
+  *progressive* parameters to `.Figure.savefig`.
 
 v0.3
 ====

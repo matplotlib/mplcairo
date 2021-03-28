@@ -521,11 +521,10 @@ Markers at Bézier control points
 is the documented behavior, even though all builtin renderers only draw markers
 at straight or Bézier segment ends.
 
-Known issues
-============
+Known differences
+=================
 
-Missing support from cairo
---------------------------
+Due to missing support from cairo:
 
 - SVG output does not support global metadata or set URLs or ids on any
   element, as cairo provides no support to do so.
@@ -542,6 +541,9 @@ Missing support from cairo
   - ``svg.fonttype`` (effectively always ``"path"``, see `cairo issue #253
     <cairo-253_>`_),
   - ``svg.hashsalt``.
+
+Additionally, the ``quality``, ``optimize``, and ``progressive`` parameters to
+``savefig``, which have been removed in Matplotlib 3.5, are not supported.
 
 .. _cairo-253: https://gitlab.freedesktop.org/cairo/cairo/issues/253
 

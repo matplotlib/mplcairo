@@ -425,10 +425,6 @@ class FigureCanvasCairo(FigureCanvasBase):
             return
         if pil_kwargs is None:
             pil_kwargs = {}
-        for k in ["quality", "optimize", "progressive"]:
-            if k in kwargs:
-                pil_kwargs.setdefault(k, kwargs[k])
-        pil_kwargs.setdefault("quality", mpl.rcParams["savefig.jpeg_quality"])
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
         Image.fromarray(img).save(path_or_stream, format="jpeg", **pil_kwargs)
