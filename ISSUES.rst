@@ -28,18 +28,15 @@ We appear to be leaking memory per memleak.py.
 Upstream issues
 ===============
 
+The main list of xfailed tests is in ``run-mpl-test-suite.py``.  Other
+"interesting" tests are listed below.
+
 Issues with Matplotlib
 ----------------------
 
 Matplotlib's hatching is inconsistent across backends (#10034). ::
 
    test_artist::test_clipping
-
-Matplotlib fails to drop the alpha channel when saving comparison failure diffs
-(#11075) (and the baseline images are lacking an alpha channel). ::
-
-   test_axes::test_log_scales[png]
-   test_scale::test_logscale_mask[png]
 
 Matplotlib's SVG backend does not implement Gouraud shading. ::
 
@@ -49,10 +46,6 @@ Matplotlib's partially transparent markers with edges are inconsistent across
 backends (#10035). ::
 
    test_axes::test_rgba_markers[pdf]
-
-Matplotlib's PDFPages is coupled too tightly with the PDF backend (#9114). ::
-
-   test_backend_pdf::test_composite_image, test_multipage_*
 
 Matplotlib does not write SVGs with ``image-rendering: pixelated`` (#10112). ::
 
@@ -66,35 +59,6 @@ Matplotlib's software alpha compositor is incorrect (#8847). ::
 
 Matplotlib's draw_path_collection has inconsistent semantics across backends
 (#12021).  (No test.)
-
-Issues with cairo
------------------
-
-Precision is lost when roundtripping between straight and premultiplied alpha.
-::
-
-   test_agg::test_repeated_save_with_alpha
-
-cairo does not cull out-of-bounds markers. ::
-
-   test_artist::test_cull_markers
-
-cairo PS does not support SOURCE_DATE_EPOCH. ::
-
-   test_backend_ps::test_savefig_to_stringio[ps-*]
-   test_backend_ps::test_savefig_to_stringio[eps-*]
-   test_backend_ps::test_savefig_to_stringio[eps afm-*]
-   test_backend_ps::test_source_date_epoch
-
-cairo PS does not emit HiResBoundingBox. ::
-
-   test_backend_ps::test_bbox
-
-cairo does not support custom ids, text, or URLs in SVG output. ::
-
-   test_backend_svg::test_gid
-   test_backend_svg::test_svgnone_with_data_coordinates
-   test_backend_svg::test_text_urls
 
 Issues with Ghostscript
 -----------------------
@@ -120,40 +84,7 @@ them using ``rgb`` (``rgb(75%,50%,25%)``).  The latter seems rendered less
 precisely when combined with transparency. ::
 
    test_patches::test_clip_to_bbox[svg]
-   test_skew::test_skew_rectange[svg]
-
-Non-issues
-==========
-
-We do not support writing PS to text-mode streams. ::
-
-   test_backend_ps::test_savefig_to_stringio
-
-We support mixed usetex/non-usetex PS. ::
-
-   test_backend_ps::test_partial_usetex
-
-Tight bboxes are different. ::
-
-   test_bbox_tight::test_bbox_inches_tight_suptile_legend
-   test_polar::test_get_tightbbox_polar
-
-We already raise on invalid savefig kwargs. ::
-
-   test_figure::test_savefig_warns
-
-``--tolerance`` subverts Matplotlib's test interface. ::
-
-   test_compare_image::*
-
-cairo uses a different representation for ps images (but we perform compositing
-correctly, see e.g. SVG output). ::
-
-   test_image::test_composite_image[ps]
-
-cairo does not have an explicit rendering complexity limit. ::
-
-   test_simplification::test_throw_rendering_complexity_exceeded
+   test_skew::test_skew_rectangle[svg]
 
 Other relevant Matplotlib issues
 ================================

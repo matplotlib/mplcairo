@@ -126,47 +126,62 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_image.py::test_figimage1[pdf]",
             ]),
             (irrelevant, [
+                # Precision is lost when roundtripping between straight and
+                # premultiplied alpha.
                 "test_agg.py::test_repeated_save_with_alpha",
+                # cairo doesn't cull out-of-bound markers.
                 "test_artist.py::test_cull_markers",
-                "test_axes.py::test_log_scales[png]",
                 "test_axes.py::test_get_tightbbox_polar",
                 "test_axes.py::test_normal_axes",
                 "test_backend_bases.py::test_non_gui_warning",
+                # Test is coupled with internal representation.
                 "test_backend_pdf.py::test_composite_image",
                 # Different error messages on invalid metadata.
                 "test_backend_pdf.py::test_invalid_metadata",
+                # PdfPages is tightly coupled with backend_pdf.
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
                 # cairo doesn't support the Trapped metadata.
                 "test_backend_pdf.py::test_savefig_metadata",
+                # cairo doesn't emit HiResBoundingBox.
                 "test_backend_ps.py::test_bbox",
+                # We're fine with partial usetex.
                 "test_backend_ps.py::test_partial_usetex",
+                # We do not support writing PS to text-mode streams.
                 "test_backend_ps.py::test_savefig_to_stringio[ps-landscape]",
                 "test_backend_ps.py::test_savefig_to_stringio[ps-portrait]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps-landscape]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps-portrait]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-landscape]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-portrait]",
+                # cairo doesn't support SOURCE_DATE_EPOCH.
                 "test_backend_ps.py::test_source_date_epoch",
                 # Useful, but the tag structure is too different (e.g. cairo
                 # skips emitting clips that don't intersect paths).
                 "test_backend_svg.py::test_count_bitmaps",
+                # cairo doesn't support custom gids.
                 "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svg_clear_all_metadata",
                 "test_backend_svg.py::test_svg_clear_default_metadata",
                 "test_backend_svg.py::test_svg_default_metadata",
                 "test_backend_svg.py::test_svg_metadata",
+                # cairo always emits text as glyph paths.
                 "test_backend_svg.py::test_svgnone_with_data_coordinates",
+                # cairo can't emit urls in SVG.
                 "test_backend_svg.py::test_text_urls",
                 "test_backend_svg.py::test_url",
                 "test_backend_svg.py::test_url_tick",
+                # Different tight bbox.
                 "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[",
                 "test_bbox_tight.py::test_bbox_inches_tight_suptitle_non_default[",
                 # We already raise on invalid savefig kwargs.
                 "test_figure.py::test_savefig_warns",
+                # cairo uses a different representation for ps images (but
+                # compositing is correct, see e.g. SVG output).
                 "test_image.py::test_composite[",
+                # Different tight bbox.
                 "test_polar.py::test_get_tightbbox_polar",
-                "test_scale.py::test_logscale_mask[png]",
+                # cairo does not have an explicit rendering complexity limit.
                 "test_simplification.py::test_throw_rendering_complexity_exceeded",
             ]),
             (textfail, [
