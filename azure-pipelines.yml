@@ -47,7 +47,8 @@ steps:
     linux)
       sudo PY_VERS="$PYTHONVERSION" tools/build-manylinux-wheel.sh &&
       sudo apt update &&
-      sudo apt install ghostscript inkscape &&
+      sudo apt install ghostscript inkscape \
+        texlive-latex-{base,recommended,extra} texlive-fonts-recommended cm-super dvipng &&
       pip install 'pycairo<1.20'  # 1.20 requires too-recent cairo for Ubuntu 16.04.
       ;;
     darwin)

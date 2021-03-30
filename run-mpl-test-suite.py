@@ -110,6 +110,7 @@ def pytest_collection_modifyitems(session, config, items):
     debugskip = pytest.mark.skip(reason="Temporarily skipped for debugging.")
     module_markers = {
         "matplotlib.tests.test_compare_images": irrelevant,
+        "matplotlib.tests.test_backend_pgf": irrelevant,
         "matplotlib.tests.test_mathtext": textfail,
         "matplotlib.tests.test_constrainedlayout": textfail,
         "matplotlib.tests.test_tightlayout": textfail,
