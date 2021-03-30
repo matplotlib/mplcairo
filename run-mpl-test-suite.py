@@ -133,9 +133,12 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_axes.py::test_normal_axes",
                 "test_backend_bases.py::test_non_gui_warning",
                 "test_backend_pdf.py::test_composite_image",
-                "test_backend_pdf.py::test_multipage_keep_empty",
+                # Different error messages on invalid metadata.
+                "test_backend_pdf.py::test_invalid_metadata",
                 "test_backend_pdf.py::test_multipage_pagecount",
                 "test_backend_pdf.py::test_multipage_properfinalize",
+                # cairo doesn't support the Trapped metadata.
+                "test_backend_pdf.py::test_savefig_metadata",
                 "test_backend_ps.py::test_bbox",
                 "test_backend_ps.py::test_partial_usetex",
                 "test_backend_ps.py::test_savefig_to_stringio[ps-landscape]",
@@ -145,6 +148,9 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-landscape]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-portrait]",
                 "test_backend_ps.py::test_source_date_epoch",
+                # Useful, but the tag structure is too different (e.g. cairo
+                # skips emitting clips that don't intersect paths).
+                "test_backend_svg.py::test_count_bitmaps",
                 "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svg_clear_all_metadata",
                 "test_backend_svg.py::test_svg_clear_default_metadata",
@@ -155,6 +161,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_svg.py::test_url",
                 "test_backend_svg.py::test_url_tick",
                 "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[",
+                "test_bbox_tight.py::test_bbox_inches_tight_suptitle_non_default[",
+                # We already raise on invalid savefig kwargs.
                 "test_figure.py::test_savefig_warns",
                 "test_image.py::test_composite[",
                 "test_polar.py::test_get_tightbbox_polar",
@@ -165,6 +173,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_axes.py::test_gettightbbox_ignoreNaN",
                 "test_figure.py::test_align_labels[",
                 "test_figure.py::test_tightbbox",
+                "test_backend_pdf.py::test_text_urls",
+                "test_backend_pdf.py::test_text_urls_tex",
             ]),
             (debugskip, [
             ])
