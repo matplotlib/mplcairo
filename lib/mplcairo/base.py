@@ -288,8 +288,11 @@ class FigureCanvasCairo(FigureCanvasBase):
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(
                 stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
-            renderer._set_metadata(metadata)
             try:
+                # Setting invalid metadata can also throw, in which case the
+                # rendered needs to be _finish()ed (to avoid later writing to a
+                # closed file).
+                renderer._set_metadata(metadata)
                 with _LOCK:
                     self.figure.draw(renderer)
             finally:
@@ -307,9 +310,9 @@ class FigureCanvasCairo(FigureCanvasBase):
                 for name in dir(RendererBase):
                     if name.startswith("draw_"):
                         setattr(renderer, name, lambda *args, **kwargs: None)
-            # _finish() corresponds finalize() in Matplotlib's PDF and SVG
-            # backends; it is inlined in Matplotlib's PS backend.
-            renderer._finish()
+                # _finish() corresponds finalize() in Matplotlib's PDF and SVG
+                # backends; it is inlined in Matplotlib's PS backend.
+                renderer._finish()
 
     print_pdf = partialmethod(
         _print_vector, GraphicsContextRendererCairo._for_pdf_output)
