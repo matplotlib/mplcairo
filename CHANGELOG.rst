@@ -1,4 +1,4 @@
-next
+v0.4
 ====
 
 - Bumped dependencies to Python≥3.7, pybind11≥2.6; Windows build also
