@@ -111,14 +111,18 @@ class build_ext(build_ext):
             is_arch = "Arch Linux" in Path("/etc/os-release").read_text()
         except OSError:
             is_arch = False
-        has_pkgconfig_raqm = False
-        if not is_arch:
+        if is_arch:
+            has_pkgconfig_raqm = False
+        else:
             try:
-                has_pkgconfig_raqm = get_pkgconfig(
-                    f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
+                get_pkgconfig(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
             except (FileNotFoundError, CalledProcessError):
-                pass
-        if not has_pkgconfig_raqm:
+                has_pkgconfig_raqm = False
+            else:
+                has_pkgconfig_raqm = True
+        if has_pkgconfig_raqm:
+            ext.extra_compile_args += get_pkgconfig("--cflags", "raqm")
+        else:
             (tmp_include_dir / "raqm-version.h").write_text("")  # Touch it.
             with urllib.request.urlopen(
                     f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
