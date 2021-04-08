@@ -1,3 +1,8 @@
+next
+====
+
+- Fixed support for Matplotlib 3.5.
+
 v0.4
 ====
 

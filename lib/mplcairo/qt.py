@@ -32,11 +32,11 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
             qimage_setDevicePixelRatio = qimage.setDevicePixelRatio
         except AttributeError:
             def qimage_setDevicePixelRatio(scaleFactor): pass
-        try:  # matplotlib#19126 (<3.4).
-            pixel_ratio = self.pixel_ratio
+        try:  # matplotlib#19126 (>=3.5).
+            dpr = self.device_pixel_ratio
         except AttributeError:
-            pixel_ratio = self._dpi_ratio
-        qimage_setDevicePixelRatio(self._dpi_ratio)
+            dpr = self._dpi_ratio
+        qimage_setDevicePixelRatio(dpr)
         # FIXME[PySide{,2}]: https://bugreports.qt.io/browse/PYSIDE-140
         if QtGui.__name__.startswith("PySide"):
             ctypes.c_long.from_address(id(buf)).value -= 1
