@@ -129,7 +129,7 @@ py::bytes Region::get_straight_argb32_bytes() {
     }
   } else {  // big-endian
     auto u32_ptr = static_cast<uint32_t*>(buf.ptr);
-    for (auto i = 0; i < size; i += 4) {
+    for (auto i = 0; i < size / 4; i++) {
       u32_ptr[i] = (u32_ptr[i] >> 8) + (u32_ptr[i] << 24);  // RGBA->ARGB
     }
   }
@@ -1816,7 +1816,7 @@ py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_rgba8888(
     }
   } else {  // big-endian
     auto u32_ptr = reinterpret_cast<uint32_t*>(u8.mutable_data());
-    for (auto i = 0; i < size; i += 4) {
+    for (auto i = 0; i < size / 4; i++) {
       u32_ptr[i] = (u32_ptr[i] << 8) + (u32_ptr[i] >> 24);  // ARGB->RGBA
     }
   }
