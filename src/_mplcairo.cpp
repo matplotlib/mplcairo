@@ -1348,10 +1348,10 @@ void GraphicsContextRenderer::draw_quad_mesh(
   }
   // If edge colors are set, we need to draw the quads one at a time in
   // order to be able to draw the edges as well.  If they are not set, using
-  // cairo's mesh pattern support instead avoids conflation artifacts.
+  // cairo's mesh pattern support instead avoids conflation artefacts.
   // (FIXME[matplotlib]: In fact, it may make sense to rewrite hexbin in terms
   // of quadmeshes in order to fix their long-standing issues with such
-  // artifacts.)
+  // artefacts.)
   if (ecs_raw.shape(0)) {
     for (auto i = 0; i < mesh_height; ++i) {
       for (auto j = 0; j < mesh_width; ++j) {

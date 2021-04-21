@@ -420,7 +420,7 @@ be used.  Marker stamping is also implemented for scatter plots (which can have
 multiple colors).  Likewise, markers of different sizes get mapped into markers
 of discretized sizes, with an error bounded by the threshold.
 
-**NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artifacts
+**NOTE**: ``pcolor`` and mplot3d's ``plot_surface`` display some artefacts
 where the facets join each other.  This is because these functions internally
 use a ``PathCollection``; this triggers the approximate stamping, and
 even without it (by setting ``path.simplify_threshold`` to zero), cairo's
