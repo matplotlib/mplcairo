@@ -6,6 +6,7 @@
 
 set -eo pipefail
 set -x
+shopt -s nullglob
 
 if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
     toplevel="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
@@ -13,12 +14,14 @@ if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
     tmpdir="$(mktemp -d)"
     trap 'rm -rf "$tmpdir"' EXIT INT TERM
     git clone "$toplevel" "$tmpdir/mplcairo"
-    # Apparently realpath --relative-to is too recent for travis...
+    relpath="$(
+        python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' \
+            "$0" "$toplevel")"
     ${DOCKER:-docker} run \
         -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.7 3.8 3.9}" \
         --volume "$tmpdir/mplcairo":/io/mplcairo:Z \
         quay.io/pypa/manylinux2010_x86_64 \
-        "/io/mplcairo/$(python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' "$0" "$toplevel")"
+        "/io/mplcairo/$relpath"
 
     user="${SUDO_USER:-$USER}"
     chown "$user:$(id -gn "$user")" -R "$tmpdir/mplcairo/build"
@@ -52,19 +55,22 @@ else
         mv "$(find python-cairo -name py3cairo.h)" /usr/include
     )
 
-    for PY_VER in $PY_VERS; do
-        PY_PREFIX=("/opt/python/cp${PY_VER/./}-"*)
-        PY_VER_ABI_TAG="$(basename "$PY_PREFIX")"
-        echo "Building the wheel for Python $PY_VER."
+    for py_ver in $PY_VERS; do
+        py_prefix=("/opt/python/cp${py_ver/./}-"*)
+        tags="$(basename "$py_prefix")"
+        echo "Building the wheel for Python $py_ver."
         # Provide a shim to access pycairo's header.
         echo 'def get_include(): return "/dev/null"' \
-            >"$PY_PREFIX/lib/python$PY_VER/site-packages/cairo.py"
+            >"$py_prefix/lib/python$py_ver/site-packages/cairo.py"
         (
             cd /io/mplcairo
             # Force a rebuild of the extension.
-            "$PY_PREFIX/bin/python" setup.py bdist_wheel
-            AUDITWHEEL_PLAT= auditwheel -v repair -wdist \
-                "dist/mplcairo-$("$PY_PREFIX/bin/python" setup.py --version)-$PY_VER_ABI_TAG-"*".whl"
+            "$py_prefix/bin/python" setup.py bdist_wheel
+            mplcairo_version="$("$py_prefix/bin/python" setup.py --version)"
+            for wheel in "dist/mplcairo-$mplcairo_version-$tags-"*".whl"; do
+                AUDITWHEEL_PLAT= auditwheel -v repair -wdist "$wheel"
+                rm "$wheel"
+            done
         )
     done
 fi
