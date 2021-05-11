@@ -1523,21 +1523,25 @@ py::array GraphicsContextRenderer::_stop_filter_get_buffer()
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
 {
   auto const& state = get_additional_state();
-  // Use ints to avoid a bunch of warnings below.
-  // Clipping out partial pixels on the edges (using ceil/floor instead of
-  // floor/ceil) helps avoiding invalid_argument being thrown below due to
-  // floating point inaccuracies.  With e.g. collapsed axes, Matplotlib can
-  // try to copy e.g. from x0 = 1.1 to x1 = 1.9, in which case x1 < x0 after
-  // clipping, hence the x0o <= x1o test and the max(x1 - x0, 0) below.
   auto const& x0o = bbox.attr("x0").cast<double>(),
             & x1o = bbox.attr("x1").cast<double>(),
             // Invert y-axis.
             & y0o = state.height - bbox.attr("y1").cast<double>(),
             & y1o = state.height - bbox.attr("y0").cast<double>();
-  auto const& x0 = int(std::ceil(x0o)),
-            & x1 = int(std::floor(x1o)),
-            & y0 = int(std::ceil(y0o)),
-            & y1 = int(std::floor(y1o));
+  // Use ints to avoid a bunch of warnings below.
+  // auto const& x0 = int(std::ceil(x0o)),
+  //           & x1 = int(std::floor(x1o)),
+  //           & y0 = int(std::ceil(y0o)),
+  //           & y1 = int(std::floor(y1o));
+  // If using floor/ceil, we must additionally clip because of the possibility
+  // of floating point inaccuracies.
+  auto const& x0 = int(std::max(std::floor(x0o), 0.)),
+            & x1 = int(std::min(std::ceil(x1o), state.width - 1.)),
+            & y0 = int(std::max(std::floor(y0o), 0.)),
+            & y1 = int(std::min(std::ceil(y1o), state.height - 1.));
+  // With e.g. collapsed axes, Matplotlib can try to copy e.g. from x0 = 1.1 to
+  // x1 = 1.9, in which case x1 < x0 after clipping, hence the x0o <= x1o test
+  // and the max(x1 - x0, 0) below.
   if (!(0 <= x0 && x0o <= x1o && x1 <= state.width
         && 0 <= y0 && y0o <= y1o && y1 <= state.height)) {
     throw std::invalid_argument{
