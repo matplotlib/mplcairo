@@ -2129,10 +2129,18 @@ Only intended for debugging purposes.
       })
     .def(
       "get_clip_path",
-      [](GraphicsContextRenderer& gcr) -> std::optional<py::object> {
+      [](GraphicsContextRenderer& gcr)
+      -> std::tuple<std::optional<py::object>, std::optional<py::object>> {
         auto const& [py_path, path] = gcr.get_additional_state().clip_path;
         (void)path;
-        return py_path;
+        if (py_path) {
+          auto it_cls =
+            py::module::import("matplotlib.transforms")
+            .attr("IdentityTransform");
+          return {py_path, it_cls()};
+        } else {
+          return {{}, {}};
+        }
       })
     .def(
       "get_hatch",
