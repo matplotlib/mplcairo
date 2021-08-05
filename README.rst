@@ -22,7 +22,7 @@ A (new) cairo backend for Matplotlib
 .. contents:: :local:
 
 This is a new, essentially complete implementation of a cairo_ backend for
-Matplotlib_.  It can be used in combination with a Qt5, GTK3, Tk, wx, or macOS
+Matplotlib_.  It can be used in combination with a Qt, GTK3, Tk, wx, or macOS
 UI, or non-interactively (i.e., to save figure to various file formats).
 
 Noteworthy points include:
@@ -268,7 +268,7 @@ specifically, the following backends are provided:
   surface),
 - ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
   native surface; does not and cannot support blitting),
-- ``module://mplcairo.qt`` (Qt4/5 widget, copying data from a cairo image
+- ``module://mplcairo.qt`` (Qt widget, copying data from a cairo image
   surface — select the binding to use by importing it before mplcairo, or by
   setting the ``QT_API`` environment variable),
 - ``module://mplcairo.tk`` (Tk widget, copying data from a cairo image
