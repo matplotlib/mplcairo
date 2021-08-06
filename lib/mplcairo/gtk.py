@@ -1,10 +1,11 @@
-from matplotlib.backends.backend_gtk3 import (
-    Gtk, _BackendGTK3, FigureCanvasGTK3)
-
+from .import _util
 from .base import FigureCanvasCairo
 
 
-class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
+_mpl_gtk, _backend_obj = _util.get_matplotlib_gtk_backend()
+
+
+class FigureCanvasGTKCairo(FigureCanvasCairo, _mpl_gtk.FigureCanvas):
     def _renderer_init(self):  # matplotlib#17461 (<3.3).
         pass
 
@@ -13,7 +14,7 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
         allocation = self.get_allocation()
-        Gtk.render_background(
+        _mpl_gtk.Gtk.render_background(
             self.get_style_context(), ctx,
             allocation.x, allocation.y, allocation.width, allocation.height)
         surface = \
@@ -27,6 +28,6 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, FigureCanvasGTK3):
         self.queue_draw()
 
 
-@_BackendGTK3.export
-class _BackendGTKCairo(_BackendGTK3):
+@_backend_obj.export
+class _BackendGTKCairo(_backend_obj):
     FigureCanvas = FigureCanvasGTKCairo

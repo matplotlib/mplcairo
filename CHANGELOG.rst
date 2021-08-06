@@ -2,6 +2,7 @@ next
 ====
 
 - Fixed support for Matplotlib 3.5.
+- Support Qt6 and GTK4.
 
 v0.4
 ====

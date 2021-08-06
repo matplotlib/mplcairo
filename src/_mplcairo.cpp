@@ -329,12 +329,9 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
   return cr;
 }
 
-GraphicsContextRenderer::GraphicsContextRenderer(py::object ctx, double dpi) :
-  GraphicsContextRenderer{
-    cr_from_pycairo_ctx(ctx),
-    ctx.attr("get_target")().attr("get_width")().cast<double>(),
-    ctx.attr("get_target")().attr("get_height")().cast<double>(),
-    dpi}
+GraphicsContextRenderer::GraphicsContextRenderer(
+  py::object ctx, double width, double height, double dpi) :
+  GraphicsContextRenderer{cr_from_pycairo_ctx(ctx), width, height, dpi}
 {}
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
@@ -2068,7 +2065,7 @@ Only intended for debugging purposes.
     // The RendererAgg signature, which is also expected by MixedModeRenderer
     // (with doubles!).
     .def(py::init<double, double, double>())
-    .def(py::init<py::object, double>())
+    .def(py::init<py::object, double, double, double>())
     .def(py::init<StreamSurfaceType, py::object, double, double, double>())
     .def(
       py::pickle(

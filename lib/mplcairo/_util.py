@@ -1,4 +1,5 @@
 import functools
+import importlib
 import sys
 
 import matplotlib as mpl
@@ -9,6 +10,26 @@ from ._mplcairo import (
     cairo_to_premultiplied_rgba8888,
     cairo_to_straight_rgba8888,
 )
+
+
+def get_matplotlib_gtk_backend():
+    import gi
+    required = gi.get_required_version("Gtk")
+    if required == "4.0":
+        versions = [4]
+    elif required == "3.0":
+        versions = [3]
+    else:
+        versions = [4, 3]
+    for version in versions:
+        # Matplotlib converts require_version ValueErrors into ImportErrors.
+        try:
+            mod = importlib.import_module(
+                f"matplotlib.backends.backend_gtk{version}")
+            return mod, getattr(mod, f"_BackendGTK{version}")
+        except ImportError:
+            pass
+    raise ImportError("Failed to import any Matplotlib GTK backend")
 
 
 @functools.lru_cache(1)

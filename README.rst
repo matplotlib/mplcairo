@@ -22,7 +22,7 @@ A (new) cairo backend for Matplotlib
 .. contents:: :local:
 
 This is a new, essentially complete implementation of a cairo_ backend for
-Matplotlib_.  It can be used in combination with a Qt, GTK3, Tk, wx, or macOS
+Matplotlib_.  It can be used in combination with a Qt, GTK, Tk, wx, or macOS
 UI, or non-interactively (i.e., to save figure to various file formats).
 
 Noteworthy points include:
@@ -264,10 +264,13 @@ specifically, the following backends are provided:
 
 - ``module://mplcairo.base`` (No GUI, but can output to EPS, PDF, PS, SVG, and
   SVGZ using cairo's implementation, rather than Matplotlib's),
-- ``module://mplcairo.gtk`` (GTK3 widget, copying data from a cairo image
-  surface),
-- ``module://mplcairo.gtk_native`` (GTK3 widget, directly drawn onto as a
-  native surface; does not and cannot support blitting),
+- ``module://mplcairo.gtk`` (GTK widget, copying data from a cairo image
+  surface — GTK3 or GTK4 can be selected by calling
+  ``gi.require_version("Gtk", "3.0")`` or ``gi.require_version("Gtk", "4.0")``
+  before importing the backend),
+- ``module://mplcairo.gtk_native`` (GTK widget, directly drawn onto as a
+  native surface; does not and cannot support blitting — see above for version
+  selection),
 - ``module://mplcairo.qt`` (Qt widget, copying data from a cairo image
   surface — select the binding to use by importing it before mplcairo, or by
   setting the ``QT_API`` environment variable),
@@ -555,7 +558,7 @@ Possible optimizations
   Douglas-Peucker internally?).
 - Use QtOpenGLWidget and the cairo-gl backend.
 
-What about the already existing cairo (gtk3/qt4/qt5/wx/tk/...cairo) backends?
+What about the already existing cairo (gtk/qt/wx/tk/...cairo) backends?
 =============================================================================
 
 They are very slow (try running `examples/mplot3d/wire3d_animation.py`_) and
