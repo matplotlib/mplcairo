@@ -657,7 +657,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       [](void* ptr) -> void {
         delete static_cast<std::vector<std::string>*>(ptr);
       });
-    // FIXME[cairo] (#404) Don't set antialiasing for color fonts.
+    // cairo#404 (<1.18.0): Don't set antialiasing for color fonts.
     // FIXME[harfbuzz] (#2428) Disable raqm for color fonts.
     if (FT_IS_SFNT(ft_face)) {
       auto n_tables = FT_ULong{}, table_length = FT_ULong{};
@@ -714,8 +714,9 @@ void adjust_font_options(cairo_t* cr)
 {
   auto const& font_face = cairo_get_font_face(cr);
   auto const& options = cairo_font_options_create();
-  // FIXME[cairo] (#404) Don't set antialiasing for color fonts.
-  if (!cairo_font_face_get_user_data(font_face, &detail::IS_COLOR_FONT_KEY)) {
+  if (cairo_version() >= CAIRO_VERSION_ENCODE(1, 18, 0)
+      // cairo#404 (<1.18.0): Don't set antialiasing for color fonts.
+      || !cairo_font_face_get_user_data(font_face, &detail::IS_COLOR_FONT_KEY)) {
     auto aa = rc_param("text.antialiased");  // Normally *exactly* a bool.
     cairo_font_options_set_antialias(
       options,
