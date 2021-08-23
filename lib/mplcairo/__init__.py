@@ -1,6 +1,7 @@
 import ast
 import os
 import sys
+import warnings
 
 try:
     from ._version import version as __version__

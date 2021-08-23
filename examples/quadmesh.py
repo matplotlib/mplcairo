@@ -21,7 +21,7 @@ Zm = np.ma.masked_where(np.abs(Qz) < 0.5 * np.max(Qz), Z)
 cmap = plt.get_cmap('viridis')
 cmap_data = cmap(np.arange(cmap.N))
 # Set a linear ramp in alpha
-cmap_data[:,-1] = np.linspace(0.2, 0.8, cmap.N)
+cmap_data[:, -1] = np.linspace(0.2, 0.8, cmap.N)
 # Create new colormap
 cmap_alpha = ListedColormap(cmap_data)
 

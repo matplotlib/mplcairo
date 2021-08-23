@@ -2,7 +2,6 @@ import codecs
 import contextlib
 import functools
 from functools import partial, partialmethod
-import gc
 from gzip import GzipFile
 import logging
 import os

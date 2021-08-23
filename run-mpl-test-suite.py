@@ -79,16 +79,14 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
         mpl.use("agg", force=True)
     from matplotlib import pyplot as plt
 
-    __orig_switch_backend = plt.switch_backend
-    def switch_backend(backend):
-        __orig_switch_backend({
+    orig_switch_backend = plt.switch_backend
+    plt.switch_backend = lambda backend: orig_switch_backend(
+        {
             "gtk3agg": "module://mplcairo.gtk",
             "qt5agg": "module://mplcairo.qt",
             "tkagg": "module://mplcairo.tk",
             "wxagg": "module://mplcairo.wx",
         }.get(backend.lower(), backend))
-    plt.switch_backend = switch_backend
-
     plt.switch_backend("agg")
 
     mplcairo._mplcairo.install_abrt_handler()

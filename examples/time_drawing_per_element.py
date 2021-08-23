@@ -3,7 +3,6 @@
 from argparse import (
     ArgumentParser, ArgumentDefaultsHelpFormatter, RawTextHelpFormatter)
 import pprint
-import sys
 import time
 
 import matplotlib as mpl

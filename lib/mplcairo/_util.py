@@ -3,7 +3,6 @@ import importlib
 import sys
 
 import matplotlib as mpl
-import numpy as np
 
 from ._mplcairo import (
     cairo_to_premultiplied_argb32,

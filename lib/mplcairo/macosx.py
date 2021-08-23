@@ -1,5 +1,3 @@
-import re
-
 from matplotlib.backends.backend_macosx import _BackendMac, FigureCanvasMac
 
 from . import _util
