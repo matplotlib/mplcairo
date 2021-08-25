@@ -14,7 +14,8 @@ extern "C" {  // Support raqm<=0.2.
   _(layout) \
   _(set_freetype_face) \
   _(set_text_utf8) \
-  _(version_string)
+  _(version_string) \
+  _(version_atleast)
 
 namespace mplcairo {
 
@@ -27,6 +28,8 @@ namespace raqm {
 #define DECLARE_API(name) extern decltype(raqm_##name)* name;
 ITER_RAQM_API(DECLARE_API)
 #undef DECLARE_API
+
+bool bad_color_glyph_spacing;
 
 }
 

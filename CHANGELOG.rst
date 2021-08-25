@@ -2,6 +2,7 @@ next
 ====
 
 - Fixed support for Matplotlib 3.5.
+- Bumped supported raqm versions to ≥0.7.
 - Support Qt6 and GTK4.
 
 v0.4

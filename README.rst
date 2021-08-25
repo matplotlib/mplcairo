@@ -80,10 +80,11 @@ Note that wheels are not available for macOS<10.13, because the libc++ included
 with these versions is too old and vendoring of libc++ appears to be fragile.
 Help for packaging would be welcome.
 
-mplcairo can use Raqm_ (≥0.2) for complex text layout and handling of
-OpenType font features.  Refer to the instructions on that project's
-website for installation on Linux and macOS.  On Windows, consider using
-Christoph Gohlke's `build <gohlke-libraqm_>`_ (the directory containing
+mplcairo can use Raqm_ (≥0.7.0; ≥0.7.2 is recommended as it provides better
+emoji support, especially in the presence of ligatures) for complex text layout
+and handling of OpenType font features.  Refer to the instructions on that
+project's website for installation on Linux and macOS.  On Windows, consider
+using Christoph Gohlke's `build <gohlke-libraqm_>`_ (the directory containing
 ``libraqm.dll`` and ``libfribidi-0.dll`` need to be added to the `DLL search
 path <add_dll_directory_>`_).
 
@@ -468,13 +469,7 @@ The syntaxes for selecting TTC subfonts and OpenType font features are
 **experimental** and may change, especially if such features are implemented in
 Matplotlib itself.
 
-Color fonts (e.g. emojis) are handled, but emojis that rely on ligatures (1_,
-2_) run into `limitations of HarfBuzz`_ and are currently rendered correctly
-only if they are the *only* glyph in the rendered string.
-
-.. _1: https://en.wikipedia.org/wiki/Emoji#Joining
-.. _2: https://en.wikipedia.org/wiki/Regional_indicator_symbol
-.. _limitations of HarfBuzz: https://github.com/harfbuzz/harfbuzz/issues/2428
+Color fonts (e.g. emojis) are handled.
 
 Note that Matplotlib's (default) Agg backend will handle most single-face
 monochrome fonts equally well (ultimately, both backends relies on FreeType for

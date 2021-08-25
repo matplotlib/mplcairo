@@ -657,8 +657,8 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       [](void* ptr) -> void {
         delete static_cast<std::vector<std::string>*>(ptr);
       });
-    // cairo#404 (<1.18.0): Don't set antialiasing for color fonts.
-    // FIXME[harfbuzz] (#2428) Disable raqm for color fonts.
+    // Color fonts need special handling due to cairo#404 and raqm#123; see
+    // corresponding sections of the code.
     if (FT_IS_SFNT(ft_face)) {
       auto n_tables = FT_ULong{}, table_length = FT_ULong{};
       FT_CHECK(FT_Sfnt_Table_Info, ft_face, 0, nullptr, &n_tables);
@@ -769,11 +769,12 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
     TRUE_CHECK(raqm::layout, rq);
     auto num_glyphs = size_t{};
     auto const& rq_glyphs = raqm::get_glyphs(rq, &num_glyphs);
-    // FIXME[harfbuzz] (#2428) With raqm, glyphs of color fonts end up way too
-    // big.  However, shaping is actually necessary to handle various ligature
-    // emojis, and if only a single glyph is to be drawn, then things are
-    // actually OK (even metrics-wise), so allow that case.
-    if (num_glyphs > 1
+    // With old versions of FreeType and raqm, glyphs of color fonts end up way
+    // too big (raqm#123).  However, shaping is actually necessary to handle
+    // various ligature emojis, and if only a single glyph is to be drawn, then
+    // things are actually OK (even metrics-wise), so allow that case.
+    if (raqm::bad_color_glyph_spacing
+        && num_glyphs > 1
         && cairo_font_face_get_user_data(cairo_get_font_face(cr),
                                          &detail::IS_COLOR_FONT_KEY)) {
       goto no_raqm;
