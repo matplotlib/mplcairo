@@ -2,6 +2,7 @@ next
 ====
 
 - Fixed support for Matplotlib 3.5.
+- Bumped dependencies to pybind11≥2.8.
 - Bumped supported raqm versions to ≥0.7; fixed integration with raqm 0.7.2.
 - Support Qt6 and GTK4.
 - Support HiDPI on GTK (it was already supported on Qt).

@@ -218,7 +218,7 @@ setup(
     python_requires=">=3.7",
     setup_requires=[
         "setuptools_scm",
-        "pybind11>=2.6.0",
+        "pybind11>=2.8.0",
         *(["pycairo>=1.16.0"] if not MANYLINUX else []),
     ],
     use_scm_version={  # xref __init__.py

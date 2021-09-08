@@ -135,7 +135,7 @@ py::bytes Region::get_straight_argb32_bytes()
       u32_ptr[i] = (u32_ptr[i] >> 8) + (u32_ptr[i] << 24);  // RGBA->ARGB
     }
   }
-  return py::bytes{static_cast<char const*>(buf.ptr), size_t(size)};
+  return py::bytes{static_cast<char const*>(buf.ptr), size};
 }
 
 py::object renderer_base(std::string meth_name)
