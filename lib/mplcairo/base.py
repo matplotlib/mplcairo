@@ -77,11 +77,11 @@ class GraphicsContextRendererCairo(
         RendererBase.__init__(self)
 
     @classmethod
-    def from_pycairo_ctx(cls, ctx, width, height, dpi):
+    def from_pycairo_ctx(cls, ctx, width, height, dpi, orig_scale):
         obj = _mplcairo.GraphicsContextRendererCairo.__new__(
-            cls, ctx, width, height, dpi)
+            cls, ctx, width, height, dpi, orig_scale)
         _mplcairo.GraphicsContextRendererCairo.__init__(
-            obj, ctx, width, height, dpi)
+            obj, ctx, width, height, dpi, orig_scale)
         RendererBase.__init__(obj)
         return obj
 

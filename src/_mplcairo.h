@@ -51,10 +51,12 @@ class GraphicsContextRenderer {
 
   static cairo_t* cr_from_image_args(int width, int height);
   GraphicsContextRenderer(double width, double height, double dpi);
-  static cairo_t* cr_from_pycairo_ctx(py::object ctx);
+  static cairo_t* cr_from_pycairo_ctx(
+    py::object ctx, std::tuple<double, double> device_scales);
   GraphicsContextRenderer(
     py::object ctx,
-    double width, double height, double dpi);
+    double width, double height, double dpi,
+    std::tuple<double, double> device_scales);
   static cairo_t* cr_from_fileformat_args(
     StreamSurfaceType type, py::object file,
     double width, double height, double dpi);

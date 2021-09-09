@@ -29,7 +29,7 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, _mpl_gtk.FigureCanvas):
         # a RecordingSurface).
         renderer = self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo.from_pycairo_ctx,
-            ctx, figure.bbox.width, figure.bbox.height, figure.dpi)
+            ctx, figure.bbox.width, figure.bbox.height, figure.dpi, prev_scale)
         figure.draw(renderer)
         surface.set_device_scale(*prev_scale)
 

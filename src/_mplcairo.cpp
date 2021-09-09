@@ -171,7 +171,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   if (auto const& rectangle = state.clip_rectangle) {
     auto const& [x, y, w, h] = *rectangle;
     cairo_save(cr);
-    cairo_identity_matrix(cr);
+    restore_init_matrix(cr);
     cairo_new_path(cr);
     cairo_rectangle(cr, x, state.height - h - y, w, h);
     cairo_restore(cr);
@@ -192,6 +192,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
           "cairo_tag_begin requires cairo>=1.15.4");
     }
   }
+  restore_init_matrix(cr);
 }
 
 GraphicsContextRenderer::AdditionalContext::~AdditionalContext()
@@ -313,7 +314,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     std::floor(width), std::floor(height), dpi}
 {}
 
-cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
+cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(
+  py::object ctx, std::tuple<double, double> device_scales)
 {
   if (!detail::has_pycairo) {
     throw std::runtime_error{"pycairo is not available"};
@@ -326,12 +328,24 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(py::object ctx)
   auto const& cr = PycairoContext_GET(ctx.ptr());
   CAIRO_CHECK(cairo_status, cr);
   cairo_reference(cr);
+  // With native Gtk3, the context may have a nonzero initial translation (if
+  // the drawn area is not at the top left of the window); this needs to be
+  // taken into account by the path loader (which works in absolute coords).
+  auto mtx = new cairo_matrix_t{};
+  cairo_get_matrix(cr, mtx);
+  auto const& [sx, sy] = device_scales;
+  mtx->x0 *= sx; mtx->y0 *= sy;
+  CAIRO_CHECK_SET_USER_DATA(
+    cairo_set_user_data, cr, &detail::INIT_MATRIX_KEY, mtx,
+    [](void* data) -> void { delete static_cast<cairo_matrix_t*>(data); });
   return cr;
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(
-  py::object ctx, double width, double height, double dpi) :
-  GraphicsContextRenderer{cr_from_pycairo_ctx(ctx), width, height, dpi}
+  py::object ctx, double width, double height, double dpi,
+  std::tuple<double, double> device_scales) :
+  GraphicsContextRenderer{
+    cr_from_pycairo_ctx(ctx, device_scales), width, height, dpi}
 {}
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
@@ -2065,7 +2079,7 @@ Only intended for debugging purposes.
     // The RendererAgg signature, which is also expected by MixedModeRenderer
     // (with doubles!).
     .def(py::init<double, double, double>())
-    .def(py::init<py::object, double, double, double>())
+    .def(py::init<py::object, double, double, double, std::tuple<double, double>>())
     .def(py::init<StreamSurfaceType, py::object, double, double, double>())
     .def(
       py::pickle(

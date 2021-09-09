@@ -70,6 +70,7 @@ extern std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE;
 extern cairo_user_data_key_t const
   REFS_KEY,           // cairo_t -> kept alive Python objects.
   STATE_KEY,          // cairo_t -> additional state.
+  INIT_MATRIX_KEY,    // cairo_t -> cairo_matrix_t.
   FT_KEY,             // cairo_font_face_t -> FT_Face.
   FEATURES_KEY,       // cairo_font_face_t -> OpenType features.
   IS_COLOR_FONT_KEY;  // cairo_font_face_t -> non-null if a color font.
@@ -136,6 +137,7 @@ cairo_matrix_t matrix_from_transform(
   py::object transform, cairo_matrix_t const* master_matrix);
 bool has_vector_surface(cairo_t* cr);
 AdditionalState& get_additional_state(cairo_t* cr);
+void restore_init_matrix(cairo_t* cr);
 void load_path_exact(
   cairo_t* cr, py::object path, cairo_matrix_t const* matrix);
 void load_path_exact(

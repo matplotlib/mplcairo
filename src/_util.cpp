@@ -45,8 +45,12 @@ ITER_CAIRO_OPTIONAL_API(DEFINE_API)
 
 // Other useful values.
 std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE{};
-cairo_user_data_key_t const
-  REFS_KEY{}, STATE_KEY{}, FT_KEY{}, FEATURES_KEY{}, IS_COLOR_FONT_KEY{};
+cairo_user_data_key_t const REFS_KEY{},
+                            STATE_KEY{},
+                            INIT_MATRIX_KEY{},
+                            FT_KEY{},
+                            FEATURES_KEY{},
+                            IS_COLOR_FONT_KEY{};
 py::object RC_PARAMS{},
            PIXEL_MARKER{},
            UNIT_CIRCLE{};
@@ -191,6 +195,16 @@ AdditionalState& get_additional_state(cairo_t* cr)
   return stack.top();
 }
 
+void restore_init_matrix(cairo_t* cr)
+{
+  auto const& data = cairo_get_user_data(cr, &detail::INIT_MATRIX_KEY);
+  if (!data) {
+    cairo_identity_matrix(cr);
+  } else {
+    cairo_set_matrix(cr, static_cast<cairo_matrix_t*>(data));
+  }
+}
+
 // Set the current path of `cr` to `path`, after transformation by `matrix`,
 // ignoring the CTM ("exact").
 //
@@ -226,7 +240,7 @@ struct LoadPathContext {
     snap{!has_vector_surface(cr) && get_additional_state(cr).snap}
   {
     cairo_get_matrix(cr, &ctm);
-    cairo_identity_matrix(cr);
+    restore_init_matrix(cr);
     cairo_new_path(cr);
     auto const& lw = cairo_get_line_width(cr);
     snapper =
@@ -567,7 +581,7 @@ void fill_and_stroke_exact(
       load_path_exact(cr, path, matrix);
       path_loaded = true;
     }
-    cairo_identity_matrix(cr);  // Dashes are interpreted using the CTM.
+    restore_init_matrix(cr);  // Dashes are interpreted using the CTM.
     cairo_stroke_preserve(cr);
   }
   cairo_restore(cr);
