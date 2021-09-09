@@ -231,6 +231,11 @@ class FigureCanvasCairo(FigureCanvasBase):
         _util.fix_ipython_backend2gui()
         super().__init__(*args, **kwargs)
 
+    if not hasattr(FigureCanvasBase, "device_pixel_ratio"):
+        # matplotlib#19126 (<3.5); _dpi_ratio previously existed on qt&macosx.
+        device_pixel_ratio = property(
+            lambda self: getattr(self, "_dpi_ratio", 1))
+
     def _get_cached_or_new_renderer(
             self, func, *args,
             _ensure_cleared=False, _ensure_drawn=False,
