@@ -1,3 +1,5 @@
+"""A cairo backend for Matplotlib."""
+
 import ast
 import os
 import sys
@@ -18,7 +20,7 @@ if sys.platform != "win32":
 
     _load_symbols()
 
-import matplotlib
+import matplotlib as mpl
 
 from . import _mplcairo
 from ._mplcairo import antialias_t, operator_t, get_options, set_options
@@ -61,12 +63,11 @@ def get_versions():
     This function is solely intended to help gather information for bug
     reports; its output may change without notice.
     """
-    versions = _mplcairo.get_versions()
     return {
         "python": sys.version,
         "mplcairo": __version__,
-        "matplotlib": matplotlib.__version__,
-        **versions,
+        "matplotlib": mpl.__version__,
+        **_mplcairo.get_versions(),
     }
 
 

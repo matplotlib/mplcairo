@@ -147,12 +147,12 @@ cairo_matrix_t matrix_from_transform(
       "not {.shape}"_format(transform).cast<std::string>()};
   }
   // The y flip is already handled by the master matrix.
-  auto matrix = cairo_matrix_t{
+  auto mtx = cairo_matrix_t{
     py_matrix(0, 0), py_matrix(1, 0),
     py_matrix(0, 1), py_matrix(1, 1),
     py_matrix(0, 2), py_matrix(1, 2)};
-  cairo_matrix_multiply(&matrix, &matrix, master_matrix);
-  return matrix;
+  cairo_matrix_multiply(&mtx, &mtx, master_matrix);
+  return mtx;
 }
 
 bool has_vector_surface(cairo_t* cr)
@@ -184,24 +184,22 @@ bool has_vector_surface(cairo_t* cr)
 // for cairo_t*'s that we may not have initialized.
 AdditionalState& get_additional_state(cairo_t* cr)
 {
-  auto const& data = cairo_get_user_data(cr, &detail::STATE_KEY);
-  if (!data) {
+  auto const stack = static_cast<std::stack<AdditionalState>*>(
+    cairo_get_user_data(cr, &detail::STATE_KEY));
+  if (!stack || stack->empty()) {
     throw std::runtime_error{"cairo_t* missing additional state"};
   }
-  auto& stack = *static_cast<std::stack<AdditionalState>*>(data);
-  if (stack.empty()) {
-    throw std::runtime_error{"cairo_t* missing additional state"};
-  }
-  return stack.top();
+  return stack->top();
 }
 
 void restore_init_matrix(cairo_t* cr)
 {
-  auto const& data = cairo_get_user_data(cr, &detail::INIT_MATRIX_KEY);
-  if (!data) {
+  auto const mtx = static_cast<cairo_matrix_t*>(
+    cairo_get_user_data(cr, &detail::INIT_MATRIX_KEY));
+  if (!mtx) {
     cairo_identity_matrix(cr);
   } else {
-    cairo_set_matrix(cr, static_cast<cairo_matrix_t*>(data));
+    cairo_set_matrix(cr, mtx);
   }
 }
 
@@ -695,8 +693,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
     }
     font_face_cleanup.release();
   }
-  cairo_font_face_reference(font_face);
-  return font_face;
+  return cairo_font_face_reference(font_face);
 }
 
 cairo_font_face_t* font_face_from_path(py::object path) {

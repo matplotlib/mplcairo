@@ -110,7 +110,8 @@ Region::Region(
   bbox{bbox}, buffer{std::move(buffer)}
 {}
 
-py::buffer_info Region::get_straight_rgba8888_buffer_info() {
+py::buffer_info Region::get_straight_rgba8888_buffer_info()
+{
   auto const& [x0, y0, width, height] = bbox;
   (void)x0; (void)y0;
   auto array = cairo_to_straight_rgba8888(
@@ -119,7 +120,8 @@ py::buffer_info Region::get_straight_rgba8888_buffer_info() {
   return array.request();
 }
 
-py::bytes Region::get_straight_argb32_bytes() {
+py::bytes Region::get_straight_argb32_bytes()
+{
   auto buf = get_straight_rgba8888_buffer_info();
   auto const& size = buf.size;
   if (*reinterpret_cast<uint16_t const*>("\0\xff") > 0x100) {  // little-endian
@@ -613,9 +615,9 @@ void GraphicsContextRenderer::set_clip_path(
     auto const& [path, transform] =
       transformed_path->attr("get_transformed_path_and_affine")()
       .cast<std::tuple<py::object, py::object>>();
-    auto const& matrix =
+    auto const& mtx =
       matrix_from_transform(transform, get_additional_state().height);
-    load_path_exact(cr_, path, &matrix);
+    load_path_exact(cr_, path, &mtx);
     get_additional_state().clip_path =
       {transformed_path, {cairo_copy_path(cr_), cairo_path_destroy}};
   } else {
@@ -778,8 +780,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
   auto const& ac = _additional_context();
-  auto matrix =
-    matrix_from_transform(transform, get_additional_state().height);
+  auto mtx = matrix_from_transform(transform, get_additional_state().height);
   auto const& tri_raw = triangles.unchecked<3>();
   auto const& col_raw = colors.unchecked<3>();
   auto const& n = tri_raw.shape(0);
@@ -803,8 +804,8 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     }
     cairo_mesh_pattern_end_patch(pattern);
   }
-  cairo_matrix_invert(&matrix);
-  cairo_pattern_set_matrix(pattern, &matrix);
+  cairo_matrix_invert(&mtx);
+  cairo_pattern_set_matrix(pattern, &mtx);
   cairo_set_source(cr_, pattern);
   cairo_pattern_destroy(pattern);
   cairo_paint(cr_);
@@ -879,9 +880,9 @@ void GraphicsContextRenderer::draw_image(
   }
   auto const& pattern = cairo_pattern_create_for_surface(surface);
   cairo_surface_destroy(surface);
-  auto const& matrix =
+  auto const& mtx =
     cairo_matrix_t{1, 0, 0, -1, -x, -y + get_additional_state().height};
-  cairo_pattern_set_matrix(pattern, &matrix);
+  cairo_pattern_set_matrix(pattern, &mtx);
   cairo_set_source(cr_, pattern);
   cairo_pattern_destroy(pattern);
   cairo_paint(cr_);
@@ -909,7 +910,7 @@ void GraphicsContextRenderer::draw_markers(
   auto const& n_vertices = vertices.shape(0);
 
   auto const& marker_matrix = matrix_from_transform(marker_transform);
-  auto const& matrix =
+  auto const& mtx =
     matrix_from_transform(transform, get_additional_state().height);
 
   auto const& fc_raw_opt =
@@ -998,7 +999,7 @@ void GraphicsContextRenderer::draw_markers(
     auto worker = [&](cairo_t* ctx, int start, int stop) {
       for (auto i = start; i < stop; ++i) {
         auto x = vertices(i, 0), y = vertices(i, 1);
-        cairo_matrix_transform_point(&matrix, &x, &y);
+        cairo_matrix_transform_point(&mtx, &x, &y);
         auto const& target_x = x + x0,
                   & target_y = y + y0;
         if (!(std::isfinite(target_x) && std::isfinite(target_y))) {
@@ -1011,7 +1012,7 @@ void GraphicsContextRenderer::draw_markers(
         auto const& idx =
           int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
         auto const& pattern = patterns[idx];
-        // Offsetting by height is already taken care of by matrix.
+        // Offsetting by height is already taken care of by mtx.
         auto const& pattern_matrix =
           cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
         cairo_pattern_set_matrix(pattern, &pattern_matrix);
@@ -1068,7 +1069,7 @@ void GraphicsContextRenderer::draw_markers(
     cairo_surface_flush(surface);
     for (auto i = 0; i < n_vertices; ++i) {
       auto x = vertices(i, 0), y = vertices(i, 1);
-      cairo_matrix_transform_point(&matrix, &x, &y);
+      cairo_matrix_transform_point(&mtx, &x, &y);
       if (!(std::isfinite(x) && std::isfinite(y))) {
         continue;
       }
@@ -1082,7 +1083,7 @@ void GraphicsContextRenderer::draw_markers(
     for (auto i = 0; i < n_vertices; ++i) {
       cairo_save(cr_);
       auto x = vertices(i, 0), y = vertices(i, 1);
-      cairo_matrix_transform_point(&matrix, &x, &y);
+      cairo_matrix_transform_point(&mtx, &x, &y);
       if (!(std::isfinite(x) && std::isfinite(y))) {
         cairo_restore(cr_);
         continue;
@@ -1104,11 +1105,10 @@ void GraphicsContextRenderer::draw_path(
   }
   auto const& ac = _additional_context();
   auto path_loaded = false;
-  auto matrix =
-    matrix_from_transform(transform, get_additional_state().height);
+  auto mtx = matrix_from_transform(transform, get_additional_state().height);
   auto const& load_path = [&] {
     if (!path_loaded) {
-      load_path_exact(cr_, path, &matrix);
+      load_path_exact(cr_, path, &mtx);
       path_loaded = true;
     }
   };
@@ -1116,7 +1116,7 @@ void GraphicsContextRenderer::draw_path(
     path =
       path.attr("cleaned")(
         "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
-    matrix = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
+    mtx = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
   }
   if (fc) {
     load_path();
@@ -1140,11 +1140,11 @@ void GraphicsContextRenderer::draw_path(
       hatch_cr, double(dpi), double(dpi), double(dpi)};
     hatch_gcr.get_additional_state().snap = false;
     hatch_gcr.set_linewidth(get_additional_state().get_hatch_linewidth());
-    auto const& matrix =
+    auto const& mtx =
       cairo_matrix_t{double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
     auto const& hatch_color = get_additional_state().get_hatch_color();
     fill_and_stroke_exact(
-      hatch_cr, *hatch_path, &matrix, hatch_color, hatch_color);
+      hatch_cr, *hatch_path, &mtx, hatch_color, hatch_color);
     auto const& hatch_pattern =
       cairo_pattern_create_for_surface(cairo_get_target(hatch_cr));
     cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
@@ -1163,8 +1163,7 @@ void GraphicsContextRenderer::draw_path(
     auto const& vertices = path.attr("vertices").cast<py::array_t<double>>();
     auto const& n = vertices.shape(0);
     for (auto i = decltype(n)(0); i < n; i += chunksize) {
-      load_path_exact(
-        cr_, vertices, i, std::min(i + chunksize + 1, n), &matrix);
+      load_path_exact(cr_, vertices, i, std::min(i + chunksize + 1, n), &mtx);
       cairo_stroke(cr_);
     }
   }
@@ -1270,7 +1269,7 @@ void GraphicsContextRenderer::draw_path_collection(
   // FIXME: Implement parallelization.
   for (auto i = 0; i < n; ++i) {
     auto const& path = paths[i % n_paths];
-    auto const& matrix = matrices[i % n_transforms];
+    auto const& mtx = matrices[i % n_transforms];
     auto x = offsets_raw(i % n_offsets, 0), y = offsets_raw(i % n_offsets, 1);
     cairo_matrix_transform_point(&offset_matrix, &x, &y);
     if (!(std::isfinite(x) && std::isfinite(y))) {
@@ -1281,7 +1280,7 @@ void GraphicsContextRenderer::draw_path_collection(
       cairo_set_source_rgba(
         cr_, fcs_raw(i_mod, 0), fcs_raw(i_mod, 1),
              fcs_raw(i_mod, 2), fcs_raw(i_mod, 3));
-      cache.mask(cr_, path, matrix, draw_func_t::Fill, 0, {}, x, y);
+      cache.mask(cr_, path, mtx, draw_func_t::Fill, 0, {}, x, y);
     }
     if (ecs_raw.size()) {
       auto const& i_mod = i % ecs_raw.shape(0);
@@ -1292,7 +1291,7 @@ void GraphicsContextRenderer::draw_path_collection(
         ? points_to_pixels(lws_raw[i % lws_raw.size()])
         : cairo_get_line_width(cr_);
       auto const& dash = dashes_raw[i % n_dashes];
-      cache.mask(cr_, path, matrix, draw_func_t::Stroke, lw, dash, x, y);
+      cache.mask(cr_, path, mtx, draw_func_t::Stroke, lw, dash, x, y);
     }
     // NOTE: We drop antialiaseds because that just seems silly.
     // We drop urls as they should be handled in a post-processing step anyways
@@ -1325,7 +1324,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
   auto const& ac = _additional_context();
-  auto const& matrix =
+  auto const& mtx =
     matrix_from_transform(master_transform, get_additional_state().height);
   auto const& fcs_raw = fcs.unchecked<2>(),
             & ecs_raw = ecs.unchecked<2>();
@@ -1353,7 +1352,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
   for (auto i = 0; i < mesh_height + 1; ++i) {
     for (auto j = 0; j < mesh_width + 1; ++j) {
       cairo_matrix_transform_point(
-        &matrix,
+        &mtx,
         coords_raw.mutable_data(i, j, 0), coords_raw.mutable_data(i, j, 1));
     }
   }
