@@ -20,8 +20,14 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, _mpl_gtk.FigureCanvas):
         surface = \
             self.get_renderer(_ensure_drawn=True)._get_context().get_target()
         surface.flush()
+        scale = self.device_pixel_ratio
+        prev_scale = surface.get_device_scale()
+        surface.set_device_scale(scale, scale)
         ctx.set_source_surface(surface, 0, 0)
         ctx.paint()
+        # Restoring the device scale is necessary because the surface may later
+        # get reused via the renderer cache.
+        surface.set_device_scale(*prev_scale)
 
     def blit(self, bbox=None):  # FIXME: flickering.
         super().blit(bbox=bbox)
