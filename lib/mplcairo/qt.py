@@ -2,7 +2,7 @@ import ctypes
 
 # This does support QT_API=pyqt6 on Matplotlib versions that can handle it.
 from matplotlib.backends.backend_qt5 import _BackendQT5, FigureCanvasQT
-from matplotlib.backends.qt_compat import QtGui
+from matplotlib.backends.qt_compat import QtCore, QtGui
 
 from . import _util
 from .base import FigureCanvasCairo
@@ -31,8 +31,9 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
             ptr, width, height, QtGui.QImage.Format(6))  # ARGB32_Premultiplied
         getattr(qimage, "setDevicePixelRatio", lambda _: None)(
             self.device_pixel_ratio)
-        # FIXME[PySide{,2}]: https://bugreports.qt.io/browse/PYSIDE-140
-        if QtGui.__name__.startswith("PySide"):
+        # https://bugreports.qt.io/browse/PYSIDE-140
+        if (QtCore.__name__.startswith("PySide")
+                and QtCore.__version_info__ < (5, 12)):
             ctypes.c_long.from_address(id(buf)).value -= 1
         painter = QtGui.QPainter(self)
         painter.eraseRect(self.rect())
