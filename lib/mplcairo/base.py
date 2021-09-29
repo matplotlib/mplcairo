@@ -87,7 +87,7 @@ class GraphicsContextRendererCairo(
 
     @classmethod
     def _for_fmt_output(cls, fmt, stream, width, height, dpi):
-        if cbook.file_requires_unicode(stream):
+        if stream is not None and cbook.file_requires_unicode(stream):
             if fmt in [_StreamSurfaceType.PS, _StreamSurfaceType.EPS]:
                 # PS is (typically) ASCII -- Language Reference, section 3.2.
                 stream = _BytesWritingWrapper(stream, "ascii")
@@ -266,7 +266,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     def get_renderer(self, *, _ensure_cleared=False, _ensure_drawn=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
-            self.figure.bbox.width, self.figure.bbox.height, self.figure.dpi,
+            *self.figure.bbox.size, self.figure.dpi,
             _ensure_cleared=_ensure_cleared, _ensure_drawn=_ensure_drawn)
 
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
@@ -291,9 +291,9 @@ class FigureCanvasCairo(FigureCanvasBase):
         _check_print_extra_kwargs(**kwargs)
         dpi = self.figure.get_dpi()
         self.figure.set_dpi(72)
+        draw_raises_done = False
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
-            renderer = renderer_factory(
-                stream, self.figure.bbox.width, self.figure.bbox.height, dpi)
+            renderer = renderer_factory(stream, *self.figure.bbox.size, dpi)
             try:
                 # Setting invalid metadata can also throw, in which case the
                 # rendered needs to be _finish()ed (to avoid later writing to a
@@ -301,24 +301,25 @@ class FigureCanvasCairo(FigureCanvasBase):
                 renderer._set_metadata(metadata)
                 with _LOCK:
                     self.figure.draw(renderer)
+            except Exception as exc:
+                draw_raises_done = type(exc).__name__ == "Done"
+                raise
             finally:
-                # When using bbox_inches = "tight", an additional renderer is
-                # created to measure the figure bbox, but drawing on that
-                # renderer must be disabled now.  Otherwise, when it gets gc'd
-                # at shutdown, cairo's attempt to finalize() the surface will
-                # segfault due to already torn down structures.  (This is only
-                # needed on Matplotlib 3.2.0; earlier versions used a different
-                # approach ("dryrun") and later versions already perform the
-                # disabling.)  See also matplotlib#16731, or repro with
-                #    plot(); savefig("/tmp/test.pdf", bbox_inches="tight")
-                # Alternatively, one could call gc.collect() after print_figure
-                # to gc the renderer earlier, but that is very slow.
-                for name in dir(RendererBase):
-                    if name.startswith("draw_"):
-                        setattr(renderer, name, lambda *args, **kwargs: None)
                 # _finish() corresponds finalize() in Matplotlib's PDF and SVG
-                # backends; it is inlined in Matplotlib's PS backend.
+                # backends; it is inlined in Matplotlib's PS backend.  It must
+                # be explicitly called here (bounding the lifetime of the
+                # renderer) as cairo defers some draws, but we must force them
+                # to be done before closing the stream.
                 renderer._finish()
+        # ... but sometimes, Matplotlib *wants* a renderer to outlast the
+        # stream's lifetime, specifically to measure text extents.  This
+        # is done on Matplotlib's side by making Figure.draw throw a Done
+        # exception.  We catch that exception and swap in a no-write renderer
+        # (stream = None) in that case.
+        if draw_raises_done:
+            renderer = renderer_factory(None, *self.figure.bbox.size, dpi)
+            with _LOCK:
+                self.figure.draw(renderer)
 
     print_pdf = partialmethod(
         _print_vector, GraphicsContextRendererCairo._for_pdf_output)

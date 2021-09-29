@@ -351,7 +351,7 @@ GraphicsContextRenderer::GraphicsContextRenderer(
 {}
 
 cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
-  StreamSurfaceType type, py::object file,
+  StreamSurfaceType type, std::optional<py::object> file,
   double width, double height, double dpi)
 {
   auto surface_create_for_stream =
@@ -385,17 +385,21 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
       "cairo was built without {.name} support"_format(type)
       .cast<std::string>()};
   }
-  auto const& cb =
-    [](void* closure, unsigned char const* data, unsigned int length)
-       -> cairo_status_t {
-      auto const& write =
-        py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
-      auto const& written =
-        write(py::memoryview::from_memory(data, length)).cast<unsigned int>();
-      return  // NOTE: This does not appear to affect the context status.
-        written == length ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
-    };
-  auto const& write = file.attr("write");
+  auto const& cb = file
+    ? cairo_write_func_t{
+      [](void* closure, unsigned char const* data, unsigned int length)
+        -> cairo_status_t {
+          auto const& write =
+            py::reinterpret_borrow<py::object>(static_cast<PyObject*>(closure));
+          auto const& written =
+            write(py::memoryview::from_memory(data, length)).cast<unsigned int>();
+          return  // NOTE: This does not appear to affect the context status.
+            written == length ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_WRITE_ERROR;
+        }}
+    : nullptr;
+  py::object write =
+    // TODO: Why does py::none() not work here?
+    file ? file->attr("write") : py::reinterpret_borrow<py::object>(Py_None);
 
   auto const& surface =
     surface_create_for_stream(cb, write.ptr(), width, height);
@@ -416,7 +420,7 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
 }
 
 GraphicsContextRenderer::GraphicsContextRenderer(
-  StreamSurfaceType type, py::object file,
+  StreamSurfaceType type, std::optional<py::object> file,
   double width, double height, double dpi) :
   GraphicsContextRenderer{
     cr_from_fileformat_args(type, file, width, height, dpi), width, height, 72}
@@ -2078,8 +2082,10 @@ Only intended for debugging purposes.
     // The RendererAgg signature, which is also expected by MixedModeRenderer
     // (with doubles!).
     .def(py::init<double, double, double>())
-    .def(py::init<py::object, double, double, double, std::tuple<double, double>>())
-    .def(py::init<StreamSurfaceType, py::object, double, double, double>())
+    .def(py::init<
+         py::object, double, double, double, std::tuple<double, double>>())
+    .def(py::init<
+         StreamSurfaceType, std::optional<py::object>, double, double, double>())
     .def(
       py::pickle(
         [](GraphicsContextRenderer const& gcr) -> py::tuple {
