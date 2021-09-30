@@ -472,6 +472,7 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
         if (!detail::cairo_pdf_surface_set_metadata) {
           py::module::import("warnings").attr("warn")(
             "cairo_pdf_surface_set_metadata requires cairo>=1.15.4");
+          break;
         }
         auto const& key = it.first.cast<std::string>();
         if (key == "Title") {
