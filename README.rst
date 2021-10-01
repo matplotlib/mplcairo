@@ -34,8 +34,6 @@ Noteworthy points include:
 
 - Improved accuracy (e.g., with marker positioning, quad meshes, and text
   kerning; floating point surfaces are supported with cairo≥1.17.2).
-- Improved font embedding in vector formats (fonts are typically subsetted and
-  embedded in their native format).
 - Optional support for complex text layout (right-to-left languages, etc.) and
   OpenType font features (see `examples/opentype_features.py`_), and partial
   support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm
@@ -45,6 +43,9 @@ Noteworthy points include:
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
   multi-page PDF).
 - Support for custom blend modes (see `examples/operators.py`_).
+- Improved font embedding in vector formats: fonts are typically subsetted and
+  embedded in their native format (Matplotlib≥3.5 also provides improved font
+  embedding).
 
 .. _cairo: https://www.cairographics.org/
 .. _Matplotlib: http://matplotlib.org/
@@ -470,12 +471,6 @@ The syntaxes for selecting TTC subfonts and OpenType font features are
 Matplotlib itself.
 
 Color fonts (e.g. emojis) are handled.
-
-Note that Matplotlib's (default) Agg backend will handle most single-face
-monochrome fonts equally well (ultimately, both backends relies on FreeType for
-rasterization).  It is Matplotlib's vector backends (PS, PDF, and, for pfb
-fonts, SVG) that do not support these fonts, whereas mplcairo support these
-fonts in all output formats.
 
 Multi-page output
 -----------------
