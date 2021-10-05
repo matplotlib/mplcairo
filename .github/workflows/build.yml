@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
-        python-version: ["3.7", "3.8", "3.9"]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,9 +53,8 @@ jobs:
 
         python -mpip install dist/*.whl &&
         python tools/ensure-mpl-test-data.py &&
-        # pytest 6.2 is incompatible with matplotlib<3.4
         # pytest-{instafail,timeout} useful for hanging tests.
-        python -mpip install 'pytest<6.2' pytest-instafail pytest-timeout
+        python -mpip install pytest pytest-instafail pytest-timeout
     - name: Test
       shell: bash
       run: |

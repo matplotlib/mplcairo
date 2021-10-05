@@ -14,6 +14,7 @@ template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 namespace mplcairo {
 
 namespace py = pybind11;
+using ssize_t = Py_ssize_t;
 
 namespace detail {
 

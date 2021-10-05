@@ -7,7 +7,6 @@ Matplotlib's agg backend.
 """
 
 from argparse import ArgumentParser
-from distutils.version import LooseVersion
 import os
 from pathlib import Path
 import sys
@@ -20,6 +19,8 @@ import mplcairo.base  # Need to come before matplotlib import on macOS.
 import matplotlib as mpl
 import matplotlib.backends.backend_agg
 import matplotlib.testing.decorators
+
+from packaging.version import parse as parse_version
 
 import pytest
 
@@ -194,7 +195,7 @@ def pytest_collection_modifyitems(session, config, items):
         ]
         for nodeid in nodeids
     }
-    if LooseVersion(mpl.__version__) < "3.0":
+    if parse_version(mpl.__version__) < parse_version("3.0"):
         module_markers.update({
             "matplotlib.sphinxext.test_tinypages": irrelevant,  # matplotlib#11360.
         })
