@@ -1,5 +1,6 @@
 import functools
 import importlib
+import os
 import sys
 
 import matplotlib as mpl
@@ -18,6 +19,8 @@ def get_matplotlib_gtk_backend():
         versions = [4]
     elif required == "3.0":
         versions = [3]
+    elif os.environ.get("_GTK_API"):  # Private undocumented API.
+        versions = [int(os.environ["_GTK_API"])]
     else:
         versions = [4, 3]
     for version in versions:
