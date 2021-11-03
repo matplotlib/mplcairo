@@ -31,6 +31,7 @@ Noteworthy points include:
 
 - Improved accuracy (e.g., with marker positioning, quad meshes, and text
   kerning; floating point surfaces are supported with cairo≥1.17.2).
+- Optional multithreaded drawing of markers and path collections.
 - Optional support for complex text layout (right-to-left languages, etc.) and
   OpenType font features (see `examples/opentype_features.py`_), and partial
   support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm

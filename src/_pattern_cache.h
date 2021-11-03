@@ -17,7 +17,7 @@ enum class draw_func_t {
 
 class PatternCache {
   struct CacheKey {
-    py::object path;
+    py::handle path;
     cairo_matrix_t matrix;
     draw_func_t draw_func;
     double linewidth;
@@ -28,7 +28,7 @@ class PatternCache {
     void draw(cairo_t* cr, double x, double y, rgba_t color={0, 0, 0, 1});
   };
   struct Hash {
-    size_t operator()(py::object const& path) const;
+    size_t operator()(py::handle const& path) const;
     size_t operator()(CacheKey const& key) const;
   };
   struct EqualTo {
@@ -44,7 +44,7 @@ class PatternCache {
   double threshold_;
   size_t n_subpix_;
   // Bounds of the non-transformed path.
-  std::unordered_map<py::object, cairo_rectangle_t, Hash> bboxes_;
+  std::unordered_map<py::handle, cairo_rectangle_t, Hash> bboxes_;
   // Bounds of the transformed path, and patterns.
   std::unordered_map<CacheKey, PatternEntry, Hash, EqualTo> patterns_;
 
@@ -52,7 +52,7 @@ class PatternCache {
   PatternCache(double threshold);
   ~PatternCache();
   void mask(
-    cairo_t* cr, py::object path, cairo_matrix_t matrix,
+    cairo_t* cr, py::handle path, cairo_matrix_t matrix,
     draw_func_t draw_func, double linewidth, dash_t dash,
     double x, double y);
 };

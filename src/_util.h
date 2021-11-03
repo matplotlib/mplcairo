@@ -78,8 +78,8 @@ extern cairo_user_data_key_t const
 extern py::object RC_PARAMS;
 extern py::object PIXEL_MARKER;
 extern py::object UNIT_CIRCLE;
+extern int COLLECTION_THREADS;
 extern bool FLOAT_SURFACE;
-extern int MARKER_THREADS;
 extern double MITER_LIMIT;
 extern bool DEBUG;
 enum class MplcairoScriptSurface {
@@ -140,12 +140,12 @@ bool has_vector_surface(cairo_t* cr);
 AdditionalState& get_additional_state(cairo_t* cr);
 void restore_init_matrix(cairo_t* cr);
 void load_path_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t const* matrix);
+  cairo_t* cr, py::handle path, cairo_matrix_t const* matrix);
 void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices, ssize_t start, ssize_t stop,
   cairo_matrix_t const* matrix);
 void fill_and_stroke_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t const* matrix,
+  cairo_t* cr, py::handle path, cairo_matrix_t const* matrix,
   std::optional<rgba_t> fill, std::optional<rgba_t> stroke);
 py::array image_surface_to_buffer(cairo_surface_t* surface);
 cairo_font_face_t* font_face_from_path(std::string path);

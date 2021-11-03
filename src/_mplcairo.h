@@ -111,6 +111,11 @@ class GraphicsContextRenderer {
   void draw_image(
     GraphicsContextRenderer& gc,
     double x, double y, py::array_t<uint8_t> im);
+  void draw_path(
+    GraphicsContextRenderer& gc,
+    py::object path,
+    py::object transform,
+    std::optional<py::object> fc);
   void draw_markers(
     GraphicsContextRenderer& gc,
     py::object marker_path,
@@ -118,15 +123,10 @@ class GraphicsContextRenderer {
     py::object path,
     py::object transform,
     std::optional<py::object> fc);
-  void draw_path(
-    GraphicsContextRenderer& gc,
-    py::object path,
-    py::object transform,
-    std::optional<py::object> fc);
   void draw_path_collection(
     GraphicsContextRenderer& gc,
     py::object master_transform,
-    std::vector<py::object> paths,
+    std::vector<py::handle> paths,
     std::vector<py::object> all_transforms,
     py::array_t<double> offsets,
     py::object offset_transform,

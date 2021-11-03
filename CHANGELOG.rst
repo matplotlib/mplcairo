@@ -5,6 +5,8 @@ next
 - Bumped supported raqm versions to ≥0.7.
 - Support Qt6 and GTK4.
 - Support HiDPI on GTK (it was already supported on Qt).
+- ``marker_threads`` option renamed to ``collection_threads``; and now also
+  affects ``draw_path_collection``.
 
 v0.4
 ====

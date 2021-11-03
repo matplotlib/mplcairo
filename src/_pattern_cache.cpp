@@ -54,7 +54,7 @@ void PatternCache::CacheKey::draw(
   }
 }
 
-size_t PatternCache::Hash::operator()(py::object const& path) const
+size_t PatternCache::Hash::operator()(py::handle const& path) const
 {
   return std::hash<void*>{}(path.ptr());
 }
@@ -114,7 +114,7 @@ PatternCache::~PatternCache()
 
 void PatternCache::mask(
   cairo_t* cr,
-  py::object path,
+  py::handle path,
   cairo_matrix_t matrix,
   draw_func_t draw_func,
   double linewidth,

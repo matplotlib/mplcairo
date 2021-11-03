@@ -54,8 +54,8 @@ cairo_user_data_key_t const REFS_KEY{},
 py::object RC_PARAMS{},
            PIXEL_MARKER{},
            UNIT_CIRCLE{};
+int COLLECTION_THREADS{};
 bool FLOAT_SURFACE{};
-int MARKER_THREADS{};
 double MITER_LIMIT{10.};
 bool DEBUG{};
 MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{[] {
@@ -261,8 +261,10 @@ struct LoadPathContext {
 
 // This overload implements the general case.
 void load_path_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t const* matrix)
+  cairo_t* cr, py::handle path, cairo_matrix_t const* matrix)
 {
+  auto const& gil = py::gil_scoped_acquire{};
+
   auto const& min = double(-(1 << 22)), max = double(1 << 22);
   auto const& lpc = LoadPathContext{cr};
 
@@ -411,6 +413,8 @@ void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices_keepref,
   ssize_t start, ssize_t stop, cairo_matrix_t const* matrix)
 {
+  auto const& gil = py::gil_scoped_acquire{};
+
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto const& lpc = LoadPathContext{cr};
 
@@ -541,7 +545,7 @@ void load_path_exact(
 // Fill and/or stroke `path` onto `cr` after transformation by `matrix`,
 // ignoring the CTM ("exact").
 void fill_and_stroke_exact(
-  cairo_t* cr, py::object path, cairo_matrix_t const* matrix,
+  cairo_t* cr, py::handle path, cairo_matrix_t const* matrix,
   std::optional<rgba_t> fill, std::optional<rgba_t> stroke)
 {
   cairo_save(cr);

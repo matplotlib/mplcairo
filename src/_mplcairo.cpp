@@ -893,6 +893,119 @@ void GraphicsContextRenderer::draw_image(
   cairo_paint(cr_);
 }
 
+void GraphicsContextRenderer::draw_path(
+  GraphicsContextRenderer& gc,
+  py::object path,
+  py::object transform,
+  std::optional<py::object> fc)
+{
+  if (&gc != this) {
+    throw std::invalid_argument{"non-matching GraphicsContext"};
+  }
+  auto const& ac = _additional_context();
+  auto path_loaded = false;
+  auto mtx = matrix_from_transform(transform, get_additional_state().height);
+  auto const& load_path = [&] {
+    if (!path_loaded) {
+      load_path_exact(cr_, path, &mtx);
+      path_loaded = true;
+    }
+  };
+  if (auto const& sketch = get_additional_state().sketch) {
+    path =
+      path.attr("cleaned")(
+        "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
+    mtx = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
+  }
+  if (fc) {
+    load_path();
+    cairo_save(cr_);
+    auto const& [r, g, b, a] = to_rgba(*fc, get_additional_state().alpha);
+    cairo_set_source_rgba(cr_, r, g, b, a);
+    cairo_fill_preserve(cr_);
+    cairo_restore(cr_);
+  }
+  if (auto const& hatch_path =
+      py::cast(this).attr("get_hatch_path")()
+      .cast<std::optional<py::object>>()) {
+    cairo_save(cr_);
+    auto const& dpi = int(get_additional_state().dpi);  // Truncating is good enough.
+    auto const& hatch_surface =
+      cairo_surface_create_similar(
+        cairo_get_target(cr_), CAIRO_CONTENT_COLOR_ALPHA, dpi, dpi);
+    auto const& hatch_cr = cairo_create(hatch_surface);
+    cairo_surface_destroy(hatch_surface);
+    auto hatch_gcr = GraphicsContextRenderer{
+      hatch_cr, double(dpi), double(dpi), double(dpi)};
+    hatch_gcr.get_additional_state().snap = false;
+    hatch_gcr.set_linewidth(get_additional_state().get_hatch_linewidth());
+    auto const& mtx =
+      cairo_matrix_t{double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
+    auto const& hatch_color = get_additional_state().get_hatch_color();
+    fill_and_stroke_exact(
+      hatch_cr, *hatch_path, &mtx, hatch_color, hatch_color);
+    auto const& hatch_pattern =
+      cairo_pattern_create_for_surface(cairo_get_target(hatch_cr));
+    cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
+    cairo_set_source(cr_, hatch_pattern);
+    cairo_pattern_destroy(hatch_pattern);
+    load_path();
+    cairo_clip_preserve(cr_);
+    cairo_paint(cr_);
+    cairo_restore(cr_);
+  }
+  auto const& chunksize = rc_param("agg.path.chunksize").cast<int>();
+  if (path_loaded || !chunksize || !path.attr("codes").is_none()) {
+    load_path();
+    cairo_stroke(cr_);
+  } else {
+    auto const& vertices = path.attr("vertices").cast<py::array_t<double>>();
+    auto const& n = vertices.shape(0);
+    for (auto i = decltype(n)(0); i < n; i += chunksize) {
+      load_path_exact(cr_, vertices, i, std::min(i + chunksize + 1, n), &mtx);
+      cairo_stroke(cr_);
+    }
+  }
+}
+
+template<typename T>
+void maybe_multithread(cairo_t* cr, int n, T /* lambda */ worker) {
+  if (detail::COLLECTION_THREADS) {
+    auto const& chunk_size =
+      int(std::ceil(double(n) / detail::COLLECTION_THREADS));
+    auto ctxs = std::vector<cairo_t*>{};
+    auto threads = std::vector<std::thread>{};
+    for (auto i = 0; i < detail::COLLECTION_THREADS; ++i) {
+      auto const& surface =
+        cairo_surface_create_similar_image(
+          cairo_get_target(cr), get_cairo_format(),
+          get_additional_state(cr).width, get_additional_state(cr).height);
+      auto const& ctx = cairo_create(surface);
+      cairo_surface_destroy(surface);
+      ctxs.push_back(ctx);
+      threads.emplace_back(
+        worker, ctx, chunk_size * i, std::min<int>(chunk_size * (i + 1), n));
+    }
+    {
+      auto const& nogil = py::gil_scoped_release{};
+      for (auto& thread: threads) {
+        thread.join();
+      }
+    }
+    for (auto const& ctx: ctxs) {
+      auto const& pattern =
+        cairo_pattern_create_for_surface(cairo_get_target(ctx));
+      cairo_destroy(ctx);
+      cairo_set_source(cr, pattern);
+      cairo_pattern_destroy(pattern);
+      cairo_paint(cr);
+    }
+  }
+  else {
+    worker(cr, 0, n);
+  }
+}
+
 void GraphicsContextRenderer::draw_markers(
   GraphicsContextRenderer& gc,
   py::object marker_path,
@@ -1001,7 +1114,7 @@ void GraphicsContextRenderer::draw_markers(
       }
     }
 
-    auto worker = [&](cairo_t* ctx, int start, int stop) {
+    maybe_multithread(cr_, n_vertices, [&](cairo_t* ctx, int start, int stop) {
       for (auto i = start; i < stop; ++i) {
         auto x = vertices(i, 0), y = vertices(i, 1);
         cairo_matrix_transform_point(&mtx, &x, &y);
@@ -1024,39 +1137,7 @@ void GraphicsContextRenderer::draw_markers(
         cairo_set_source(ctx, pattern);
         cairo_paint(ctx);
       }
-    };
-    if (detail::MARKER_THREADS) {
-      auto const& chunk_size =
-        int(std::ceil(double(n_vertices) / detail::MARKER_THREADS));
-      auto ctxs = std::vector<cairo_t*>{};
-      auto threads = std::vector<std::thread>{};
-      for (auto i = 0; i < detail::MARKER_THREADS; ++i) {
-        auto const& surface =
-          cairo_surface_create_similar_image(
-            cairo_get_target(cr_), get_cairo_format(),
-            get_additional_state().width, get_additional_state().height);
-        auto const& ctx = cairo_create(surface);
-        cairo_surface_destroy(surface);
-        ctxs.push_back(ctx);
-        threads.emplace_back(
-          worker, ctx,
-          chunk_size * i, std::min<int>(chunk_size * (i + 1), n_vertices));
-      }
-      for (auto& thread: threads) {
-        thread.join();
-      }
-      for (auto const& ctx: ctxs) {
-        auto const& pattern =
-          cairo_pattern_create_for_surface(cairo_get_target(ctx));
-        cairo_destroy(ctx);
-        cairo_set_source(cr_, pattern);
-        cairo_pattern_destroy(pattern);
-        cairo_paint(cr_);
-      }
-    }
-    else {
-      worker(cr_, 0, n_vertices);
-    }
+    });
 
     // Cleanup.
     for (auto i = 0; i < n_subpix * n_subpix; ++i) {
@@ -1099,85 +1180,10 @@ void GraphicsContextRenderer::draw_markers(
   }
 }
 
-void GraphicsContextRenderer::draw_path(
-  GraphicsContextRenderer& gc,
-  py::object path,
-  py::object transform,
-  std::optional<py::object> fc)
-{
-  if (&gc != this) {
-    throw std::invalid_argument{"non-matching GraphicsContext"};
-  }
-  auto const& ac = _additional_context();
-  auto path_loaded = false;
-  auto mtx = matrix_from_transform(transform, get_additional_state().height);
-  auto const& load_path = [&] {
-    if (!path_loaded) {
-      load_path_exact(cr_, path, &mtx);
-      path_loaded = true;
-    }
-  };
-  if (auto const& sketch = get_additional_state().sketch) {
-    path =
-      path.attr("cleaned")(
-        "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
-    mtx = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
-  }
-  if (fc) {
-    load_path();
-    cairo_save(cr_);
-    auto const& [r, g, b, a] = to_rgba(*fc, get_additional_state().alpha);
-    cairo_set_source_rgba(cr_, r, g, b, a);
-    cairo_fill_preserve(cr_);
-    cairo_restore(cr_);
-  }
-  if (auto const& hatch_path =
-      py::cast(this).attr("get_hatch_path")()
-      .cast<std::optional<py::object>>()) {
-    cairo_save(cr_);
-    auto const& dpi = int(get_additional_state().dpi);  // Truncating is good enough.
-    auto const& hatch_surface =
-      cairo_surface_create_similar(
-        cairo_get_target(cr_), CAIRO_CONTENT_COLOR_ALPHA, dpi, dpi);
-    auto const& hatch_cr = cairo_create(hatch_surface);
-    cairo_surface_destroy(hatch_surface);
-    auto hatch_gcr = GraphicsContextRenderer{
-      hatch_cr, double(dpi), double(dpi), double(dpi)};
-    hatch_gcr.get_additional_state().snap = false;
-    hatch_gcr.set_linewidth(get_additional_state().get_hatch_linewidth());
-    auto const& mtx =
-      cairo_matrix_t{double(dpi), 0, 0, -double(dpi), 0, double(dpi)};
-    auto const& hatch_color = get_additional_state().get_hatch_color();
-    fill_and_stroke_exact(
-      hatch_cr, *hatch_path, &mtx, hatch_color, hatch_color);
-    auto const& hatch_pattern =
-      cairo_pattern_create_for_surface(cairo_get_target(hatch_cr));
-    cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
-    cairo_set_source(cr_, hatch_pattern);
-    cairo_pattern_destroy(hatch_pattern);
-    load_path();
-    cairo_clip_preserve(cr_);
-    cairo_paint(cr_);
-    cairo_restore(cr_);
-  }
-  auto const& chunksize = rc_param("agg.path.chunksize").cast<int>();
-  if (path_loaded || !chunksize || !path.attr("codes").is_none()) {
-    load_path();
-    cairo_stroke(cr_);
-  } else {
-    auto const& vertices = path.attr("vertices").cast<py::array_t<double>>();
-    auto const& n = vertices.shape(0);
-    for (auto i = decltype(n)(0); i < n; i += chunksize) {
-      load_path_exact(cr_, vertices, i, std::min(i + chunksize + 1, n), &mtx);
-      cairo_stroke(cr_);
-    }
-  }
-}
-
 void GraphicsContextRenderer::draw_path_collection(
   GraphicsContextRenderer& gc,
   py::object master_transform,
-  std::vector<py::object> paths,
+  std::vector<py::handle> paths,
   std::vector<py::object> transforms,
   py::array_t<double> offsets,
   py::object offset_transform,
@@ -1190,7 +1196,9 @@ void GraphicsContextRenderer::draw_path_collection(
   py::object urls,
   std::string offset_position)
 {
-  // TODO: Persistent cache; cache eviction policy.
+  // TODO: Persistent cache; cache eviction policy.  However, note that
+  // PatternCache currently uses handles rather than object for multithreading
+  // support, which means that key lifetimes are tied to the *paths* argument.
 
   // Fall back onto the slow implementation in the following, non-supported
   // cases:
@@ -1270,44 +1278,57 @@ void GraphicsContextRenderer::draw_path_collection(
   auto const& simplify_threshold =
     has_vector_surface(cr_)
     ? 0 : rc_param("path.simplify_threshold").cast<double>();
-  auto cache = PatternCache{simplify_threshold};
-  // FIXME: Implement parallelization.
-  for (auto i = 0; i < n; ++i) {
-    auto const& path = paths[i % n_paths];
-    auto const& mtx = matrices[i % n_transforms];
-    auto x = offsets_raw(i % n_offsets, 0), y = offsets_raw(i % n_offsets, 1);
-    cairo_matrix_transform_point(&offset_matrix, &x, &y);
-    if (!(std::isfinite(x) && std::isfinite(y))) {
-      continue;
+  auto points_to_pixels_factor = get_additional_state().dpi / 72;
+
+  maybe_multithread(cr_, n, [&](cairo_t* ctx, int start, int stop) {
+    if (ctx != cr_) {
+      CAIRO_CHECK_SET_USER_DATA(
+        cairo_set_user_data, ctx, &detail::STATE_KEY,
+        (new std::stack<AdditionalState>{{get_additional_state()}}),
+        [](void* data) -> void {
+          // Just calling operator delete would not invoke the destructor.
+          delete static_cast<std::stack<AdditionalState>*>(data);
+        });
     }
-    if (fcs_raw.shape(0)) {
-      auto const& i_mod = i % fcs_raw.shape(0);
-      cairo_set_source_rgba(
-        cr_, fcs_raw(i_mod, 0), fcs_raw(i_mod, 1),
-             fcs_raw(i_mod, 2), fcs_raw(i_mod, 3));
-      cache.mask(cr_, path, mtx, draw_func_t::Fill, 0, {}, x, y);
+    auto cache = PatternCache{simplify_threshold};
+    for (auto i = start; i < stop; ++i) {
+      auto const& path = paths[i % n_paths];
+      auto const& mtx = matrices[i % n_transforms];
+      auto x = offsets_raw(i % n_offsets, 0),
+           y = offsets_raw(i % n_offsets, 1);
+      cairo_matrix_transform_point(&offset_matrix, &x, &y);
+      if (!(std::isfinite(x) && std::isfinite(y))) {
+        continue;
+      }
+      if (fcs_raw.shape(0)) {
+        auto const& i_mod = i % fcs_raw.shape(0);
+        cairo_set_source_rgba(
+          ctx, fcs_raw(i_mod, 0), fcs_raw(i_mod, 1),
+               fcs_raw(i_mod, 2), fcs_raw(i_mod, 3));
+        cache.mask(ctx, path, mtx, draw_func_t::Fill, 0, {}, x, y);
+      }
+      if (ecs_raw.size()) {
+        auto const& i_mod = i % ecs_raw.shape(0);
+        cairo_set_source_rgba(
+          ctx, ecs_raw(i_mod, 0), ecs_raw(i_mod, 1),
+               ecs_raw(i_mod, 2), ecs_raw(i_mod, 3));
+        auto const& lw = lws_raw.size()
+          ? points_to_pixels_factor * lws_raw[i % lws_raw.size()]
+          : cairo_get_line_width(ctx);
+        auto const& dash = dashes_raw[i % n_dashes];
+        cache.mask(ctx, path, mtx, draw_func_t::Stroke, lw, dash, x, y);
+      }
+      // NOTE: We drop antialiaseds because that just seems silly.
+      // We drop urls as they should be handled in a post-processing step
+      // anyways (cairo doesn't seem to support them?).
     }
-    if (ecs_raw.size()) {
-      auto const& i_mod = i % ecs_raw.shape(0);
-      cairo_set_source_rgba(
-        cr_, ecs_raw(i_mod, 0), ecs_raw(i_mod, 1),
-             ecs_raw(i_mod, 2), ecs_raw(i_mod, 3));
-      auto const& lw = lws_raw.size()
-        ? points_to_pixels(lws_raw[i % lws_raw.size()])
-        : cairo_get_line_width(cr_);
-      auto const& dash = dashes_raw[i % n_dashes];
-      cache.mask(cr_, path, mtx, draw_func_t::Stroke, lw, dash, x, y);
-    }
-    // NOTE: We drop antialiaseds because that just seems silly.
-    // We drop urls as they should be handled in a post-processing step anyways
-    // (cairo doesn't seem to support them?).
-  }
+  });
 
   get_additional_state().snap = old_snap;
 }
 
 // While draw_quad_mesh is technically optional, the fallback is to use
-// draw_path_collections, which creates artefacts at the junctions due to
+// draw_path_collection, which creates artefacts at the junctions due to
 // stamping.
 // The spec for this method is overly general; it is only used by the QuadMesh
 // class, which does not provide a way to set its offsets (or per-quad
@@ -1948,8 +1969,8 @@ PYBIND11_MODULE(_mplcairo, m)
         }
         detail::FLOAT_SURFACE = *float_surface;
       }
-      if (auto const& marker_threads = pop_option("marker_threads", int{})) {
-        detail::MARKER_THREADS = *marker_threads;
+      if (auto const& threads = pop_option("collection_threads", int{})) {
+        detail::COLLECTION_THREADS = *threads;
       }
       if (auto const& miter_limit = pop_option("miter_limit", double{})) {
         detail::MITER_LIMIT = *miter_limit;
@@ -1985,12 +2006,12 @@ cairo_circles : bool, default: True
     Whether to use cairo's circle drawing algorithm, rather than Matplotlib's
     fixed spline approximation.
 
+collection_threads : int, default: 0
+    Number of threads to use to render markers and collections, if nonzero.
+
 float_surface : bool, default: False
     Whether to use a floating point surface (more accurate, but uses more
     memory).
-
-marker_threads : int, default: 0
-    Number of threads to use to render markers, if nonzero.
 
 miter_limit : float, default: 10
     Setting for cairo_set_miter_limit__.  If negative, use Matplotlib's (bad)
@@ -2009,8 +2030,8 @@ _debug: bool, default: False
     "get_options", [] {
       return py::dict(
         "cairo_circles"_a=bool(detail::UNIT_CIRCLE),
+        "collection_threads"_a=detail::COLLECTION_THREADS,
         "float_surface"_a=detail::FLOAT_SURFACE,
-        "marker_threads"_a=detail::MARKER_THREADS,
         "miter_limit"_a=detail::MITER_LIMIT,
         "raqm"_a=has_raqm(),
         "_debug"_a=detail::DEBUG);
@@ -2236,11 +2257,11 @@ Only intended for debugging purposes.
     .def("draw_gouraud_triangles",
          &GraphicsContextRenderer::draw_gouraud_triangles)
     .def("draw_image", &GraphicsContextRenderer::draw_image)
+    .def("draw_path", &GraphicsContextRenderer::draw_path,
+         "gc"_a, "path"_a, "transform"_a, "rgbFace"_a=nullptr)
     .def("draw_markers", &GraphicsContextRenderer::draw_markers,
          "gc"_a, "marker_path"_a, "marker_trans"_a, "path"_a, "trans"_a,
          "rgbFace"_a=nullptr)
-    .def("draw_path", &GraphicsContextRenderer::draw_path,
-         "gc"_a, "path"_a, "transform"_a, "rgbFace"_a=nullptr)
     .def("draw_path_collection",
          &GraphicsContextRenderer::draw_path_collection)
     .def("draw_quad_mesh", &GraphicsContextRenderer::draw_quad_mesh)
