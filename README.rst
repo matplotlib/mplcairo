@@ -35,7 +35,7 @@ Noteworthy points include:
 - Optional support for complex text layout (right-to-left languages, etc.) and
   OpenType font features (see `examples/opentype_features.py`_), and partial
   support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm
-  depends on Fribidi, which is licensed under the LGPLv2.1+.
+  depends by default on Fribidi, which is licensed under the LGPLv2.1+.
 - Support for embedding URLs in PDF (but not SVG) output (requires
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
