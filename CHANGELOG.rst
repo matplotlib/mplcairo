@@ -2,7 +2,7 @@ next
 ====
 
 - Fixed support for Matplotlib 3.5.
-- Bumped supported raqm versions to ≥0.7.
+- Bumped supported raqm versions to ≥0.7; fixed integration with raqm 0.7.2.
 - Support Qt6 and GTK4.
 - Support HiDPI on GTK (it was already supported on Qt).
 - ``marker_threads`` option renamed to ``collection_threads``; and now also

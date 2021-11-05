@@ -1454,11 +1454,6 @@ void GraphicsContextRenderer::draw_text(
       .attr("_mathtext_parse")(s, get_additional_state().dpi, prop)
       .cast<MathtextBackend>()._draw(*this, x, y, angle);
   } else {
-    // Need to set the current point (otherwise later texts will just follow,
-    // regardless of cairo_translate).
-    cairo_translate(cr_, x, y);
-    cairo_rotate(cr_, -angle * std::acos(-1) / 180);
-    cairo_move_to(cr_, 0, 0);
     auto const& font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
     cairo_font_face_destroy(font_face);
@@ -1486,6 +1481,14 @@ void GraphicsContextRenderer::draw_text(
       bytes_pos = next_bytes_pos;
       glyphs_pos = next_glyphs_pos;
     }
+    // Set the current point (otherwise later texts will just follow,
+    // regardless of cairo_translate).  The transformation needs to be
+    // set after the call to text_to_glyphs_and_clusters; otherwise the
+    // rotation shows up in the cairo_scaled_font_t, and, with raqm>=0.7.2 +
+    // freetype>=2.11.0, ends up applied twice.
+    cairo_translate(cr_, x, y);
+    cairo_rotate(cr_, -angle * std::acos(-1) / 180);
+    cairo_move_to(cr_, 0, 0);
     cairo_show_text_glyphs(
       cr_, s.c_str(), s.size(),
       gac.glyphs, gac.num_glyphs,
