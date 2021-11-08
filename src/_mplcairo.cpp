@@ -138,6 +138,13 @@ py::bytes Region::get_straight_argb32_bytes()
   return py::bytes{static_cast<char const*>(buf.ptr), size_t(size)};
 }
 
+py::object renderer_base(std::string meth_name)
+{
+  return
+    py::module::import("matplotlib.backend_bases")
+    .attr("RendererBase").attr(meth_name.c_str());
+}
+
 GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   GraphicsContextRenderer* gcr) :
   gcr_{gcr}
@@ -1205,15 +1212,13 @@ void GraphicsContextRenderer::draw_path_collection(
   // - Hatching is used: the stamp cache cannot be used anymore, as the hatch
   //   positions would be different on every stamp.  (NOTE: Actually it may be
   //   possible to use the hatch as the source and mask it with the pattern.)
-  // - FIXME[matplotlib]: offset_position is set to "data".  This feature
-  //   is only used by hexbin(), and has been deprecated in mpl 3.3 (#13696).
+  // - offset_position is set to "data".  This feature was only used by
+  //   hexbin() and only in mpl<3.3 (#13696).
   if (py::bool_(py::cast(this).attr("get_hatch")())
       || offset_position == "data") {
-    py::module::import("matplotlib.backend_bases")
-      .attr("RendererBase").attr("draw_path_collection")(
-        this, gc, master_transform,
-        paths, transforms, offsets, offset_transform,
-        fcs, ecs, lws, dashes, aas, urls, offset_position);
+    renderer_base("draw_path_collection")(
+      this, gc, master_transform, paths, transforms, offsets, offset_transform,
+      fcs, ecs, lws, dashes, aas, urls, offset_position);
     return;
   }
 
@@ -1332,25 +1337,26 @@ void GraphicsContextRenderer::draw_path_collection(
 // stamping.
 // The spec for this method is overly general; it is only used by the QuadMesh
 // class, which does not provide a way to set its offsets (or per-quad
-// antialiasing), so we just drop them.  The mesh_{width,height} arguments are
-// also redundant with the coordinates shape.
-// FIXME: Check that offset_transform and aas are indeed not set.
+// antialiasing), so we just fall back onto the slow implementation if they are
+// set non-trivially.  The mesh_{width,height} arguments are also redundant
+// with the coordinates shape.
+// FIXME: Check that aas is indeed not set.
 void GraphicsContextRenderer::draw_quad_mesh(
   GraphicsContextRenderer& gc,
   py::object master_transform,
   ssize_t mesh_width, ssize_t mesh_height,
   py::array_t<double> coordinates,
   py::array_t<double> offsets,
-  py::object /* offset_transform */,
+  py::object offset_transform,
   py::array_t<double> fcs,
-  py::object /* aas */,
+  py::object aas,
   py::array_t<double> ecs)
 {
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
   auto const& ac = _additional_context();
-  auto const& mtx =
+  auto mtx =
     matrix_from_transform(master_transform, get_additional_state().height);
   auto const& fcs_raw = fcs.unchecked<2>(),
             & ecs_raw = ecs.unchecked<2>();
@@ -1365,13 +1371,16 @@ void GraphicsContextRenderer::draw_quad_mesh(
       "edgecolors {.shape} do not match"_format(coordinates, fcs, ecs)
       .cast<std::string>()};
   }
-  if (offsets.ndim() != 2
-      || offsets.shape(0) != 1 || offsets.shape(1) != 2
-      || *offsets.data(0, 0) != 0 || *offsets.data(0, 1) != 0) {
-    throw std::invalid_argument{
-      "non-trivial offset\n{}\nis not supported"_format(offsets)
-      .cast<std::string>()};
+  if (offsets.ndim() != 2 || offsets.shape(0) != 1 || offsets.shape(1) != 2) {
+    renderer_base("draw_quad_mesh")(
+      this, master_transform, mesh_height, mesh_width, coordinates,
+      offsets, offset_transform, fcs, aas, ecs);
+    return;
   }
+  auto const& tr_offset =
+    offset_transform.attr("transform")(offsets).cast<py::array_t<double>>();
+  mtx.x0 += tr_offset.at(0, 0),
+  mtx.y0 -= tr_offset.at(0, 1);
   auto coords_raw_keepref =  // Let numpy manage the buffer.
     coordinates.attr("copy")().cast<py::array_t<double>>();
   auto coords_raw = coords_raw_keepref.mutable_unchecked<3>();
@@ -1505,8 +1514,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
   // - "ismath" can be True, False, "TeX" (i.e., usetex).
   if (py_eq(ismath, py::cast("TeX"))) {
     return
-      py::module::import("matplotlib.backend_bases").attr("RendererBase")
-      .attr("get_text_width_height_descent")(this, s, prop, ismath)
+      renderer_base("get_text_width_height_descent")(this, s, prop, ismath)
       .cast<std::tuple<double, double, double>>();
   }
   if (ismath.cast<bool>()) {

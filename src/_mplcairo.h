@@ -19,6 +19,8 @@ struct Region {
   py::bytes get_straight_argb32_bytes();
 };
 
+py::object renderer_base(std::string meth_name);
+
 class GraphicsContextRenderer {
   public:
   cairo_t* const cr_;
