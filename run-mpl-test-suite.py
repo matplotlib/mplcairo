@@ -128,6 +128,15 @@ def pytest_collection_modifyitems(session, config, items):
                 # Precision is lost when roundtripping between straight and
                 # premultiplied alpha.
                 "test_agg.py::test_repeated_save_with_alpha",
+                # Chunking is not disabled by filling/hatching (we just don't
+                # chunk the relevant part), and cairo has no explicit rendering
+                # complexity limit.
+                "test_agg.py::test_chunksize_hatch_fail",
+                "test_agg.py::test_chunksize_rgbFace_fail",
+                "test_agg.py::test_chunksize_no_simplify_fail",
+                "test_agg.py::test_chunksize_zero",
+                "test_agg.py::test_chunksize_too_big_to_chunk",
+                "test_agg.py::test_chunksize_toobig_chunks",
                 # cairo doesn't cull out-of-bound markers.
                 "test_artist.py::test_cull_markers",
                 "test_axes.py::test_get_tightbbox_polar",
@@ -144,6 +153,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_pdf.py::test_savefig_metadata",
                 # cairo doesn't emit HiResBoundingBox.
                 "test_backend_ps.py::test_bbox",
+                # cairo doesn't support setting fonttype.
+                "test_backend_ps.py::test_fonttype[",
                 # We're fine with partial usetex.
                 "test_backend_ps.py::test_partial_usetex",
                 # We do not support writing PS to text-mode streams.
@@ -182,6 +193,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_polar.py::test_get_tightbbox_polar",
                 # cairo does not have an explicit rendering complexity limit.
                 "test_simplification.py::test_throw_rendering_complexity_exceeded",
+                # Complex scripts are supported.
+                "test_text.py::test_unsupported_script",
             ]),
             (textfail, [
                 "test_axes.py::test_gettightbbox_ignoreNaN",
