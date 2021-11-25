@@ -455,6 +455,17 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     print_tif = print_tiff
 
+    def print_webp(self, path_or_stream, *,
+                   dryrun=False, pil_kwargs=None, **kwargs):
+        if pil_kwargs is None:
+            pil_kwargs = {}
+        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
+        _check_print_extra_kwargs(**kwargs)
+        img = self._get_fresh_straight_rgba8888()
+        if dryrun:
+            return
+        Image.fromarray(img).save(path_or_stream, format="webp", **pil_kwargs)
+
 
 @_Backend.export
 class _BackendCairo(_Backend):
