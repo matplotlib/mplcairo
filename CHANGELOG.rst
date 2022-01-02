@@ -8,6 +8,7 @@ next
 - Support HiDPI on GTK (it was already supported on Qt).
 - ``marker_threads`` option renamed to ``collection_threads``; and now also
   affects ``draw_path_collection``.
+- Add HARD_LIGHT operator, which was previously missing.
 
 v0.4
 ====
