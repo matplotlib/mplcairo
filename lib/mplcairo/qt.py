@@ -1,7 +1,11 @@
 import ctypes
 
 # This does support QT_API=pyqt6 on Matplotlib versions that can handle it.
-from matplotlib.backends.backend_qt5 import _BackendQT5, FigureCanvasQT
+try:
+    from matplotlib.backends.backend_qt import _BackendQT, FigureCanvasQT
+except ImportError:
+    from matplotlib.backends.backend_qt5 import (
+        _BackendQT5 as _BackendQT, FigureCanvasQT)
 from matplotlib.backends.qt_compat import QtCore, QtGui
 
 from . import _util
@@ -46,6 +50,6 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         self.repaint(self.rect())
 
 
-@_BackendQT5.export
-class _BackendQT5Cairo(_BackendQT5):
+@_BackendQT.export
+class _BackendQTCairo(_BackendQT):
     FigureCanvas = FigureCanvasQTCairo
