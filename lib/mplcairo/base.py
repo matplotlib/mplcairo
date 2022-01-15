@@ -20,7 +20,6 @@ from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, GraphicsContextBase,
     RendererBase)
 from matplotlib.backends import backend_ps
-from matplotlib.mathtext import MathTextParser
 
 from . import _mplcairo, _util, get_versions
 from ._backports import get_glyph_name
@@ -29,8 +28,6 @@ from ._mplcairo import _StreamSurfaceType
 
 _log = logging.getLogger()
 _LOCK = RLock()  # FreeType2 is thread-unsafe.
-MathTextParser._backend_mapping["mplcairo"] = \
-    _mplcairo.MathtextBackendCairo
 
 
 class _BytesWritingWrapper:
@@ -173,15 +170,15 @@ class GraphicsContextRendererCairo(
                 # :mpltest:`test_backend_svg.test_missing_psfont`.
                 raise ValueError(f"No font file found for {texfont.psname} "
                                  f"({texfont.texname!a})")
-            mb._render_usetex_glyph(
+            mb.add_usetex_glyph(
                 text.x, -text.y,
                 texfont.filename, text.font.size,
                 get_glyph_name(text) or text.glyph,
                 texfont.effects.get("slant", 0),
                 texfont.effects.get("extend", 1))
         for x1, y1, h, w in page.boxes:
-            mb.render_rect_filled(x1, -y1, x1 + w, -(y1 + h))
-        mb._draw(self, x, y, angle)
+            mb.add_rect(x1, -y1, x1 + w, -(y1 + h))
+        mb.draw(self, x, y, angle)
 
     def stop_filter(self, filter_func):
         img = _util.cairo_to_straight_rgba8888(self._stop_filter_get_buffer())

@@ -1460,9 +1460,30 @@ void GraphicsContextRenderer::draw_text(
   }
   auto const& ac = _additional_context();
   if (ismath) {
-    py::module::import("mplcairo")
-      .attr("_mathtext_parse")(s, get_additional_state().dpi, prop)
-      .cast<MathtextBackend>()._draw(*this, x, y, angle);
+    // NOTE: This uses unhinted metrics for parsing/positioning but normal
+    // hinting for rendering, not sure whether this is a problem...
+    auto const& parse =
+      py::cast(this).attr("_text2path").attr("mathtext_parser").attr("parse")(
+        s, get_additional_state().dpi, prop);
+    auto mb = MathtextBackend{};
+    for (auto const& spec: parse.attr("glyphs")) {
+      // We must use the character's unicode index rather than the symbol name,
+      // because the symbol may have been synthesized by
+      // FT2Font::get_glyph_name for a font without FT_FACE_FLAG_GLYPH_NAMES
+      // (e.g. arial.ttf), which FT_Get_Name_Index can't know about.
+      auto const& [font, size, codepoint, ox, oy] =
+        spec.cast<
+          std::tuple<py::object, double, unsigned long, double, double>>();
+      mb.add_glyph(ox, -oy,
+                   font.attr("fname").cast<std::string>(), size,
+                   codepoint);
+    }
+    for (auto const& spec: parse.attr("rects")) {
+      auto const& [x1, hy2, w, h] =
+        spec.cast<std::tuple<double, double, double, double>>();
+      mb.add_rect(x1, -(hy2 + h), x1 + w, -hy2);
+    }
+    mb.draw(*this, x, y, angle);
   } else {
     auto const& font_face = font_face_from_prop(prop);
     cairo_set_font_face(cr_, font_face);
@@ -1513,17 +1534,13 @@ GraphicsContextRenderer::get_text_width_height_descent(
   // - "height" includes "descent", and "descent" is (normally) positive
   // (see MathtextBackendAgg.get_results()).
   // - "ismath" can be True, False, "TeX" (i.e., usetex).
-  if (py_eq(ismath, py::cast("TeX"))) {
+  if (py_eq(ismath, py::cast("TeX")) || ismath.cast<bool>()) {
+    // For the ismath (non-tex) case, the base class uses the path mathtext
+    // backend here, which is also what we use for rendering.  NOTE: For
+    // ismath, Agg reports nonzero descents for seemingly zero-descent cases.
     return
       renderer_base("get_text_width_height_descent")(this, s, prop, ismath)
       .cast<std::tuple<double, double, double>>();
-  }
-  if (ismath.cast<bool>()) {
-    // NOTE: Agg reports nonzero descents for seemingly zero-descent cases.
-    return
-      py::module::import("mplcairo")
-      .attr("_mathtext_parse")(s, get_additional_state().dpi, prop)
-      .cast<MathtextBackend>().get_text_width_height_descent();
   } else {
     cairo_save(cr_);
     auto const& font_face = font_face_from_prop(prop);
@@ -1650,49 +1667,15 @@ MathtextBackend::Glyph::Glyph(
   slant{slant}, extend{extend}
 {}
 
-MathtextBackend::MathtextBackend() :
-  glyphs_{},
-  rectangles_{},
-  bearing_y_{},
-  xmin_{std::numeric_limits<double>::infinity()},
-  ymin_{std::numeric_limits<double>::infinity()},
-  xmax_{-std::numeric_limits<double>::infinity()},
-  ymax_{-std::numeric_limits<double>::infinity()}
-{}
+MathtextBackend::MathtextBackend() : glyphs_{}, rectangles_{} {}
 
-void MathtextBackend::set_canvas_size(
-  double /* width */, double height, double /* depth */)
+void MathtextBackend::add_glyph(
+  double ox, double oy, std::string filename, double size, char32_t codepoint)
 {
-  // "height" does *not* include "descent", and "descent" is (normally)
-  // positive (see MathtextBackendAgg.set_canvas_size()).  This is a different
-  // convention from get_text_width_height_descent()!
-  bearing_y_ = height;
+  glyphs_.emplace_back(filename, size, codepoint, ox, oy);
 }
 
-void MathtextBackend::render_glyph(double ox, double oy, py::object info)
-{
-  // oy is downwards relative to the upper-left canvas origin, but ymin, ymax
-  // are upwards relative to the baseline.
-  auto const& metrics = info.attr("metrics");
-  oy -= info.attr("offset").cast<double>();
-  xmin_ = std::min(xmin_, ox + metrics.attr("xmin").cast<double>());
-  ymin_ = std::min(ymin_, bearing_y_ - oy + metrics.attr("ymin").cast<double>());
-  // TODO: Perhaps use advance here instead?  Keep consistent with
-  // cairo_glyph_extents (which ignores whitespace) in non-mathtext mode.
-  xmax_ = std::max(xmax_, ox + metrics.attr("xmax").cast<double>());
-  ymax_ = std::max(ymax_, bearing_y_ - oy + metrics.attr("ymax").cast<double>());
-  glyphs_.emplace_back(
-    info.attr("font").attr("fname").cast<std::string>(),
-    info.attr("fontsize").cast<double>(),
-    // Here, we must use the character's unicode index rather than the
-    // symbol name, because the symbol may have been synthesized by
-    // FT2Font::get_glyph_name for a font without FT_FACE_FLAG_GLYPH_NAMES
-    // (e.g. arial.ttf), which FT_Get_Name_Index can't know about.
-    char32_t(info.attr("num").cast<unsigned long>()),
-    ox, oy);
-}
-
-void MathtextBackend::_render_usetex_glyph(
+void MathtextBackend::add_usetex_glyph(
   double ox, double oy, std::string filename, double size,
   std::variant<std::string, FT_ULong> name_or_index,
   double slant, double extend)
@@ -1706,30 +1689,13 @@ void MathtextBackend::_render_usetex_glyph(
     filename, size, codepoint_or_name_or_index, ox, oy, slant, extend);
 }
 
-void MathtextBackend::render_rect_filled(
+void MathtextBackend::add_rect(
   double x1, double y1, double x2, double y2)
 {
-  xmin_ = std::min(xmin_, x1);
-  ymin_ = std::min(ymin_, y1);
-  xmax_ = std::max(xmax_, x2);
-  ymax_ = std::max(ymax_, y2);
   rectangles_.emplace_back(x1, y1, x2 - x1, y2 - y1);
 }
 
-MathtextBackend& MathtextBackend::get_results(
-  py::object box, py::object /* used_characters */)
-{
-  auto ship = py::object{};
-  try {
-    ship = py::module::import("matplotlib._mathtext").attr("ship");
-  } catch (py::error_already_set const&) {  // mpl<3.4 (#18378).
-    ship = py::module::import("matplotlib.mathtext").attr("ship");
-  }
-  ship(0, 0, box);
-  return *this;
-}
-
-void MathtextBackend::_draw(
+void MathtextBackend::draw(
   GraphicsContextRenderer& gcr, double x, double y, double angle) const
 {
   if (!std::isfinite(x) || !std::isfinite(y)) {
@@ -1742,7 +1708,6 @@ void MathtextBackend::_draw(
   auto const& dpi = get_additional_state(cr).dpi;
   cairo_translate(cr, x, y);
   cairo_rotate(cr, -angle * std::acos(-1) / 180);
-  cairo_translate(cr, 0, -bearing_y_);
   for (auto const& glyph: glyphs_) {
     auto const& font_face = font_face_from_path(glyph.path);
     cairo_set_font_face(cr, font_face);
@@ -1811,12 +1776,6 @@ void MathtextBackend::_draw(
     cairo_rectangle(cr, x, y, w, h);
     cairo_fill(cr);
   }
-}
-
-std::tuple<double, double, double>
-MathtextBackend::get_text_width_height_descent() const
-{
-  return {xmax_ - xmin_, ymax_ - ymin_, -ymin_};
 }
 
 py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_argb32(
@@ -1937,11 +1896,6 @@ PYBIND11_MODULE(_mplcairo, m)
   detail::RC_PARAMS = py::module::import("matplotlib").attr("rcParams");
   detail::PIXEL_MARKER =
     py::module::import("matplotlib.markers").attr("MarkerStyle")(",");
-  // Making the mathtext parser live in a Python module works around
-  // FIXME[pybind11]'s failure to call the destructor (#1493).
-  py::module::import("mplcairo").attr("_mathtext_parse") =
-    py::module::import("matplotlib.mathtext")
-    .attr("MathTextParser")("mplcairo").attr("parse");
 
   py::module::import("atexit").attr("register")(
     py::cpp_function{[] {
@@ -2308,17 +2262,10 @@ Only intended for debugging purposes.
 Backend rendering mathtext to a cairo recording surface.
 )__doc__")
     .def(py::init<>())
-    .def("set_canvas_size", &MathtextBackend::set_canvas_size)
-    .def("render_glyph", &MathtextBackend::render_glyph)
-    .def("_render_usetex_glyph", &MathtextBackend::_render_usetex_glyph)
-    .def("render_rect_filled", &MathtextBackend::render_rect_filled)
-    .def("get_results", &MathtextBackend::get_results)
-    .def("_draw", &MathtextBackend::_draw)
-    .def(
-      "get_hinting_type",
-      [](MathtextBackend& /* mb */) -> long {
-        return get_hinting_flag();
-      })
+    .def("add_glyph", &MathtextBackend::add_glyph)
+    .def("add_usetex_glyph", &MathtextBackend::add_usetex_glyph)
+    .def("add_rect", &MathtextBackend::add_rect)
+    .def("draw", &MathtextBackend::draw)
     ;
 }
 

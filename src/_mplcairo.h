@@ -185,23 +185,21 @@ class MathtextBackend {
 
   std::vector<Glyph> glyphs_;
   std::vector<rectangle_t> rectangles_;
-  double bearing_y_;
-  double xmin_, ymin_, xmax_, ymax_;
 
   public:
   MathtextBackend();
-  void set_canvas_size(double width, double height, double depth);
-  void render_glyph(double ox, double oy, py::object info);
-  void _render_usetex_glyph(
+  // This API was originally based on the semi-private mathtext.MathtextBackend
+  // API, but has since then evolved.
+  void add_glyph(
+    double ox, double oy, std::string filename, double size,
+    char32_t codepoint);
+  void add_usetex_glyph(
     double ox, double oy, std::string filename, double size,
     std::variant<std::string, FT_ULong> name_or_index,
     double slant, double extend);
-  void render_rect_filled(double x1, double y1, double x2, double y2);
-  // FIXME[matplotlib]: The base class fails to document the second argument.
-  MathtextBackend& get_results(py::object box, py::object used_characters);
-  void _draw(
+  void add_rect(double x1, double y1, double x2, double y2);
+  void draw(
     GraphicsContextRenderer& gcr, double x, double y, double angle) const;
-  std::tuple<double, double, double> get_text_width_height_descent() const;
 };
 
 py::array_t<uint8_t, py::array::c_style> cairo_to_premultiplied_argb32(
