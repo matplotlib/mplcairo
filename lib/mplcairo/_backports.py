@@ -1,9 +1,6 @@
 import functools
 import re
 
-from matplotlib import dviread
-from matplotlib.dviread import PsfontsMap
-
 
 @functools.lru_cache()
 def _parse_enc(path):
@@ -25,10 +22,3 @@ def _parse_enc(path):
         no_comments = "\n".join(line.split("%")[0].rstrip() for line in file)
     array = re.search(r"(?s)\[(.*)\]", no_comments).group(1)
     return re.findall(r"(?<=/)[A-za-z0-9._]+", array)
-
-
-def get_glyph_name(dvitext):
-    tex_font_map = PsfontsMap(dviread.find_tex_file("pdftex.map"))
-    ps_font = tex_font_map[dvitext.font.texname]
-    return (_parse_enc(ps_font.encoding)[dvitext.glyph]
-            if ps_font.encoding is not None else None)

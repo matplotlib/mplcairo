@@ -5,11 +5,23 @@ import sys
 
 import matplotlib as mpl
 
+from . import _backports
 from ._mplcairo import (
     cairo_to_premultiplied_argb32,
     cairo_to_premultiplied_rgba8888,
     cairo_to_straight_rgba8888,
 )
+
+
+@functools.lru_cache(1)
+def get_tex_font_map():
+    return mpl.dviread.PsfontsMap(mpl.dviread.find_tex_file("pdftex.map"))
+
+
+def get_glyph_name(dvitext):
+    ps_font = get_tex_font_map()[dvitext.font.texname]
+    return (_backports._parse_enc(ps_font.encoding)[dvitext.glyph]
+            if ps_font.encoding is not None else None)
 
 
 def get_matplotlib_gtk_backend():

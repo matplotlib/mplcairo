@@ -1,6 +1,5 @@
 import codecs
 import contextlib
-import functools
 from functools import partial, partialmethod
 from gzip import GzipFile
 import logging
@@ -22,7 +21,6 @@ from matplotlib.backend_bases import (
 from matplotlib.backends import backend_ps
 
 from . import _mplcairo, _util, get_versions
-from ._backports import get_glyph_name
 from ._mplcairo import _StreamSurfaceType
 
 
@@ -38,11 +36,6 @@ class _BytesWritingWrapper:
     def write(self, data):
         # codecs.decode can directly work with memoryviews.
         return self._stream.write(codecs.decode(data, self._encoding))
-
-
-@functools.lru_cache(1)
-def _get_tex_font_map():
-    return dviread.PsfontsMap(dviread.find_tex_file("pdftex.map"))
 
 
 def _get_drawn_subarray_and_bounds(img):
@@ -164,7 +157,7 @@ class GraphicsContextRendererCairo(
             page = next(iter(dvi))
         mb = _mplcairo.MathtextBackendCairo()
         for text in page.text:
-            texfont = _get_tex_font_map()[text.font.texname]
+            texfont = _util.get_tex_font_map()[text.font.texname]
             if texfont.filename is None:
                 # Not TypeError:
                 # :mpltest:`test_backend_svg.test_missing_psfont`.
@@ -173,7 +166,7 @@ class GraphicsContextRendererCairo(
             mb.add_usetex_glyph(
                 text.x, -text.y,
                 texfont.filename, text.font.size,
-                get_glyph_name(text) or text.glyph,
+                _util.get_glyph_name(text) or text.glyph,
                 texfont.effects.get("slant", 0),
                 texfont.effects.get("extend", 1))
         for x1, y1, h, w in page.boxes:
