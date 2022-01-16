@@ -260,16 +260,16 @@ class FigureCanvasCairo(FigureCanvasBase):
             return renderer
 
     # NOTE: Needed for tight_layout() (and we use it too).
-    def get_renderer(self, *, _ensure_cleared=False, _ensure_drawn=False):
+    def get_renderer(self, cleared=False, *, _ensure_drawn=False):
         return self._get_cached_or_new_renderer(
             GraphicsContextRendererCairo,
             *self.figure.bbox.size, self.figure.dpi,
-            _ensure_cleared=_ensure_cleared, _ensure_drawn=_ensure_drawn)
+            _ensure_cleared=cleared, _ensure_drawn=_ensure_drawn)
 
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
     def draw(self):
-        self.get_renderer(_ensure_cleared=True, _ensure_drawn=True)
+        self.get_renderer(cleared=True, _ensure_drawn=True)
         super().draw()
 
     def buffer_rgba(self):  # NOTE: Needed for tests.
