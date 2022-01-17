@@ -23,15 +23,19 @@ extern FT_Library ft_library;
 extern bool has_pycairo;
 extern std::array<uint8_t, 0x10000> unpremultiplication_table;
 
-// Optional parts of cairo, backported from 1.15.
-// Copy-pasted from cairo.h.
+// Optional parts of cairo.
+
+// Copy-pasted from cairo.h, backported from 1.15.
 #define CAIRO_TAG_DEST "cairo.dest"
 #define CAIRO_TAG_LINK "Link"
 extern void (*cairo_tag_begin)(cairo_t*, char const*, char const*);
 extern void (*cairo_tag_end)(cairo_t*, char const*);
 
-// Optional parts of cairo.
 // Copy-pasted from cairo-pdf.h.
+typedef enum _cairo_pdf_version {
+    CAIRO_PDF_VERSION_1_4,
+    CAIRO_PDF_VERSION_1_5
+} cairo_pdf_version_t;
 typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_TITLE,
     CAIRO_PDF_METADATA_AUTHOR,
@@ -41,30 +45,52 @@ typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_CREATE_DATE,
     CAIRO_PDF_METADATA_MOD_DATE,
 } cairo_pdf_metadata_t;
+
 extern cairo_surface_t* (*cairo_pdf_surface_create_for_stream)(
   cairo_write_func_t, void*, double, double);
-extern cairo_surface_t* (*cairo_ps_surface_create_for_stream)(
-  cairo_write_func_t, void*, double, double);
-extern cairo_surface_t* (*cairo_svg_surface_create_for_stream)(
-  cairo_write_func_t, void*, double, double);
-extern void (*cairo_pdf_surface_set_size)(cairo_surface_t*, double, double);
-extern void (*cairo_ps_surface_set_size)(cairo_surface_t*, double, double);
+extern void (*cairo_pdf_surface_restrict_to_version)(
+  cairo_surface_t*, cairo_pdf_version_t);
 extern void (*cairo_pdf_surface_set_metadata)(
   cairo_surface_t*, cairo_pdf_metadata_t, char const*);
-extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
+extern void (*cairo_pdf_surface_set_size)(cairo_surface_t*, double, double);
+
+// Copy-pasted from cairo-ps.h.
+typedef enum _cairo_ps_level {
+    CAIRO_PS_LEVEL_2,
+    CAIRO_PS_LEVEL_3
+} cairo_ps_level_t;
+extern cairo_surface_t* (*cairo_ps_surface_create_for_stream)(
+  cairo_write_func_t, void*, double, double);
 extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
+extern void (*cairo_ps_surface_restrict_to_level)(
+  cairo_surface_t*, cairo_ps_level_t);
+extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
+extern void (*cairo_ps_surface_set_size)(cairo_surface_t*, double, double);
+
+// Copy-pasted from cairo-svg.h.
+typedef enum _cairo_svg_version {
+    CAIRO_SVG_VERSION_1_1,
+    CAIRO_SVG_VERSION_1_2
+} cairo_svg_version_t;
+extern cairo_surface_t* (*cairo_svg_surface_create_for_stream)(
+  cairo_write_func_t, void*, double, double);
+extern void (*cairo_svg_surface_restrict_to_version)(
+  cairo_surface_t*, cairo_svg_version_t);
 
 #define ITER_CAIRO_OPTIONAL_API(_) \
   _(cairo_tag_begin) \
   _(cairo_tag_end) \
   _(cairo_pdf_surface_create_for_stream) \
-  _(cairo_ps_surface_create_for_stream) \
-  _(cairo_svg_surface_create_for_stream) \
-  _(cairo_pdf_surface_set_size) \
-  _(cairo_ps_surface_set_size) \
+  _(cairo_pdf_surface_restrict_to_version) \
   _(cairo_pdf_surface_set_metadata) \
+  _(cairo_pdf_surface_set_size) \
+  _(cairo_ps_surface_create_for_stream) \
+  _(cairo_ps_surface_dsc_comment) \
+  _(cairo_ps_surface_restrict_to_level) \
   _(cairo_ps_surface_set_eps) \
-  _(cairo_ps_surface_dsc_comment)
+  _(cairo_ps_surface_set_size) \
+  _(cairo_svg_surface_create_for_stream) \
+  _(cairo_svg_surface_restrict_to_version)
 
 // Other useful values.
 extern std::unordered_map<std::string, cairo_font_face_t*> FONT_CACHE;

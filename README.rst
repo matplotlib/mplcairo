@@ -490,6 +490,15 @@ The API is similar:
 
 See the class' docstring for additional information.
 
+Version control for vector formats
+----------------------------------
+
+cairo is able to write PDF 1.4 and 1.5 (defaulting to 1.5), PostScript levels 2
+and 3 (defaulting to 3), and SVG versions 1.1 and 1.2 (defaulting to 1.1).
+This can be controlled by passing a *metadata* dict to ``savefig`` with a
+``MaxVersion`` entry, which must be one of the strings ``"1.4"``/``"1.5"`` (for
+pdf), ``"2"``/``"3"`` (for ps), or ``"1.1"``/``"1.2"`` (for svg).
+
 ``cairo-script`` output
 -----------------------
 

@@ -464,6 +464,7 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
   if (!metadata) {
     metadata = py::dict{};  // So that SOURCE_DATE_EPOCH is handled.
   }
+  *metadata = metadata->attr("copy")();  // We'll add and remove keys.
   auto const& surface = cairo_get_target(cr_);
   switch (cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_PDF:
@@ -472,6 +473,19 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
           "CreationDate",
           py::module::import("datetime").attr("datetime")
           .attr("utcfromtimestamp")(std::stol(source_date_epoch)));
+      }
+      if (auto maxver =
+            metadata->attr("pop")("MaxVersion", py::none())
+            .cast<std::optional<std::string>>()) {
+        if (*maxver == "1.4") {
+          detail::cairo_pdf_surface_restrict_to_version(
+            surface, detail::CAIRO_PDF_VERSION_1_4);
+        } else if (*maxver == "1.5") {
+          detail::cairo_pdf_surface_restrict_to_version(
+            surface, detail::CAIRO_PDF_VERSION_1_5);
+        } else {
+          throw std::invalid_argument("Invalid MaxVersion: " + *maxver);
+        }
       }
       for (auto const& it: *metadata) {
         if (it.second.is_none()) {
@@ -518,6 +532,19 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
       }
       break;
     case CAIRO_SURFACE_TYPE_PS:
+      if (auto maxver =
+            metadata->attr("pop")("MaxVersion", py::none())
+            .cast<std::optional<std::string>>()) {
+        if (*maxver == "2") {
+          detail::cairo_ps_surface_restrict_to_level(
+            surface, detail::CAIRO_PS_LEVEL_2);
+        } else if (*maxver == "3") {
+          detail::cairo_ps_surface_restrict_to_level(
+            surface, detail::CAIRO_PS_LEVEL_3);
+        } else {
+          throw std::invalid_argument("Invalid MaxVersion: " + *maxver);
+        }
+      }
       for (auto const& it: *metadata) {
         auto const& key = it.first.cast<std::string>();
         if (key == "_dsc_comments") {
@@ -528,6 +555,21 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
         } else {
           py::module::import("warnings").attr("warn")(
             "Unsupported PS metadata entry: " + key);
+        }
+      }
+      break;
+    case CAIRO_SURFACE_TYPE_SVG:
+      if (auto maxver =
+            metadata->attr("pop")("MaxVersion", py::none())
+            .cast<std::optional<std::string>>()) {
+        if (*maxver == "1.1") {
+          detail::cairo_svg_surface_restrict_to_version(
+            surface, detail::CAIRO_SVG_VERSION_1_1);
+        } else if (*maxver == "1.2") {
+          detail::cairo_svg_surface_restrict_to_version(
+            surface, detail::CAIRO_SVG_VERSION_1_2);
+        } else {
+          throw std::invalid_argument("Invalid MaxVersion: " + *maxver);
         }
       }
       break;
@@ -1991,6 +2033,14 @@ raqm : bool, default: if available
 _debug: bool, default: False
     Whether to print debugging information.  This option is only intended for
     debugging and is not part of the stable API.
+
+Notes
+-----
+An additional format-specific control knob is the ``MaxVersion`` entry in the
+*metadata* dict passed to ``savefig``.  It can take values ``"1.4"``/``"1.5``
+(to restrict to PDF 1.4 or 1.5 -- default: 1.5), ``"2"``/``"3"`` (to restrict
+to PostScript levels 2 or 3 -- default: 3), or ``"1.1"``/``"1.2"`` (to restrict
+to SVG 1.1 or 1.2 -- default: 1.1).
 )__doc__");
   m.def(
     "get_options", [] {
