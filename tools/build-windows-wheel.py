@@ -22,6 +22,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import urllib.request
 
 import cairo  # Needed to load the cairo dll.
@@ -96,9 +97,28 @@ be.finalize_options()
 be.run()
 cc = be.compiler
 cc.initialize()
+# On setuptools versions that use "local" distutils,
+# ``cc.spawn(["dumpbin", ...])`` and ``cc.spawn(["lib", ...])`` no longer
+# manage to locate the right executables, even though they are correctly on the
+# PATH; instead, use shutil.which to walk the PATH and get absolute executable
+# paths.
+with TemporaryDirectory() as tmpdir:
+    dest = Path(dest, "path")
+    cc.spawn([
+        "python", "-c",
+        f"from shutil import which; "
+        f"print(which('dumpbin'), file=open({str(dest)!r}, 'w'), end='')",
+    ])
+    dumpbin_path = dest.read_text()
+    cc.spawn([
+        "python", "-c",
+        f"from shutil import which; "
+        f"print(which('lib'), file=open({str(dest)!r}, 'w'), end='')",
+    ])
+    lib_path = dest.read_text()
 # Build the import library.
 cc.spawn(
-    ["dumpbin", "/EXPORTS", "/OUT:cairo/win64/cairo.exports",
+    [dumpbin_path, "/EXPORTS", "/OUT:cairo/win64/cairo.exports",
      "cairo/win64/cairo.dll"])
 with open("cairo/win64/cairo.exports") as raw_exports, \
      open("cairo/win64/cairo.def", "x") as def_file:
@@ -113,7 +133,7 @@ with open("cairo/win64/cairo.exports") as raw_exports, \
             continue
         def_file.write(name + "\n")
 cc.spawn(
-    ["lib", f"/DEF:{def_file.name}", "/MACHINE:x64",
+    [lib_path, f"/DEF:{def_file.name}", "/MACHINE:x64",
      "/OUT:cairo/win64/cairo.lib"])
 
 # Build the wheel.
