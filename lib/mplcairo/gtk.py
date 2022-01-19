@@ -17,8 +17,7 @@ class FigureCanvasGTKCairo(FigureCanvasCairo, _mpl_gtk.FigureCanvas):
         _mpl_gtk.Gtk.render_background(
             self.get_style_context(), ctx,
             allocation.x, allocation.y, allocation.width, allocation.height)
-        surface = \
-            self.get_renderer(_ensure_drawn=True)._get_context().get_target()
+        surface = self.get_renderer()._get_context().get_target()
         surface.flush()
         scale = self.device_pixel_ratio
         prev_scale = surface.get_device_scale()

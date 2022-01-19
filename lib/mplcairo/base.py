@@ -57,8 +57,6 @@ class GraphicsContextRendererCairo(
         GraphicsContextBase,
         RendererBase):
 
-    _draw_previously_disabled = False
-
     def __init__(self, width, height, dpi):
         # Hide the overloaded constructors used by from_pycairo_ctx and
         # _for_fmt_output.
@@ -130,20 +128,6 @@ class GraphicsContextRendererCairo(
 
         obj._finish = _finish
         return obj
-
-    @contextlib.contextmanager
-    def _draw_disabled(self):
-        # After a disabled draw, mark the renderer as such so that later
-        # fetches in _get_cached_or_new_renderer force a redraw (otherwise,
-        # we can get a blank canvas after interactively saving a CL figure).
-        # But that redraw is not needed if the fetch is happening in a (later)
-        # _draw_disabled context, so we clear the flag at entry.
-        try:
-            self._draw_previously_disabled = False
-            with super()._draw_disabled():
-                yield
-        finally:
-            self._draw_previously_disabled = True
 
     def option_image_nocomposite(self):
         return (not mpl.rcParams["image.composite_image"]
@@ -226,50 +210,33 @@ class FigureCanvasCairo(FigureCanvasBase):
         device_pixel_ratio = property(
             lambda self: getattr(self, "_dpi_ratio", 1))
 
-    def _get_cached_or_new_renderer(
-            self, func, *args,
-            _ensure_cleared=False, _ensure_drawn=False,
-            **kwargs):
-        last_call, last_renderer = self._last_renderer_call
-        if (func, args, kwargs) == last_call:
-            if last_renderer._draw_previously_disabled:
-                _ensure_cleared = _ensure_drawn = True
-            if _ensure_cleared:
-                # This API is present (rather than just throwing away the
-                # renderer and creating a new one) so to avoid invalidating the
-                # Text._get_layout cache.
-                last_renderer.clear()
-                if _ensure_drawn:
-                    with _LOCK:
-                        self.figure.draw(last_renderer)
-            last_renderer._draw_previously_disabled = False
-            return last_renderer
-        else:
-            renderer = func(*args, **kwargs)
-            self._last_renderer_call = (func, args, kwargs), renderer
-            if _ensure_drawn:
-                with _LOCK:
-                    self.figure.draw(renderer)
-            return renderer
-
     # NOTE: Needed for tight_layout() (and we use it too).
-    def get_renderer(self, cleared=False, *, _ensure_drawn=False):
-        return self._get_cached_or_new_renderer(
-            GraphicsContextRendererCairo,
-            *self.figure.bbox.size, self.figure.dpi,
-            _ensure_cleared=cleared, _ensure_drawn=_ensure_drawn)
+    def get_renderer(self, cleared=False):
+        args = (*self.figure.bbox.size, self.figure.dpi)
+        last_call, last_renderer = self._last_renderer_call
+        if args == last_call:
+            renderer = last_renderer
+        else:
+            renderer = GraphicsContextRendererCairo(*args)
+            self._last_renderer_call = args, renderer
+        if cleared:  # matplotlib#22245 (<3.6).
+            renderer.clear()
+        return renderer
 
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
     def draw(self):
-        self.get_renderer(cleared=True, _ensure_drawn=True)
+        renderer = self.get_renderer()
+        renderer.clear()
+        with _LOCK:
+            self.figure.draw(renderer)
         super().draw()
 
     def buffer_rgba(self):  # NOTE: Needed for tests.
-        return self.get_renderer(_ensure_drawn=True).buffer_rgba()
+        return self.get_renderer().buffer_rgba()
 
     def copy_from_bbox(self, bbox):
-        return self.get_renderer(_ensure_drawn=True).copy_from_bbox(bbox)
+        return self.get_renderer().copy_from_bbox(bbox)
 
     def restore_region(self, region):
         with _LOCK:
@@ -369,13 +336,10 @@ class FigureCanvasCairo(FigureCanvasBase):
     print_eps = partialmethod(_print_ps_impl, True)
 
     def _get_fresh_straight_rgba8888(self):
-        # Swap out the cache, as savefig may be playing with the background
-        # color.
-        last_renderer_call = self._last_renderer_call
-        self._last_renderer_call = (None, None)
+        renderer = self.get_renderer()
+        renderer.clear()
         with _LOCK:
-            renderer = self.get_renderer(_ensure_drawn=True)
-        self._last_renderer_call = last_renderer_call
+            self.figure.draw(renderer)
         return _util.cairo_to_straight_rgba8888(renderer._get_buffer())
 
     def print_rgba(self, path_or_stream, *,

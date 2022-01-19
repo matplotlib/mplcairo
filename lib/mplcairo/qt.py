@@ -20,7 +20,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
         buf = _util.cairo_to_premultiplied_argb32(
-            self.get_renderer(_ensure_drawn=True)._get_buffer())
+            self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
         # The image buffer is not necessarily contiguous, but the padding
         # in the ARGB32 case (each scanline is 32-bit aligned) happens to
