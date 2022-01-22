@@ -355,7 +355,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                 {"ghostscript": backend_ps.gs_distill,
                  "xpdf": backend_ps.xpdf_distill}[
                      mpl.rcParams["ps.usedistiller"]](
-                         str(tmp_name), False, ptype=papertype)
+                         str(tmp_name), is_eps, ptype=papertype)
                 # If path_or_stream is *already* a text-mode stream then
                 # tmp_name needs to be opened in text-mode too.
                 with cbook.open_file_cm(path_or_stream, "wb") as stream, \
