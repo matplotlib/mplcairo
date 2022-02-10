@@ -12,8 +12,8 @@ next
   entry.
 - Add HARD_LIGHT operator, which was previously missing.
 
-v0.4
-====
+v0.4 (2021-04-02)
+=================
 
 - Bumped dependencies to Python≥3.7, pybind11≥2.6; Windows build also
   ``setup_requires`` pycairo.
@@ -25,8 +25,8 @@ v0.4
 - Dropped support for the JPEG-specific *quality*, *optimize*, and
   *progressive* parameters to `.Figure.savefig`.
 
-v0.3
-====
+v0.3 (2020-05-03)
+=================
 
 - Bumped dependencies to Python≥3.6, pybind11≥2.5.
 - ``pybind11`` is now a ``setup_requires`` and ``-march=native`` is no longer
@@ -37,8 +37,8 @@ v0.3
   ``usetex_fonteffects.py`` example).
 - Fix zooming on macosx.
 
-v0.2
-====
+v0.2 (2019-09-21)
+=================
 
 - Add the ``MPLCAIRO_BUILD_TYPE`` environment variable for controlling the
   build.
@@ -57,8 +57,8 @@ v0.2
   operators.
 - Support ``Title`` metadata entry for PostScript output.
 
-v0.1
-====
+v0.1 (2018-07-22)
+=================
 
 - Integration with libraqm now occurs via dlopen() rather than being selected
   at compile-time.
@@ -67,7 +67,7 @@ v0.1
 - On Travis, we now run Matplotlib's test suite with mplcairo patching the
   default Agg renderer.
 
-v0.1a1
-======
+v0.1a1 (2018-03-13)
+===================
 
 - First public prerelease.
