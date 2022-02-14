@@ -431,7 +431,10 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   StreamSurfaceType type, std::optional<py::object> file,
   double width, double height, double dpi) :
   GraphicsContextRenderer{
-    cr_from_fileformat_args(type, file, width, height, dpi), width, height, 72}
+    cr_from_fileformat_args(type, file, width, height, dpi), width, height,
+    type == StreamSurfaceType::Script
+      && detail::MPLCAIRO_SCRIPT_SURFACE == detail::MplcairoScriptSurface::Raster
+      ? dpi : 72}
 {}
 
 GraphicsContextRenderer GraphicsContextRenderer::make_pattern_gcr(

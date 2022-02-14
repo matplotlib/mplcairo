@@ -244,10 +244,13 @@ class FigureCanvasCairo(FigureCanvasBase):
         super().draw()
 
     def _print_vector(self, renderer_factory,
-                      path_or_stream, *, metadata=None, **kwargs):
+                      path_or_stream, *, metadata=None,
+                      _fixed_72dpi=True,
+                      **kwargs):
         _check_print_extra_kwargs(**kwargs)
         dpi = self.figure.get_dpi()
-        self.figure.set_dpi(72)
+        if _fixed_72dpi:
+            self.figure.set_dpi(72)
         draw_raises_done = False
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(stream, *self.figure.bbox.size, dpi)
@@ -286,7 +289,9 @@ class FigureCanvasCairo(FigureCanvasBase):
         _print_vector, GraphicsContextRendererCairo._for_svgz_output)
     if os.environ.get("MPLCAIRO_SCRIPT_SURFACE") in ["raster", "vector"]:
         print_cairoscript = partialmethod(
-            _print_vector, GraphicsContextRendererCairo._for_script_output)
+            _print_vector, GraphicsContextRendererCairo._for_script_output,
+            _fixed_72dpi={"raster": False, "vector": True}[
+                os.environ.get("MPLCAIRO_SCRIPT_SURFACE")])
 
     def _print_ps_impl(self, is_eps, path_or_stream, *,
                        metadata=None, orientation="portrait", papertype=None,
