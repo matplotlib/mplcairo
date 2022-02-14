@@ -208,7 +208,10 @@ void restore_init_matrix(cairo_t* cr)
 //
 // TODO: Path clipping in the general case (with codes present), and snapping
 // in the presence of CLOSEPOLY (likely the correct solution is to preload the
-// whole path and adjust for snapping).
+// whole path and adjust for snapping).  Fortunately, in the most common case
+// where everything is axis-aligned, the first and last points are already
+// snapped due to being aligned with the second and next-to-last points
+// already, so the bug is hidden.
 // NOTE: Matplotlib also *rounds* the linewidth in some cases (see
 // RendererAgg::_draw_path), which helps with snappiness.  We do not provide
 // this behavior; instead, one should set the default linewidths appropriately
@@ -306,11 +309,14 @@ void load_path_exact(
         if (is_finite) {
           // See comments re: snapping in the codeless path.
           if (lpc.snap && i + 1 < n
-              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
-              && (x0 == vertices(i + 1, 0) || y0 == vertices(i + 1, 1))) {
-            x0 = snapper(x0);
-            y0 = snapper(y0);
-            force_snap_next_lineto = true;
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO) {
+            auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
+            cairo_matrix_transform_point(matrix, &x1, &y1);
+            if (x1 == x0 || y1 == y0) {
+              x0 = snapper(x0);
+              y0 = snapper(y0);
+              force_snap_next_lineto = true;
+            }
           }
           cairo_move_to(cr, x0, y0);
         } else {
@@ -319,17 +325,21 @@ void load_path_exact(
         break;
       case PathCode::LINETO:
         if (is_finite) {
+          auto x00 = x0, y00 = y0;
           if (force_snap_next_lineto) {
             x0 = snapper(x0);
             y0 = snapper(y0);
           }
           force_snap_next_lineto = false;
           if (lpc.snap && i + 1 < n
-              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
-              && (x0 == vertices(i + 1, 0) || y0 == vertices(i + 1, 1))) {
-            x0 = snapper(x0);
-            y0 = snapper(y0);
-            force_snap_next_lineto = true;
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO) {
+            auto x1 = vertices(i + 1, 0), y1 = vertices(i + 1, 1);
+            cairo_matrix_transform_point(matrix, &x1, &y1);
+            if (x1 == x00 || y1 == y00) {
+              x0 = snapper(x0);
+              y0 = snapper(y0);
+              force_snap_next_lineto = true;
+            }
           }
           cairo_line_to(cr, x0, y0);
         } else {
@@ -346,14 +356,18 @@ void load_path_exact(
         i += 1;
         auto const& last_finite = std::isfinite(x1) && std::isfinite(y1);
         if (last_finite) {
+          auto const& x10 = x1, y10 = y1;
           x1 = std::clamp(x1, min, max);
           y1 = std::clamp(y1, min, max);
           if (lpc.snap && i + 1 < n
-              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
-              && (x1 == vertices(i + 1, 0) || y1 == vertices(i + 1, 1))) {
-            x1 = snapper(x1);
-            y1 = snapper(y1);
-            force_snap_next_lineto = true;
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO) {
+            auto x2 = vertices(i + 1, 0), y2 = vertices(i + 1, 1);
+            cairo_matrix_transform_point(matrix, &x2, &y2);
+            if (x2 == x10 || y2 == y10) {
+              x1 = snapper(x1);
+              y1 = snapper(y1);
+              force_snap_next_lineto = true;
+            }
           }
           if (is_finite && cairo_has_current_point(cr)) {
             double x_prev, y_prev;
@@ -378,16 +392,20 @@ void load_path_exact(
         i += 2;
         auto const& last_finite = std::isfinite(x2) && std::isfinite(y2);
         if (last_finite) {
+          auto const& x20 = x2, y20 = y2;
           x1 = std::clamp(x1, min, max);
           y1 = std::clamp(y1, min, max);
           x2 = std::clamp(x2, min, max);
           y2 = std::clamp(y2, min, max);
           if (lpc.snap && i + 1 < n
-              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO
-              && (x0 == vertices(i + 1, 0) || y0 == vertices(i + 1, 1))) {
-            x2 = snapper(x2);
-            y2 = snapper(y2);
-            force_snap_next_lineto = true;
+              && static_cast<PathCode>(codes(i + 1)) == PathCode::LINETO) {
+            auto x3 = vertices(i + 1, 0), y3 = vertices(i + 1, 1);
+            cairo_matrix_transform_point(matrix, &x3, &y3);
+            if (x3 == x20 || y3 == y20) {
+              x2 = snapper(x2);
+              y2 = snapper(y2);
+              force_snap_next_lineto = true;
+            }
           }
           if (is_finite && std::isfinite(x1) && std::isfinite(y1)
               && cairo_has_current_point(cr)) {
