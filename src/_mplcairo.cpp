@@ -1077,6 +1077,14 @@ void GraphicsContextRenderer::draw_markers(
   // documented behavior even though not the actual one of other backends.
   auto const& n_vertices = vertices.shape(0);
 
+  if (n_vertices <= 2) {
+    // With less than two vertices, the line join shouldn't matter, but
+    // antialiasing is actually better (assuming ANTIALIAS_FAST is used, which
+    // is normally the case) with LINE_JOIN_MITER (cairo#536).
+    cairo_set_line_join(cr_, CAIRO_LINE_JOIN_MITER);
+    cairo_set_miter_limit(cr_, 10);  // Default, any value >sqrt(2) works.
+  }
+
   auto const& marker_matrix = matrix_from_transform(marker_transform);
   auto const& mtx =
     matrix_from_transform(transform, get_additional_state().height);
