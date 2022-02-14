@@ -395,10 +395,10 @@ maps to ``NONE``).
 
 .. _cairo-152: https://gitlab.freedesktop.org/cairo/cairo/issues/152
 
-Note that in rare cases, ``FAST`` antialiasing can trigger a "double free or
-corruption" bug in cairo (`#44 <cairo-44_>`_).  If you hit this problem,
-consider using ``BEST`` or ``NONE`` antialiasing (depending on your quality and
-speed requirements).
+Note that in rare cases, on cairo<1.17.4, ``FAST`` antialiasing can trigger a
+"double free or corruption" bug in cairo (`#44 <cairo-44_>`_).  If you hit this
+problem, consider using ``BEST`` or ``NONE`` antialiasing (depending on your
+quality and speed requirements).
 
 .. _cairo-44: https://gitlab.freedesktop.org/cairo/cairo/issues/44
 
