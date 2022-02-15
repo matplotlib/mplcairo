@@ -69,5 +69,10 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         name: wheels
-        path: dist/*.whl
+        path: dist/
       if: ${{ always() }}
+    - uses: actions/upload-artifact@v2
+      with:
+        name: result_images-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: result_images/
+      if: ${{ failure() }}
