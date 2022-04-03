@@ -98,31 +98,17 @@ class build_ext(build_ext):
             include_dirs=[cairo.get_include()],
         )]
 
-        tmp_include_dir = Path(self.get_finalized_command("build").build_base,
-                               "include")
-        tmp_include_dir.mkdir(parents=True, exist_ok=True)
-        # On Arch Linux, the python-pillow (Arch) package
-        # includes a version of ``raqm.h`` that is both invalid
-        # (https://bugs.archlinux.org/task/57492) and now outdated (it is
-        # missing a declaration for `raqm_version_string`), but placed in an
-        # non-overridable directory for distutils.  Thus, on that distro, force
-        # the use of a cleanly downloaded header.
+        # NOTE: Versions <= 8.2 of Arch Linux's python-pillow package included
+        # *into a non-overridable distutils header directory* a ``raqm.h`` that
+        # is both invalid (https://bugs.archlinux.org/task/57492) and outdated
+        # (missing a declaration for `raqm_version_string`).  It is thus not
+        # possible to build mplcairo with such an old distro package installed.
         try:
-            is_arch = "Arch Linux" in Path("/etc/os-release").read_text()
-        except OSError:
-            is_arch = False
-        if is_arch:
-            has_pkgconfig_raqm = False
-        else:
-            try:
-                get_pkgconfig(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
-            except (FileNotFoundError, CalledProcessError):
-                has_pkgconfig_raqm = False
-            else:
-                has_pkgconfig_raqm = True
-        if has_pkgconfig_raqm:
-            ext.extra_compile_args += get_pkgconfig("--cflags", "raqm")
-        else:
+            get_pkgconfig(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
+        except (FileNotFoundError, CalledProcessError):
+            tmp_include_dir = Path(
+                self.get_finalized_command("build").build_base, "include")
+            tmp_include_dir.mkdir(parents=True, exist_ok=True)
             (tmp_include_dir / "raqm-version.h").write_text("")  # Touch it.
             with urllib.request.urlopen(
                     f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
@@ -130,6 +116,8 @@ class build_ext(build_ext):
                  (tmp_include_dir / "raqm.h").open("wb") as file:
                 file.write(request.read())
             ext.include_dirs += [tmp_include_dir]
+        else:
+            ext.extra_compile_args += get_pkgconfig("--cflags", "raqm")
 
         if os.name == "posix":
             get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
