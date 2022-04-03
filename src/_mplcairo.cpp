@@ -964,10 +964,17 @@ void GraphicsContextRenderer::draw_path(
       path_loaded = true;
     }
   };
-  if (auto const& sketch = get_additional_state().sketch) {
-    path =
-      path.attr("cleaned")(
-        "transform"_a=transform, "curves"_a=true, "sketch"_a=sketch);
+  auto const& hatch_path =
+    py::cast(this).attr("get_hatch_path")().cast<std::optional<py::object>>();
+  auto const& simplify =
+    path.attr("should_simplify").cast<bool>() && !fc && !hatch_path;
+  auto const& sketch = get_additional_state().sketch;
+  if (simplify || sketch) {
+    // TODO: cairo internally uses vertex reduction and Douglas-Peucker, but it
+    // is unclear whether it also applies to vector output?  See mplcairo#37.
+    path = path.attr("cleaned")(
+      "transform"_a=transform, "simplify"_a=simplify, "curves"_a=true,
+      "sketch"_a=sketch);
     mtx = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
   }
   if (fc) {
@@ -978,9 +985,7 @@ void GraphicsContextRenderer::draw_path(
     cairo_fill_preserve(cr_);
     cairo_restore(cr_);
   }
-  if (auto const& hatch_path =
-      py::cast(this).attr("get_hatch_path")()
-      .cast<std::optional<py::object>>()) {
+  if (hatch_path) {
     cairo_save(cr_);
     auto const& dpi = int(get_additional_state().dpi);  // Truncating is good enough.
     auto const& hatch_surface =

@@ -542,8 +542,6 @@ Possible optimizations
 ======================
 
 - Cache eviction policy and persistent cache for ``draw_path_collection``.
-- Path simplification (although cairo appears to use vertex reduction and
-  Douglas-Peucker internally?).
 - Use QtOpenGLWidget and the cairo-gl backend.
 
 What about the already existing cairo (gtk/qt/wx/tk/...cairo) backends?
