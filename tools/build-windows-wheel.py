@@ -97,25 +97,23 @@ be.finalize_options()
 be.run()
 cc = be.compiler
 cc.initialize()
-# On setuptools versions that use "local" distutils,
-# ``cc.spawn(["dumpbin", ...])`` and ``cc.spawn(["lib", ...])`` no longer
-# manage to locate the right executables, even though they are correctly on the
-# PATH; instead, use shutil.which to walk the PATH and get absolute executable
-# paths.
+# On setuptools versions that use "local" distutils, ``cc.spawn(["dumpbin",
+# ...])`` and ``cc.spawn(["lib", ...])`` no longer manage to locate the right
+# executables, even though they are correctly on the PATH, because only the env
+# kwarg to Popen() is updated, and not os.environ["PATH"].  Use shutil.which to
+# walk the PATH and get absolute executable paths.
 with TemporaryDirectory() as tmpdir:
-    dest = Path(dest, "path")
+    dumpbin_path = Path(dest, "dumpbin")
+    lib_path = Path(dest, "lib")
     cc.spawn([
-        "python", "-c",
-        f"from shutil import which; "
-        f"print(which('dumpbin'), file=open({str(dest)!r}, 'w'), end='')",
+        sys.executable, "-c",
+        "import pathlib, shutil, sys\n"
+        "for exec in ['dumpbin', 'lib']:\n"
+        "    pathlib.Path(sys.argv[1], exec).write_text(shutil.which(exec))\n",
+        tmpdir,
     ])
-    dumpbin_path = dest.read_text()
-    cc.spawn([
-        "python", "-c",
-        f"from shutil import which; "
-        f"print(which('lib'), file=open({str(dest)!r}, 'w'), end='')",
-    ])
-    lib_path = dest.read_text()
+    dumpbin_path = Path(tmpdir, "dumpbin").read_text()
+    lib_path = Path(tmpdir, "lib").read_text()
 # Build the import library.
 cc.spawn(
     [dumpbin_path, "/EXPORTS", "/OUT:cairo/win64/cairo.exports",
