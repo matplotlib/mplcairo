@@ -59,12 +59,7 @@ jobs:
       run: |
         set -x &&
         python -mpip list &&
-        # Skip tests triggering to-be-investigated fatal error on Windows :(
-        (
-          if [[ "$(python -c 'import sys; print(sys.platform)')" != win32 ]]; then
-            ./run-mpl-test-suite.py --tolerance=50 --instafail --timeout=300 --capture=no --verbose
-          fi
-        ) &&
+        ./run-mpl-test-suite.py --tolerance=50 --instafail --timeout=300 --capture=no --verbose &&
         PYTHONFAULTHANDLER=1 PYTHONIOENCODING=utf-8 ./run-examples.py
     - uses: actions/upload-artifact@v2
       with:
