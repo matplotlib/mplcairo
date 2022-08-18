@@ -1,5 +1,5 @@
-next
-====
+v0.5 (2022-08-18)
+=================
 
 - Fixed support for Matplotlib 3.5.
 - Bumped dependencies to pybind11≥2.8.
