@@ -210,9 +210,8 @@ The following additional dependencies are required:
   FreeType support.
 
   The currently preferred solution is to get the headers e.g. from a Linux
-  distribution package, the DLL from Christoph Gohlke's `pycairo
-  <gohlke-pycairo>`_ build, and generate the import library oneself using
-  ``dumpbin`` and ``lib``.
+  distribution package, the DLL from a pycairo wheel (e.g. from PyPI), and
+  generate the import library oneself using ``dumpbin`` and ``lib``.
 
   Alternatively, very recent conda-forge builds (≥1.16.0 build 1005) do
   include FreeType support.  In order to use them, the include path needs to be
@@ -225,8 +224,6 @@ The following additional dependencies are required:
   using conda::
 
      conda install -y freetype
-
-.. _gohlke-pycairo: https://www.lfd.uci.edu/~gohlke/pythonlibs/#pycairo
 
 The (standard) |CL|_ and |LINK|_ environment variables (which always get
 prepended respectively to the invocations of the compiler and the linker)
@@ -245,8 +242,8 @@ in the ``LINK`` environment variable and copy the first ``cairo.dll`` and
 ``freetype.dll`` found there.
 
 The script ``tools/build-windows-wheel.py`` automates the retrieval of the
-cairo (assuming that a Gohlke pycairo is already installed) and FreeType dlls,
-and the wheel build.
+cairo (assuming that pycairo is already installed) and FreeType DLLs, and the
+wheel build.
 
 .. |CL| replace:: ``CL``
 .. _CL: https://docs.microsoft.com/en-us/cpp/build/reference/cl-environment-variables
