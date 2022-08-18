@@ -797,7 +797,13 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
          *static_cast<std::vector<std::string>*>(
            cairo_font_face_get_user_data(
              cairo_get_font_face(cr), &detail::FEATURES_KEY))) {
-      TRUE_CHECK(raqm::add_font_feature, rq, feature.c_str(), -1);
+      auto lang_tag = "language="s;
+      if (feature.substr(0, lang_tag.size()) == lang_tag) {
+        TRUE_CHECK(raqm::set_language,
+                   rq, feature.c_str() + lang_tag.size(), 0, s.size());
+      } else {
+        TRUE_CHECK(raqm::add_font_feature, rq, feature.c_str(), -1);
+      }
     }
     TRUE_CHECK(raqm::layout, rq);
     auto num_glyphs = size_t{};

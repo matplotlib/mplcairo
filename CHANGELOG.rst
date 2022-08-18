@@ -11,6 +11,7 @@ next
 - Control vector output version with the ``MaxVersion`` special metadata
   entry.
 - Add HARD_LIGHT operator, which was previously missing.
+- Support setting OpenType language tag.
 
 v0.4 (2021-04-02)
 =================

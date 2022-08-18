@@ -448,13 +448,17 @@ faces in a single file), the *n*\th font (*n*\≥0) can be selected by appending
 
 OpenType font features can be selected by appending ``|feature,...``
 to the filename, followed by a `HarfBuzz feature string`_ (e.g.,
-``"/path/to/font.otf|frac,onum"``); see `examples/opentype_features.py`_.
+``"/path/to/font.otf|frac,onum"``); see `examples/opentype_features.py`_.  A
+language_ tag can likewise be set with ``|language=...``; currently, this
+always applies to the whole buffer, but a PR adding support for slicing syntax
+(similar to font features) would be considered.
 
 .. _HarfBuzz feature string: https://harfbuzz.github.io/harfbuzz-hb-common.html#hb-feature-from-string
+.. _language: https://host-oman.github.io/libraqm/raqm-Raqm.html#raqm-set-language
 
-The syntaxes for selecting TTC subfonts and OpenType font features are
-**experimental** and may change, especially if such features are implemented in
-Matplotlib itself.
+The syntaxes for selecting TTC subfonts and OpenType font features and language
+tags are **experimental** and may change, especially if such features are
+implemented in Matplotlib itself.
 
 Color fonts (e.g. emojis) are handled.
 
