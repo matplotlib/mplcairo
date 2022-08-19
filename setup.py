@@ -5,8 +5,7 @@ mplcairo build
 Environment variables:
 
 MPLCAIRO_MANYLINUX
-    If set, build a manylinux wheel: pkg-config is shimmed, pycairo is not
-    declared as setup_requires, and libstdc++ is statically linked.
+    If set, build a manylinux wheel: pycairo is not declared as setup_requires.
 
 MPLCAIRO_NO_UNITY_BUILD
     If set, compile the various cpp files separately, instead of as a single
@@ -44,16 +43,6 @@ UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
 
 def get_pkgconfig(info, lib):
-    if MANYLINUX:
-        if info.startswith("--atleast-version"):
-            if lib == "raqm":
-                raise FileNotFoundError  # Trigger the header download.
-            else:
-                return ""
-        if info == "--cflags":
-            return ["-static-libgcc", "-static-libstdc++",
-                    "-I/usr/include/cairo",
-                    "-I/usr/include/freetype2"]
     return shlex.split(subprocess.check_output(["pkg-config", info, lib],
                                                universal_newlines=True))
 
@@ -126,8 +115,6 @@ class build_ext(build_ext):
                 *get_pkgconfig("--cflags", "cairo"),
             ]
             ext.extra_link_args += ["-flto"]
-            if MANYLINUX:
-                ext.extra_link_args += ["-static-libgcc", "-static-libstdc++"]
 
         elif os.name == "nt":
             # Windows conda path for FreeType.

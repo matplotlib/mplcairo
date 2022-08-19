@@ -40,6 +40,7 @@ else
             cairo-1.17.2%2B17%2Bg52a7c79fd-2-x86_64.pkg.tar.xz
             fontconfig-2%3A2.13.91%2B24%2Bg75eadca-1-x86_64.pkg.tar.xz
             freetype2-2.10.1-1-x86_64.pkg.tar.xz
+            libraqm-0.7.0-1-x86_64.pkg.tar.xz
             python-cairo-1.18.2-3-x86_64.pkg.tar.xz
         )
         for filename in "${filenames[@]}"; do
@@ -51,7 +52,10 @@ else
                 (tar -C "$name" -xf - 2>/dev/null || true)
             mv "$name/usr/include/"* /usr/include
         done
-        # Provide a shim to access pycairo's header.
+        # Shim pkg-config.
+        echo '#!/bin/sh' >/usr/bin/pkg-config
+        chmod a+x /usr/bin/pkg-config
+        # Shim access to pycairo's header.
         mv "$(find python-cairo -name py3cairo.h)" /usr/include
     )
 
@@ -59,13 +63,15 @@ else
         py_prefix=("/opt/python/cp${py_ver/./}-"*)
         tags="$(basename "$py_prefix")"
         echo "Building the wheel for Python $py_ver."
-        # Provide a shim to access pycairo's header.
+        # Shim access to pycairo's header.
         echo 'def get_include(): return "/dev/null"' \
             >"$py_prefix/lib/python$py_ver/site-packages/cairo.py"
         (
             cd /io/mplcairo
             # Force a rebuild of the extension.
-            "$py_prefix/bin/python" setup.py bdist_wheel
+            CFLAGS="-static-libgcc -static-libstdc++ -I/usr/include/cairo -I/usr/include/freetype2" \
+                LDFLAGS="-static-libgcc -static-libstdc++" \
+                "$py_prefix/bin/python" setup.py bdist_wheel
             mplcairo_version="$("$py_prefix/bin/python" setup.py --version)"
             for wheel in "dist/mplcairo-$mplcairo_version-$tags-"*".whl"; do
                 AUDITWHEEL_PLAT= auditwheel -v repair -wdist "$wheel"
