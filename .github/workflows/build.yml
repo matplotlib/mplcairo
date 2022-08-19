@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        os: [ubuntu-20.04, macos-11, windows-2019]
         python-version: ["3.7", "3.8", "3.9", "3.10"]
       fail-fast: false
     runs-on: ${{ matrix.os }}
@@ -18,23 +18,24 @@ jobs:
     - name: Build & install
       shell: bash
       run: |
-        set -x
+        set -x &&
 
+        export DISTUTILS_DEBUG=1 &&
         python -mpip install --upgrade pip setuptools &&
 
         case "$(python -c 'import sys; print(sys.platform)')" in
         linux)
           sudo PY_VERS="${{ matrix.python-version }}" tools/build-manylinux-wheel.sh &&
           sudo apt update &&
-          sudo apt install ghostscript inkscape \
-            texlive-latex-{base,recommended,extra} texlive-fonts-recommended cm-super dvipng &&
-          pip install 'pycairo<1.20'  # 1.20 requires too-recent cairo for Ubuntu 16.04.
+          sudo apt install ghostscript inkscape cm-super dvipng \
+            texlive-latex-{base,recommended,extra} texlive-fonts-recommended
           ;;
         darwin)
           # Don't install inkscape: building it from source is a bit silly.
           export HOMEBREW_NO_INSTALL_CLEANUP=1 &&
           brew install cairo pkg-config &&
-          PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig tools/build-macos-wheel.sh &&
+          MACOSX_DEPLOYMENT_TARGET=10.13 PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig \
+            tools/build-macos-wheel.sh &&
           brew install ghostscript
           ;;
         win32)

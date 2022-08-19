@@ -18,7 +18,7 @@ python -mvenv "$tmpenv"
 
 (
     source "$tmpenv/bin/activate"
-    python -mpip install --upgrade pip wheel delocate
+    python -mpip install --upgrade pip setuptools wheel delocate
 
     cd "$toplevel"
     python setup.py bdist_wheel
