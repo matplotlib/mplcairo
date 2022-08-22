@@ -31,11 +31,8 @@ extern std::array<uint8_t, 0x10000> unpremultiplication_table;
 extern void (*cairo_tag_begin)(cairo_t*, char const*, char const*);
 extern void (*cairo_tag_end)(cairo_t*, char const*);
 
-// Copy-pasted from cairo-pdf.h.
-typedef enum _cairo_pdf_version {
-    CAIRO_PDF_VERSION_1_4,
-    CAIRO_PDF_VERSION_1_5
-} cairo_pdf_version_t;
+// Modified from cairo-pdf.h.
+enum cairo_pdf_version_t {};
 typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_TITLE,
     CAIRO_PDF_METADATA_AUTHOR,
@@ -46,6 +43,7 @@ typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_MOD_DATE,
 } cairo_pdf_metadata_t;
 
+extern void (*cairo_pdf_get_versions)(cairo_pdf_version_t const**, int*);
 extern cairo_surface_t* (*cairo_pdf_surface_create_for_stream)(
   cairo_write_func_t, void*, double, double);
 extern void (*cairo_pdf_surface_restrict_to_version)(
@@ -54,11 +52,9 @@ extern void (*cairo_pdf_surface_set_metadata)(
   cairo_surface_t*, cairo_pdf_metadata_t, char const*);
 extern void (*cairo_pdf_surface_set_size)(cairo_surface_t*, double, double);
 
-// Copy-pasted from cairo-ps.h.
-typedef enum _cairo_ps_level {
-    CAIRO_PS_LEVEL_2,
-    CAIRO_PS_LEVEL_3
-} cairo_ps_level_t;
+// Modified from cairo-ps.h.
+enum cairo_ps_level_t {};
+extern void (*cairo_ps_get_levels)(cairo_ps_level_t const**, int*);
 extern cairo_surface_t* (*cairo_ps_surface_create_for_stream)(
   cairo_write_func_t, void*, double, double);
 extern void (*cairo_ps_surface_dsc_comment)(cairo_surface_t*, char const*);
@@ -67,11 +63,9 @@ extern void (*cairo_ps_surface_restrict_to_level)(
 extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
 extern void (*cairo_ps_surface_set_size)(cairo_surface_t*, double, double);
 
-// Copy-pasted from cairo-svg.h.
-typedef enum _cairo_svg_version {
-    CAIRO_SVG_VERSION_1_1,
-    CAIRO_SVG_VERSION_1_2
-} cairo_svg_version_t;
+// Modified from cairo-svg.h.
+enum cairo_svg_version_t {};
+extern void (*cairo_svg_get_versions)(cairo_svg_version_t const**, int*);
 extern cairo_surface_t* (*cairo_svg_surface_create_for_stream)(
   cairo_write_func_t, void*, double, double);
 extern void (*cairo_svg_surface_restrict_to_version)(
@@ -80,15 +74,18 @@ extern void (*cairo_svg_surface_restrict_to_version)(
 #define ITER_CAIRO_OPTIONAL_API(_) \
   _(cairo_tag_begin) \
   _(cairo_tag_end) \
+  _(cairo_pdf_get_versions) \
   _(cairo_pdf_surface_create_for_stream) \
   _(cairo_pdf_surface_restrict_to_version) \
   _(cairo_pdf_surface_set_metadata) \
   _(cairo_pdf_surface_set_size) \
+  _(cairo_ps_get_levels) \
   _(cairo_ps_surface_create_for_stream) \
   _(cairo_ps_surface_dsc_comment) \
   _(cairo_ps_surface_restrict_to_level) \
   _(cairo_ps_surface_set_eps) \
   _(cairo_ps_surface_set_size) \
+  _(cairo_svg_get_versions) \
   _(cairo_svg_surface_create_for_stream) \
   _(cairo_svg_surface_restrict_to_version)
 

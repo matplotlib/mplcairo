@@ -480,15 +480,22 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
       if (auto maxver =
             metadata->attr("pop")("MaxVersion", py::none())
             .cast<std::optional<std::string>>()) {
-        if (*maxver == "1.4") {
-          detail::cairo_pdf_surface_restrict_to_version(
-            surface, detail::CAIRO_PDF_VERSION_1_4);
-        } else if (*maxver == "1.5") {
-          detail::cairo_pdf_surface_restrict_to_version(
-            surface, detail::CAIRO_PDF_VERSION_1_5);
-        } else {
+        auto intver =
+          *maxver == "1.4" ? 0 :
+          *maxver == "1.5" ? 1 :
+          *maxver == "1.6" ? 2 :
+          *maxver == "1.7" ? 3 :
+          -1;
+        if (intver == -1) {
           throw std::invalid_argument("Invalid MaxVersion: " + *maxver);
         }
+        int n_supported_vers;
+        detail::cairo_pdf_get_versions(nullptr, &n_supported_vers);
+        if (intver >= n_supported_vers) {
+          throw std::invalid_argument("Unsupported MaxVersion: " + *maxver);
+        }
+        detail::cairo_pdf_surface_restrict_to_version(
+          surface, detail::cairo_pdf_version_t(intver));
       }
       for (auto const& it: *metadata) {
         if (it.second.is_none()) {
@@ -538,15 +545,20 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
       if (auto maxver =
             metadata->attr("pop")("MaxVersion", py::none())
             .cast<std::optional<std::string>>()) {
-        if (*maxver == "2") {
-          detail::cairo_ps_surface_restrict_to_level(
-            surface, detail::CAIRO_PS_LEVEL_2);
-        } else if (*maxver == "3") {
-          detail::cairo_ps_surface_restrict_to_level(
-            surface, detail::CAIRO_PS_LEVEL_3);
-        } else {
+        auto intver =
+          *maxver == "2" ? 0 :
+          *maxver == "3" ? 1 :
+          -1;
+        if (intver == -1) {
           throw std::invalid_argument("Invalid MaxVersion: " + *maxver);
         }
+        int n_supported_vers;
+        detail::cairo_ps_get_levels(nullptr, &n_supported_vers);
+        if (intver >= n_supported_vers) {
+          throw std::invalid_argument("Unsupported MaxVersion: " + *maxver);
+        }
+        detail::cairo_svg_surface_restrict_to_version(
+          surface, detail::cairo_svg_version_t(intver));
       }
       for (auto const& it: *metadata) {
         auto const& key = it.first.cast<std::string>();
@@ -565,15 +577,20 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
       if (auto maxver =
             metadata->attr("pop")("MaxVersion", py::none())
             .cast<std::optional<std::string>>()) {
-        if (*maxver == "1.1") {
-          detail::cairo_svg_surface_restrict_to_version(
-            surface, detail::CAIRO_SVG_VERSION_1_1);
-        } else if (*maxver == "1.2") {
-          detail::cairo_svg_surface_restrict_to_version(
-            surface, detail::CAIRO_SVG_VERSION_1_2);
-        } else {
+        auto intver =
+          *maxver == "1.1" ? 0 :
+          *maxver == "1.2" ? 1 :
+          -1;
+        if (intver == -1) {
           throw std::invalid_argument("Invalid MaxVersion: " + *maxver);
         }
+        int n_supported_vers;
+        detail::cairo_svg_get_versions(nullptr, &n_supported_vers);
+        if (intver >= n_supported_vers) {
+          throw std::invalid_argument("Unsupported MaxVersion: " + *maxver);
+        }
+        detail::cairo_svg_surface_restrict_to_version(
+          surface, detail::cairo_svg_version_t(intver));
       }
       break;
     default:
