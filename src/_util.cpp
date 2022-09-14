@@ -670,7 +670,7 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
         "Failed to parse pathspec {}"_format(pathspec).cast<std::string>()};
     }
     auto const& path = match.str(1);
-    auto const& face_index = match.str(3).empty() ? 0 : std::stoi(match.str(3));
+    auto const& face_index = std::atoi(match.str(3).c_str());  // 0 if absent.
     auto const& features_s = match.str(5);
     FT_Face ft_face;
     FT_CHECK(
@@ -806,10 +806,15 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
          *static_cast<std::vector<std::string>*>(
            cairo_font_face_get_user_data(
              cairo_get_font_face(cr), &detail::FEATURES_KEY))) {
-      auto lang_tag = "language="s;
-      if (feature.substr(0, lang_tag.size()) == lang_tag) {
-        TRUE_CHECK(raqm::set_language,
-                   rq, feature.c_str() + lang_tag.size(), 0, s.size());
+      auto match = std::smatch{};
+      if (std::regex_match(
+            feature, match,
+            std::regex{"^language(?:\\[(\\d+)?(?::(\\d+))?\\])?=(.*)$"})) {
+        auto const& start = std::atoi(match.str(1).c_str());  // 0 if absent.
+        auto const& stop = match[2].matched
+                           ? std::atoi(match.str(2).c_str()) : s.size();
+        auto const& lang = match.str(3);
+        TRUE_CHECK(raqm::set_language, rq, lang.c_str(), start, stop - start);
       } else {
         TRUE_CHECK(raqm::add_font_feature, rq, feature.c_str(), -1);
       }
