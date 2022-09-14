@@ -912,15 +912,17 @@ void GraphicsContextRenderer::draw_image(
   for (auto i = 0; i < height; ++i) {
     auto ptr = reinterpret_cast<uint32_t*>(data + i * stride);
     for (auto j = 0; j < width; ++j) {
-      auto const& r = im_raw(i, j, 0),
-                & g = im_raw(i, j, 1),
-                & b = im_raw(i, j, 2),
-                & a = im_raw(i, j, 3);
-      *ptr++ =
-        (uint8_t(a) << 24)
-        | (uint8_t(a / 255. * r) << 16)
-        | (uint8_t(a / 255. * g) << 8)
-        | (uint8_t(a / 255. * b) << 0);
+      auto r = im_raw(i, j, 0),
+           g = im_raw(i, j, 1),
+           b = im_raw(i, j, 2),
+           a = im_raw(i, j, 3);
+      if (a != 0xff) {
+        auto subtable = &detail::premultiplication_table[a << 8];
+        r = subtable[r];
+        g = subtable[g];
+        b = subtable[b];
+      }
+      *ptr++ = (a << 24) + (r << 16) + (g << 8) + (b << 0);
     }
   }
   cairo_surface_mark_dirty(surface);
