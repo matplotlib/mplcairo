@@ -8,7 +8,7 @@ except ImportError:
         _BackendQT5 as _BackendQT, FigureCanvasQT)
 from matplotlib.backends.qt_compat import QtCore, QtGui
 
-from . import _util
+from . import _mplcairo
 from .base import FigureCanvasCairo
 
 
@@ -19,7 +19,7 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
-        buf = _util.cairo_to_premultiplied_argb32(
+        buf = _mplcairo.cairo_to_premultiplied_argb32(
             self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
         # The image buffer is not necessarily contiguous, but the padding

@@ -9,7 +9,7 @@ import numpy as np
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 import mplcairo
-from mplcairo import _util, antialias_t
+from mplcairo import _mplcairo, antialias_t
 from mplcairo.base import FigureCanvasCairo
 
 # Import an autouse fixture.
@@ -37,8 +37,8 @@ def test_cairo_to_straight_rgba8888(benchmark, buf_name):
         s = 41774594
     else:
         assert False
-    benchmark(_util.cairo_to_straight_rgba8888, buf)
-    assert _util.cairo_to_straight_rgba8888(buf).sum() == s
+    benchmark(_mplcairo.cairo_to_straight_rgba8888, buf)
+    assert _mplcairo.cairo_to_straight_rgba8888(buf).sum() == s
 
 
 @pytest.fixture

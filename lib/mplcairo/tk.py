@@ -2,7 +2,7 @@ from functools import partial
 
 from matplotlib.backends._backend_tk import _BackendTk, FigureCanvasTk
 
-from . import _util
+from . import _mplcairo
 from .base import FigureCanvasCairo
 
 try:
@@ -19,7 +19,7 @@ class FigureCanvasTkCairo(FigureCanvasCairo, FigureCanvasTk):
         self.blit()
 
     def blit(self, bbox=None):
-        buf = _util.cairo_to_straight_rgba8888(
+        buf = _mplcairo.cairo_to_straight_rgba8888(
             self.get_renderer()._get_buffer())
         _tk_blit(self._tkphoto, buf, bbox=bbox)
 

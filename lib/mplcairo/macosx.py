@@ -1,6 +1,6 @@
 from matplotlib.backends.backend_macosx import _BackendMac, FigureCanvasMac
 
-from . import _util
+from . import _mplcairo
 from .base import FigureCanvasCairo
 
 
@@ -11,7 +11,7 @@ class FigureCanvasMacCairo(FigureCanvasCairo, FigureCanvasMac):
         renderer.clear()
         self.figure.draw(renderer)
         # A bit hackish, but that's what _macosx.FigureCanvas wants...
-        self._renderer = _util.cairo_to_straight_rgba8888(
+        self._renderer = _mplcairo.cairo_to_straight_rgba8888(
             renderer._get_buffer())
         return self
 

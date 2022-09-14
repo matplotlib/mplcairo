@@ -2,7 +2,7 @@ from matplotlib.backends.backend_wx import (
     _BackendWx, _FigureCanvasWxBase, FigureFrameWx)
 import wx
 
-from . import _util
+from . import _mplcairo, _util
 from .base import FigureCanvasCairo
 
 
@@ -24,7 +24,7 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
         # The source of wx.lib.wxcairo.BitmapFromImageSurface seems to suggest
         # that one can directly pass premultiplied RGBA to wx.Bitmap, but this
         # is incorrect (likely a bug?).
-        buf = _util.cairo_to_straight_rgba8888(
+        buf = _mplcairo.cairo_to_straight_rgba8888(
             self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
         self.bitmap = wx.Bitmap.FromBufferRGBA(width, height, buf)

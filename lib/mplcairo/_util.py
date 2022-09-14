@@ -6,11 +6,6 @@ import sys
 import matplotlib as mpl
 
 from . import _backports
-from ._mplcairo import (
-    cairo_to_premultiplied_argb32,
-    cairo_to_premultiplied_rgba8888,
-    cairo_to_straight_rgba8888,
-)
 
 
 @functools.lru_cache(1)

@@ -158,7 +158,8 @@ class GraphicsContextRendererCairo(
         mb.draw(self, x, y, angle)
 
     def stop_filter(self, filter_func):
-        img = _util.cairo_to_straight_rgba8888(self._stop_filter_get_buffer())
+        img = _mplcairo.cairo_to_straight_rgba8888(
+            self._stop_filter_get_buffer())
         img, (l, b, w, h) = _get_drawn_subarray_and_bounds(img)
         if not (w and h):
             return
@@ -176,14 +177,14 @@ class GraphicsContextRendererCairo(
     lock = _LOCK  # For webagg_core; matplotlib#10708 (<3.0).
 
     def buffer_rgba(self):  # For tkagg, webagg_core.
-        return _util.cairo_to_straight_rgba8888(self._get_buffer())
+        return _mplcairo.cairo_to_straight_rgba8888(self._get_buffer())
 
     _renderer = property(buffer_rgba)  # For tkagg; matplotlib#18993 (<3.4).
 
     # For MixedModeRenderer; matplotlib#17788 (<3.4).
     def tostring_rgba_minimized(self):
         img, bounds = _get_drawn_subarray_and_bounds(
-            _util.cairo_to_straight_rgba8888(self._get_buffer()))
+            _mplcairo.cairo_to_straight_rgba8888(self._get_buffer()))
         return img.tobytes(), bounds
 
 
@@ -345,7 +346,7 @@ class FigureCanvasCairo(FigureCanvasBase):
         renderer.clear()
         with _LOCK:
             self.figure.draw(renderer)
-        return _util.cairo_to_straight_rgba8888(renderer._get_buffer())
+        return _mplcairo.cairo_to_straight_rgba8888(renderer._get_buffer())
 
     def print_rgba(self, path_or_stream, *,
                    dryrun=False, metadata=None, **kwargs):
