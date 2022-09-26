@@ -1,13 +1,9 @@
-from functools import partial
-import inspect
-import re
 from pathlib import Path
+import tokenize
 
 import setuptools
-from setuptools import Extension, find_packages
+from setuptools import Distribution, Extension, find_packages
 from setuptools.command.build_ext import build_ext
-from setuptools.command.develop import develop
-from setuptools.command.install_lib import install_lib
 
 
 __all__ = ["Extension", "build_ext", "find_packages", "setup"]
@@ -22,49 +18,43 @@ class build_ext(build_ext):
         super().build_extensions()
 
 
-class setup:
-    _pth_hooks = {}
+def register_pth_hook(source_path, pth_name):
+    """
+    ::
+        setup.register_pth_hook("hook_source.py", "hook_name.pth")  # Add hook.
+    """
+    with tokenize.open(source_path) as file:
+        source = file.read()
+    _pth_hook_mixin._pth_hooks.append((pth_name, source))
 
-    def __new__(cls, **kwargs):
 
-        cmdclass = kwargs.setdefault("cmdclass", {})
+class _pth_hook_mixin:
+    _pth_hooks = []
 
-        class pth_hook_mixin:
+    def run(self):
+        super().run()
+        for pth_name, source in self._pth_hooks:
+            with Path(self.install_dir, pth_name).open("w") as file:
+                file.write(f"import os; exec({source!r})")
 
-            def run(self):
-                super().run()
-                for fname, (name, source) in cls._pth_hooks.items():
-                    with Path(self.install_dir, fname).open("w") as file:
-                        file.write(f"import os; exec({source!r}); {name}()")
+    def get_outputs(self):
+        return (super().get_outputs()
+                + [str(Path(self.install_dir, pth_name))
+                   for pth_name, _ in self._pth_hooks])
 
-            def get_outputs(self):
-                return (super().get_outputs()
-                        + [str(Path(self.install_dir, fname))
-                           for fname in cls._pth_hooks])
 
-        cmdclass["develop"] = type(
-            "develop_with_pth_hook",
-            (pth_hook_mixin, cmdclass.get("develop", develop)),
-            {})
-        cmdclass["install_lib"] = type(
-            "install_lib_with_pth_hook",
-            (pth_hook_mixin, cmdclass.get("install_lib", install_lib)),
-            {})
+def _prepare_pth_hook(kwargs):
+    cmdclass = kwargs.setdefault("cmdclass", {})
+    get = Distribution({"cmdclass": cmdclass}).get_command_class
+    cmdclass["develop"] = type(
+        "develop_with_pth_hook", (_pth_hook_mixin, get("develop")), {})
+    cmdclass["install_lib"] = type(
+        "install_lib_with_pth_hook", (_pth_hook_mixin, get("install_lib")), {})
 
-        setuptools.setup(**kwargs)
 
-    @classmethod
-    def register_pth_hook(cls, fname, func=None):
-        if func is None:
-            return partial(cls.register_pth_hook, fname)
-        source = inspect.getsource(func)
-        if not re.match(r"\A@setup\.register_pth_hook.*\ndef ", source):
-            raise SyntaxError("register_pth_hook must be used as a toplevel "
-                              "decorator to a function")
-        _, source = source.split("\n", 1)
-        d = {}
-        exec(source, {}, d)
-        if set(d) != {func.__name__}:
-            raise SyntaxError(
-                "register_pth_hook should define a single function")
-        cls._pth_hooks[fname] = func.__name__, source
+def setup(**kwargs):
+    _prepare_pth_hook(kwargs)
+    setuptools.setup(**kwargs)
+
+
+setup.register_pth_hook = register_pth_hook
