@@ -673,8 +673,17 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
     auto const& face_index = std::atoi(match.str(3).c_str());  // 0 if absent.
     auto const& features_s = match.str(5);
     FT_Face ft_face;
-    FT_CHECK(
-      FT_New_Face, detail::ft_library, path.c_str(), face_index, &ft_face);
+    if (auto const& error =
+        FT_New_Face(detail::ft_library, path.c_str(), face_index, &ft_face)) {
+      if (error == FT_Err_Cannot_Open_Resource) {
+        // Throw the exception that Python would throw...
+        py::module::import("builtins").attr("open")(path);
+        if (PyErr_Occurred()) {  // ... if possible.
+          throw py::error_already_set{};
+        }
+      }
+      THROW_ERROR("FT_New_Face", mplcairo::detail::ft_errors.at(error));
+    }
     font_face =
       cairo_ft_font_face_create_for_ft_face(ft_face, get_hinting_flag());
     auto font_face_cleanup =  // In case set_user_data fails; released at end.

@@ -2,18 +2,20 @@
 
 #define TRUE_CHECK(func, ...) { \
   if (auto const& error_ = func(__VA_ARGS__); !error_) { \
-    throw \
-      std::runtime_error{ \
-        #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed"}; \
+    throw std::runtime_error{ \
+      #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed"}; \
   } \
+} (void)0
+
+#define THROW_ERROR(name, err) { \
+  throw std::runtime_error{ \
+    name " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed " \
+    "with error: " + std::string{err}}; \
 } (void)0
 
 #define CAIRO_CHECK(func, ...) { \
   if (auto const& status_ = func(__VA_ARGS__); status_ != CAIRO_STATUS_SUCCESS) { \
-    throw \
-      std::runtime_error{ \
-        #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed " \
-        "with error: " + std::string{cairo_status_to_string(status_)}}; \
+    THROW_ERROR(#func, cairo_status_to_string(status_)); \
   } \
 } (void)0
 
@@ -25,19 +27,13 @@
         destroy_arg(user_data); \
       } \
     }(destroy); \
-    throw \
-      std::runtime_error{ \
-        #set_user_data " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed " \
-        "with error: " + std::string{cairo_status_to_string(status_)}}; \
+    THROW_ERROR(#set_user_data, cairo_status_to_string(status_)); \
   } \
 } (void)0
 
 #define FT_CHECK(func, ...) { \
   if (auto const& error_ = func(__VA_ARGS__)) { \
-    throw \
-      std::runtime_error{ \
-        #func " (" __FILE__ " line " + std::to_string(__LINE__) + ") failed " \
-        "with error: " + mplcairo::detail::ft_errors.at(error_)}; \
+    THROW_ERROR(#func, mplcairo::detail::ft_errors.at(error_)); \
   } \
 } (void)0
 

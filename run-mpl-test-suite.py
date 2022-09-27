@@ -134,6 +134,7 @@ def pytest_collection_modifyitems(session, config, items):
                 # Chunking is not disabled by filling/hatching (we just don't
                 # chunk the relevant part), and cairo has no explicit rendering
                 # complexity limit.
+                "test_agg.py::test_chunksize_fails",
                 "test_agg.py::test_chunksize_hatch_fail",
                 "test_agg.py::test_chunksize_rgbFace_fail",
                 "test_agg.py::test_chunksize_no_simplify_fail",
@@ -172,11 +173,13 @@ def pytest_collection_modifyitems(session, config, items):
                 # Useful, but the tag structure is too different (e.g. cairo
                 # skips emitting clips that don't intersect paths).
                 "test_backend_svg.py::test_count_bitmaps",
-                # cairo doesn't support custom gids.
+                # cairo doesn't support custom gids or metadata.
                 "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svg_clear_all_metadata",
                 "test_backend_svg.py::test_svg_clear_default_metadata",
                 "test_backend_svg.py::test_svg_default_metadata",
+                "test_backend_svg.py::test_svg_escape",
+                "test_backend_svg.py::test_svg_incorrect_metadata[",
                 "test_backend_svg.py::test_svg_metadata",
                 # cairo always emits text as glyph paths.
                 "test_backend_svg.py::test_svgnone_with_data_coordinates",
