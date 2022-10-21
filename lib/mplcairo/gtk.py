@@ -6,6 +6,8 @@ _mpl_gtk, _backend_obj = _util.get_matplotlib_gtk_backend()
 
 
 class FigureCanvasGTKCairo(FigureCanvasCairo, _mpl_gtk.FigureCanvas):
+    supports_blit = True  # Override mpl gtk4, which doesn't support blit.
+
     def _renderer_init(self):  # matplotlib#17461 (<3.3).
         pass
 
