@@ -5,14 +5,14 @@ on: [push, pull_request]
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, macos-11, windows-2019]
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
-      fail-fast: false
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Build & install
@@ -67,12 +67,12 @@ jobs:
           fi
         ) &&
         PYTHONFAULTHANDLER=1 PYTHONIOENCODING=utf-8 ./run-examples.py
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: wheels
         path: dist/
       if: ${{ always() }}
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         name: result_images-${{ matrix.os }}-py${{ matrix.python-version }}
         path: result_images/

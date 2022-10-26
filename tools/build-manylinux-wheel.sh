@@ -18,9 +18,9 @@ if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
         python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' \
             "$0" "$toplevel")"
     ${DOCKER:-docker} run \
-        -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.7 3.8 3.9}" \
+        -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.7 3.8 3.9 3.10 3.11}" \
         --volume "$tmpdir/mplcairo":/io/mplcairo:Z \
-        quay.io/pypa/manylinux2010_x86_64 \
+        quay.io/pypa/manylinux2014_x86_64 \
         "/io/mplcairo/$relpath"
 
     user="${SUDO_USER:-$USER}"
@@ -74,7 +74,7 @@ else
                 "$py_prefix/bin/python" setup.py bdist_wheel
             mplcairo_version="$("$py_prefix/bin/python" setup.py --version)"
             for wheel in "dist/mplcairo-$mplcairo_version-$tags-"*".whl"; do
-                AUDITWHEEL_PLAT= auditwheel -v repair -wdist "$wheel"
+                auditwheel -v repair -wdist "$wheel"
                 rm "$wheel"
             done
         )
