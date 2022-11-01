@@ -41,7 +41,6 @@ jobs:
         win32)
           # Don't install inkscape (see note in run-mpl-test-suite.py).
           # Skip known-bad version of numpy.
-          python -mpip install --only-binary :all: pycairo &&
           python tools/build-windows-wheel.py &&
           choco install --no-progress ghostscript &&
           pip install 'numpy!=1.19.4'

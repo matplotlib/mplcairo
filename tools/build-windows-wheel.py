@@ -14,62 +14,45 @@ build__ listed on FreeType's website.
 __ https://github.com/ubawurinna/freetype-windows-binaries
 """
 
-from ctypes import (
-    c_bool, c_char_p, c_ulong, c_void_p, c_wchar_p, POINTER,
-    byref, create_unicode_buffer, sizeof, windll)
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import sysconfig
 from tempfile import TemporaryDirectory
 import urllib.request
 
-import cairo  # Needed to load the cairo dll.
 import setuptools
-
-
-def enum_process_modules(func_name=None):
-    k32 = windll.kernel32
-    psapi = windll.psapi
-    k32.GetCurrentProcess.restype = c_void_p
-    k32.GetModuleFileNameW.argtypes = [c_void_p, c_wchar_p, c_ulong]
-    k32.GetModuleFileNameW.restype = c_ulong
-    k32.GetProcAddress.argtypes = [c_void_p, c_char_p]
-    k32.GetProcAddress.restypes = c_void_p
-    psapi.EnumProcessModules.argtypes = [
-        c_void_p, POINTER(c_void_p), c_ulong, POINTER(c_ulong)]
-    psapi.EnumProcessModules.restype = c_bool
-
-    process = k32.GetCurrentProcess()
-    needed = c_ulong()
-    psapi.EnumProcessModules(process, None, 0, byref(needed))
-    modules = (c_void_p * (needed.value // sizeof(c_void_p)))()
-    if not psapi.EnumProcessModules(
-            process, modules, sizeof(modules), byref(needed)):
-        raise OSError("Failed to enumerate process modules")
-    path = create_unicode_buffer(1024)
-    for module in modules:
-        if func_name is None or k32.GetProcAddress(module, func_name):
-            k32.GetModuleFileNameW(module, path, len(path))
-            yield path.value
 
 
 # Prepare the directories.
 os.chdir(Path(__file__).resolve().parents[1])
 Path("build").mkdir(exist_ok=True)
-
-# Download the cairo headers from Arch Linux (<1Mb, vs >40Mb for the official
-# tarball, which contains baseline images) from before Arch switched to zstd,
-# and the "official" FreeType build.
 os.chdir("build")
+
+pycairo_json = json.load(
+    urllib.request.urlopen("https://pypi.org/pypi/pycairo/json"))
+
 urls = {
+    # Download a pycairo wheel and manually unzip it, so that the build is not
+    # gated on pycairo releasing a wheel for the current version of Python.
+    Path("pycairo.zip"):
+        max([e for e in pycairo_json["urls"]
+             if e["filename"].endswith(
+                 sysconfig.get_platform().replace("-", "_") + ".whl")],
+            key=lambda e: e["upload_time"])["url"],
+    # Download the cairo headers from Arch Linux (<1Mb, vs >40Mb for the
+    # official tarball, which contains baseline images) from before Arch
+    # switched to zstd.
     Path("cairo.txz"):
         "https://archive.org/download/archlinux_pkg_cairo/"
         "cairo-1.17.2%2B17%2Bg52a7c79fd-2-x86_64.pkg.tar.xz",
     Path("fontconfig.txz"):
         "https://archive.org/download/archlinux_pkg_fontconfig/"
         "fontconfig-2%3A2.13.91%2B24%2Bg75eadca-1-x86_64.pkg.tar.xz",
+    # Download the "official" FreeType build.
     Path("freetype.zip"):
         "https://github.com/ubawurinna/freetype-windows-binaries/"
         "releases/download/v2.9.1/freetype-2.9.1.zip",
@@ -82,11 +65,12 @@ for archive_path, url in urls.items():
     shutil.rmtree(dest, ignore_errors=True)
     shutil.unpack_archive(archive_path, dest)
 
-# Get cairo.dll (normally loaded by pycairo), checking that it include
-# FreeType support.
-Path("cairo/win64").mkdir(parents=True)
-cairo_dll, = enum_process_modules(b"cairo_ft_font_face_create_for_ft_face")
-shutil.copyfile(cairo_dll, "cairo/win64/cairo.dll")
+win64_path = Path("cairo/win64")
+win64_path.mkdir(parents=True)
+shutil.copy("pycairo/cairo/include/py3cairo.h", "cairo/win64")
+Path("cairo/__init__.py").write_text(
+    f"def get_include(): return {repr(str(win64_path.resolve()))}")
+shutil.copy("pycairo/cairo/cairo.dll", "cairo/win64")
 # Get hold of a CCompiler object, by creating a dummy Distribution with a list
 # of extension modules that claims to be truthy (but is actually empty) and
 # running its build_ext command.  Prior to the deprecation of distutils, this
@@ -150,4 +134,4 @@ os.environ.update(
 )
 subprocess.run(
     [sys.executable, "setup.py", "bdist_wheel"],
-    check=True)
+    check=True, env={**os.environ, "PYTHONPATH": "build"})
