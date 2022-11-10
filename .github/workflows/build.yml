@@ -25,7 +25,7 @@ jobs:
 
         case "$(python -c 'import sys; print(sys.platform)')" in
         linux)
-          sudo PY_VERS="${{ matrix.python-version }}" tools/build-manylinux-wheel.sh &&
+          sudo PY_VERS='${{ matrix.python-version }}' tools/build-manylinux-wheel.sh &&
           sudo apt update &&
           sudo apt install ghostscript inkscape cm-super dvipng \
             texlive-latex-{base,recommended,extra} texlive-fonts-recommended
@@ -53,7 +53,12 @@ jobs:
         python -mpip install dist/*.whl &&
         python tools/ensure-mpl-test-data.py &&
         # pytest-{instafail,timeout} useful for hanging tests.
-        python -mpip install pytest pytest-instafail pytest-timeout
+        python -mpip install pytest pytest-instafail pytest-timeout &&
+        if [[ '${{ matrix.python-version }}' = 3.7 ]]; then
+          # Python 3.7 implies Matplotlib 3.5, which has some nose-style tests;
+          # support for such tests has been deprecated in pytest 7.2.
+          pip install 'pytest<7.2'
+        fi
     - name: Test
       shell: bash
       run: |
