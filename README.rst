@@ -33,7 +33,8 @@ Noteworthy points include:
   kerning; floating point surfaces are supported with cairo≥1.17.2).
 - Optional multithreaded drawing of markers and path collections.
 - Optional support for complex text layout (right-to-left languages, etc.) and
-  OpenType font features (see `examples/opentype_features.py`_), and partial
+  OpenType font features (see `examples/opentype_features.py`_) and variations
+  (see `examples/opentype_variations.py`_) (requires cairo≥1.16.0), and partial
   support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm
   depends by default on Fribidi, which is licensed under the LGPLv2.1+.
 - Support for embedding URLs in PDF (but not SVG) output (requires
@@ -49,6 +50,7 @@ Noteworthy points include:
 .. _Matplotlib: http://matplotlib.org/
 .. _Raqm: https://github.com/HOST-Oman/libraqm
 .. _examples/opentype_features.py: examples/opentype_features.py
+.. _examples/opentype_variations.py: examples/opentype_variations.py
 .. _examples/operators.py: examples/operators.py
 
 Installation
@@ -105,6 +107,9 @@ path <add_dll_directory_>`_).
 
    cairo 1.15.4 added support for PDF metadata and links; the presence of this
    feature is detected at runtime.
+
+   cairo 1.16.0 added support for font variations; the presence of this feature
+   is detected at runtime.
 
    cairo 1.17.2 added support for floating point surfaces, usable with
    ``mplcairo.set_options(float_surface=True)``; the presence of this feature
@@ -456,7 +461,16 @@ language_ tag can likewise be set with ``|language=...``; currently, this
 always applies to the whole buffer, but a PR adding support for slicing syntax
 (similar to font features) would be considered.
 
+OpenType font variations can be selected by appending an additional ``|`` to
+the filename, followed by a `Cairo font variation string`_ (e.g.,
+``"/path/to/font.otf||wdth=75"``); see `examples/opentype_variations.py`_. This
+support requires Cairo>=1.16. Note that features are parsed first, so if you do
+not wish to specify any features, you must specify an empty set with two pipes,
+i.e., ``font.otf|variations`` will treat ``variations`` as features, *not*
+variations.
+
 .. _HarfBuzz feature string: https://harfbuzz.github.io/harfbuzz-hb-common.html#hb-feature-from-string
+.. _Cairo font variation string: https://www.cairographics.org/manual/cairo-cairo-font-options-t.html#cairo-font-options-set-variations
 .. _language: https://host-oman.github.io/libraqm/raqm-Raqm.html#raqm-set-language
 
 The syntaxes for selecting TTC subfonts and OpenType font features and language

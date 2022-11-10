@@ -59,6 +59,7 @@ cairo_user_data_key_t const REFS_KEY{},
                             INIT_MATRIX_KEY{},
                             FT_KEY{},
                             FEATURES_KEY{},
+                            VARIATIONS_KEY{},
                             IS_COLOR_FONT_KEY{};
 py::object RC_PARAMS{},
            PIXEL_MARKER{},
@@ -665,13 +666,14 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
   if (!font_face) {
     auto match = std::smatch{};
     if (!std::regex_match(pathspec, match,
-                          std::regex{"(.*?)(#(\\d+))?(\\|(.*))?"})) {
+                          std::regex{"(.*?)(#(\\d+))?(\\|([^|]*))?(\\|(.*))?"})) {
       throw std::runtime_error{
         "Failed to parse pathspec {}"_format(pathspec).cast<std::string>()};
     }
     auto const& path = match.str(1);
     auto const& face_index = std::atoi(match.str(3).c_str());  // 0 if absent.
     auto const& features_s = match.str(5);
+    auto const& variations = match.str(7);
     FT_Face ft_face;
     if (auto const& error =
         FT_New_Face(detail::ft_library, path.c_str(), face_index, &ft_face)) {
@@ -708,6 +710,12 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
       font_face, &detail::FEATURES_KEY, features,
       [](void* ptr) -> void {
         delete static_cast<std::vector<std::string>*>(ptr);
+      });
+    CAIRO_CHECK_SET_USER_DATA(
+      cairo_font_face_set_user_data,
+      font_face, &detail::VARIATIONS_KEY, new std::string(variations),
+      [](void* ptr) -> void {
+        delete static_cast<std::string*>(ptr);
       });
     // Color fonts need special handling due to cairo#404 and raqm#123; see
     // corresponding sections of the code.
@@ -774,6 +782,16 @@ void adjust_font_options(cairo_t* cr)
       aa.ptr() == Py_True ? CAIRO_ANTIALIAS_SUBPIXEL
       : aa.ptr() == Py_False ? CAIRO_ANTIALIAS_NONE
       : aa.cast<cairo_antialias_t>());
+  }
+  auto const& variations = *static_cast<std::string*>(
+    cairo_font_face_get_user_data(font_face, &detail::VARIATIONS_KEY));
+  if (!variations.empty()) {
+    if (detail::cairo_font_options_set_variations) {
+      detail::cairo_font_options_set_variations(options, variations.c_str());
+    } else {
+        py::module::import("warnings").attr("warn")(
+          "cairo_font_options_set_variations requires cairo>=1.16.0");
+    }
   }
   // The hint style is not set here: it is passed directly as load_flags to
   // cairo_ft_font_face_create_for_ft_face.
