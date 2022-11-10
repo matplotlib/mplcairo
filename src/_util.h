@@ -31,6 +31,8 @@ extern std::array<uint8_t, 0x10000>
 #define CAIRO_TAG_LINK "Link"
 extern void (*cairo_tag_begin)(cairo_t*, char const*, char const*);
 extern void (*cairo_tag_end)(cairo_t*, char const*);
+// Copy-pasted from cairo.h, backported from 1.16.
+extern void (*cairo_font_options_set_variations)(cairo_font_options_t *, const char *);
 
 // Modified from cairo-pdf.h.
 enum cairo_pdf_version_t {};
@@ -75,6 +77,7 @@ extern void (*cairo_svg_surface_restrict_to_version)(
 #define ITER_CAIRO_OPTIONAL_API(_) \
   _(cairo_tag_begin) \
   _(cairo_tag_end) \
+  _(cairo_font_options_set_variations) \
   _(cairo_pdf_get_versions) \
   _(cairo_pdf_surface_create_for_stream) \
   _(cairo_pdf_surface_restrict_to_version) \
