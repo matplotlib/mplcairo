@@ -42,8 +42,8 @@ MANYLINUX = bool(os.environ.get("MPLCAIRO_MANYLINUX", ""))
 UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
 
-def get_pkgconfig(info, lib):
-    return shlex.split(subprocess.check_output(["pkg-config", info, lib],
+def get_pkgconfig(*args):
+    return shlex.split(subprocess.check_output(["pkg-config", *args],
                                                universal_newlines=True))
 
 
@@ -93,7 +93,7 @@ class build_ext(build_ext):
         # (missing a declaration for `raqm_version_string`).  It is thus not
         # possible to build mplcairo with such an old distro package installed.
         try:
-            get_pkgconfig(f"--atleast-version={MIN_RAQM_VERSION}", "raqm")
+            get_pkgconfig(f"raqm >= {MIN_RAQM_VERSION}")
         except (FileNotFoundError, CalledProcessError):
             tmp_include_dir = Path(
                 self.get_finalized_command("build").build_base, "include")
@@ -109,7 +109,7 @@ class build_ext(build_ext):
             ext.extra_compile_args += get_pkgconfig("--cflags", "raqm")
 
         if os.name == "posix":
-            get_pkgconfig(f"--atleast-version={MIN_CAIRO_VERSION}", "cairo")
+            get_pkgconfig(f"cairo >= {MIN_CAIRO_VERSION}")
             ext.extra_compile_args += [
                 "-flto", "-Wall", "-Wextra", "-Wpedantic",
                 *get_pkgconfig("--cflags", "cairo"),
