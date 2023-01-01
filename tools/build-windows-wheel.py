@@ -32,8 +32,8 @@ os.chdir(Path(__file__).resolve().parents[1])
 Path("build").mkdir(exist_ok=True)
 os.chdir("build")
 
-pycairo_json = json.load(
-    urllib.request.urlopen("https://pypi.org/pypi/pycairo/json"))
+pycairo_json = json.load(  # pycairo>=1.23 switched to static linking.
+    urllib.request.urlopen("https://pypi.org/pypi/pycairo/1.22.0/json"))
 
 urls = {
     # Download a pycairo wheel and manually unzip it, so that the build is not
