@@ -1,18 +1,5 @@
 There is a significant performance regression on the wire3d_animation example.
 
-Crashes
-=======
-
-::
-
-   gca(); savefig("/tmp/test.cairoscript")
-
-Seems to be due to cairo trying to call ``write`` during shutdown when the
-interpreter state is seriously messed up (even though ``_finish`` has been
-correctly called first).  See `cairo issue #277 <cairo-277_>`_.
-
-.. _cairo-277: https://gitlab.freedesktop.org/cairo/cairo/issues/277
-
 Fix needed
 ==========
 
@@ -59,22 +46,6 @@ Matplotlib's software alpha compositor is incorrect (#8847). ::
 
 Matplotlib's draw_path_collection has inconsistent semantics across backends
 (#12021).  (No test.)
-
-Issues with Ghostscript
------------------------
-
-Ghostscript's grayscale conversion is inaccurate in certain cases
-(https://bugs.ghostscript.com/show_bug.cgi?id=698828). ::
-
-   test_axes::test_mixed_collection[pdf]
-   test_backend_pdf::test_grayscale_alpha
-   test_backend_svg::test_noscale[pdf]
-   test_mplot3d::test_bar3d,test_contour3d,etc.[pdf]
-   test_offsetbox::test_offsetbox_clipping[pdf]
-
-Ghostscript misrenders consecutive dashed lines (Matplotlib #10036). ::
-
-   test_lines::test_lw_scaling[pdf]
 
 Issues with Inkscape
 --------------------

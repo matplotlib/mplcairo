@@ -112,7 +112,10 @@ path <add_dll_directory_>`_).
    has a bug that causes (in particular) polar gridlines to be incorrectly
    cropped.  This bug was fixed in 2d1a137.
 
-   cairo 1.17.4 fixed a long-standing rasterization bug (in dfe3aa6).
+   cairo 1.17.4 fixed a rare crash in rasterization (in dfe3aa6).
+
+   cairo 1.17.8 fixed a crash when outputting in the cairo-script format (in
+   6a81bf8).
 
 .. [#] pybind11 2.6.0 is needed to support Python 3.9.
 
@@ -501,10 +504,7 @@ matches the cairo drawing model".  The value of the variable determines the
 rendering path used (e.g., whether marker stamping is used at all).  This may
 be helpful for troubleshooting purposes.
 
-Note that this may crash the process after the file is written, due to `cairo
-issue #277 <cairo-277_>`_.
-
-.. _cairo-277: https://gitlab.freedesktop.org/cairo/cairo/issues/277
+Note that cairo-script output is generally broken on cairo≤1.17.8.
 
 Markers at Bézier control points
 --------------------------------
