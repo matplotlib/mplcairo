@@ -373,6 +373,8 @@ class FigureCanvasCairo(FigureCanvasBase):
         }
         if pil_kwargs is None:
             pil_kwargs = {}
+        else:
+            pil_kwargs = pil_kwargs.copy()
         # Only use the metadata kwarg if pnginfo is not set, because the
         # semantics of duplicate keys in pnginfo is unclear.
         if "pnginfo" not in pil_kwargs:
@@ -396,6 +398,8 @@ class FigureCanvasCairo(FigureCanvasBase):
             return
         if pil_kwargs is None:
             pil_kwargs = {}
+        else:
+            pil_kwargs = pil_kwargs.copy()
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
         Image.fromarray(img).save(path_or_stream, format="jpeg", **pil_kwargs)
@@ -406,6 +410,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                    dryrun=False, pil_kwargs=None, **kwargs):
         if pil_kwargs is None:
             pil_kwargs = {}
+        else:
+            pil_kwargs = pil_kwargs.copy()
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
@@ -419,6 +425,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                    dryrun=False, pil_kwargs=None, **kwargs):
         if pil_kwargs is None:
             pil_kwargs = {}
+        else:
+            pil_kwargs = pil_kwargs.copy()
         pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
