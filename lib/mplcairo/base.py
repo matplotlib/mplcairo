@@ -371,19 +371,15 @@ class FigureCanvasCairo(FigureCanvasBase):
             f"https://matplotlib.org",
             **(metadata if metadata is not None else {}),
         }
-        if pil_kwargs is None:
-            pil_kwargs = {}
-        else:
-            pil_kwargs = pil_kwargs.copy()
         # Only use the metadata kwarg if pnginfo is not set, because the
         # semantics of duplicate keys in pnginfo is unclear.
-        if "pnginfo" not in pil_kwargs:
-            pnginfo = PngInfo()
-            for k, v in metadata.items():
-                pnginfo.add_text(k, v)
-            pil_kwargs["pnginfo"] = pnginfo
-        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
-        Image.fromarray(img).save(path_or_stream, format="png", **pil_kwargs)
+        pnginfo = PngInfo()
+        for k, v in metadata.items():
+            pnginfo.add_text(k, v)
+        Image.fromarray(img).save(path_or_stream, format="png", **{
+            "pnginfo": pnginfo,
+            "dpi": (self.figure.dpi, self.figure.dpi),
+            **(pil_kwargs if pil_kwargs is not None else {})})
 
     def print_jpeg(self, path_or_stream, *,
                    dryrun=False, pil_kwargs=None, **kwargs):
@@ -396,43 +392,34 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.figure.set_facecolor((r, g, b, a))
         if dryrun:
             return
-        if pil_kwargs is None:
-            pil_kwargs = {}
-        else:
-            pil_kwargs = pil_kwargs.copy()
-        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
-        Image.fromarray(img).save(path_or_stream, format="jpeg", **pil_kwargs)
+        Image.fromarray(img).save(path_or_stream, format="jpeg", **{
+            "dpi": (self.figure.dpi, self.figure.dpi),
+            **(pil_kwargs if pil_kwargs is not None else {})})
 
     print_jpg = print_jpeg
 
     def print_tiff(self, path_or_stream, *,
                    dryrun=False, pil_kwargs=None, **kwargs):
-        if pil_kwargs is None:
-            pil_kwargs = {}
-        else:
-            pil_kwargs = pil_kwargs.copy()
-        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
-        Image.fromarray(img).save(path_or_stream, format="tiff", **pil_kwargs)
+        Image.fromarray(img).save(path_or_stream, format="tiff", **{
+            "dpi": (self.figure.dpi, self.figure.dpi),
+            **(pil_kwargs if pil_kwargs is not None else {})})
 
     print_tif = print_tiff
 
     def print_webp(self, path_or_stream, *,
                    dryrun=False, pil_kwargs=None, **kwargs):
-        if pil_kwargs is None:
-            pil_kwargs = {}
-        else:
-            pil_kwargs = pil_kwargs.copy()
-        pil_kwargs.setdefault("dpi", (self.figure.dpi, self.figure.dpi))
         _check_print_extra_kwargs(**kwargs)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
-        Image.fromarray(img).save(path_or_stream, format="webp", **pil_kwargs)
+        Image.fromarray(img).save(path_or_stream, format="webp", **{
+            "dpi": (self.figure.dpi, self.figure.dpi),
+            **(pil_kwargs if pil_kwargs is not None else {})})
 
 
 @_Backend.export
