@@ -854,7 +854,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
   auto mtx = matrix_from_transform(transform, get_additional_state().height);
   auto const& tri_raw = triangles.unchecked<3>();
   auto const& col_raw = colors.unchecked<3>();
@@ -892,7 +892,7 @@ void GraphicsContextRenderer::draw_image(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
   auto const& im_raw = im.unchecked<3>();
   auto const& height = im_raw.shape(0), width = im_raw.shape(1);
   if (im_raw.shape(2) != 4) {
@@ -974,7 +974,7 @@ void GraphicsContextRenderer::draw_path(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
   auto path_loaded = false;
   auto mtx = matrix_from_transform(transform, get_additional_state().height);
   auto const& load_path = [&] {
@@ -1064,7 +1064,7 @@ void maybe_multithread(cairo_t* cr, int n, T /* lambda */ worker) {
         worker, ctx, chunk_size * i, std::min<int>(chunk_size * (i + 1), n));
     }
     {
-      auto const& nogil = py::gil_scoped_release{};
+      [[maybe_unused]] auto const& nogil = py::gil_scoped_release{};
       for (auto& thread: threads) {
         thread.join();
       }
@@ -1094,7 +1094,7 @@ void GraphicsContextRenderer::draw_markers(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
 
   // As paths store their vertices in an array, the .cast<>() will not make a
   // copy and we don't need to explicitly keep the intermediate result alive.
@@ -1303,7 +1303,7 @@ void GraphicsContextRenderer::draw_path_collection(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
   auto const& old_snap = get_additional_state().snap;
   get_additional_state().snap = false;
 
@@ -1433,7 +1433,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
   auto mtx =
     matrix_from_transform(master_transform, get_additional_state().height);
   auto const& fcs_raw = fcs.unchecked<2>(),
@@ -1535,7 +1535,7 @@ void GraphicsContextRenderer::draw_text(
   if (&gc != this) {
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
-  auto const& ac = _additional_context();
+  [[maybe_unused]] auto const& ac = _additional_context();
   if (ismath) {
     // NOTE: This uses unhinted metrics for parsing/positioning but normal
     // hinting for rendering, not sure whether this is a problem...
@@ -1780,7 +1780,7 @@ void MathtextBackend::draw(
     // state. even though nothing is written.
     return;
   }
-  auto const& ac = gcr._additional_context();
+  [[maybe_unused]] auto const& ac = gcr._additional_context();
   auto const& cr = gcr.cr_;
   auto const& dpi = get_additional_state(cr).dpi;
   cairo_translate(cr, x, y);

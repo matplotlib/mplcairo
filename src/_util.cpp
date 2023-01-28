@@ -276,7 +276,7 @@ struct LoadPathContext {
 void load_path_exact(
   cairo_t* cr, py::handle path, cairo_matrix_t const* matrix)
 {
-  auto const& gil = py::gil_scoped_acquire{};
+  [[maybe_unused]] auto const& gil = py::gil_scoped_acquire{};
 
   auto const& min = double(-(1 << 22)), max = double(1 << 22);
   auto const& lpc = LoadPathContext{cr};
@@ -441,7 +441,7 @@ void load_path_exact(
   cairo_t* cr, py::array_t<double> vertices_keepref,
   ssize_t start, ssize_t stop, cairo_matrix_t const* matrix)
 {
-  auto const& gil = py::gil_scoped_acquire{};
+  [[maybe_unused]] auto const& gil = py::gil_scoped_acquire{};
 
   auto const min = double(-(1 << 22)), max = double(1 << 22);
   auto const& lpc = LoadPathContext{cr};
@@ -815,13 +815,13 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
   auto gac = GlyphsAndClusters{};
   if (has_raqm()) {
     auto const& ft_face = cairo_ft_scaled_font_lock_face(scaled_font);
-    auto const& scaled_font_unlock_cleanup =
+    [[maybe_unused]] auto const& scaled_font_unlock_cleanup =
       std::unique_ptr<
         std::remove_pointer_t<cairo_scaled_font_t>,
         decltype(&cairo_ft_scaled_font_unlock_face)>{
           scaled_font, cairo_ft_scaled_font_unlock_face};
     auto const& rq = raqm::create();
-    auto const& rq_cleanup =
+    [[maybe_unused]] auto const& rq_cleanup =
       std::unique_ptr<std::remove_pointer_t<raqm_t>, decltype(raqm::destroy)>{
         rq, raqm::destroy};
     if (!rq) {
