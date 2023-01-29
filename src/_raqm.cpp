@@ -20,7 +20,8 @@ ITER_RAQM_API(DEFINE_API)
 bool bad_color_glyph_spacing{};
 decltype(hb::version_string) hb::version_string{};
 
-void load_raqm() {
+void load_raqm()
+{
   if (!raqm::_handle) {
     char const* filename =
       #if defined __linux__
@@ -32,7 +33,19 @@ void load_raqm() {
       #endif
     raqm::_handle = os::dlopen(filename);
     if (!raqm::_handle) {
-      os::throw_dlerror();
+      #if defined __APPLE__
+      // Homebrew doesn't add itself to the library loader path, but we can
+      // detect that case: if FreeType comes from Homebrew (this typically
+      // depends on how cairo/pycairo were installed), then also try to load
+      // raqm from Homebrew.
+      auto ft_path = os::dladdr_fname(FT_Library_Version);
+      if (ft_path.find("/opt/homebrew/") == 0) {
+        raqm::_handle = os::dlopen("/opt/homebrew/lib/libraqm.dylib");
+      }
+      #endif
+      if (!raqm::_handle) {
+        os::throw_dlerror();
+      }
     }
     #define LOAD_API(name) \
       if (!(raqm::name = os::dlsym(raqm::_handle, "raqm_" #name))) { \
@@ -58,7 +71,8 @@ void load_raqm() {
   }
 }
 
-void unload_raqm() {
+void unload_raqm()
+{
   if (raqm::_handle) {
     auto const& error = os::dlclose(raqm::_handle);
     raqm::_handle = nullptr;
@@ -68,7 +82,8 @@ void unload_raqm() {
   }
 }
 
-bool has_raqm() {
+bool has_raqm()
+{
   return raqm::_handle;
 }
 
