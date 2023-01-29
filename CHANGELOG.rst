@@ -1,6 +1,7 @@
 next
 ====
 
+- Fixed support for macos backend on Matplotlib≥3.6.
 - Support pdf MaxVersion up to 1.7 (if the underlying cairo supports it).
 
 v0.5 (2022-08-18)
