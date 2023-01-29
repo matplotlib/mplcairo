@@ -64,6 +64,7 @@ jobs:
       run: |
         set -x &&
         python -mpip list &&
+        python -c 'import mplcairo as m, pprint as p; p.pprint(m.get_versions())' &&
         # Skip tests triggering to-be-investigated fatal error on Windows :(
         (
           if [[ "$(python -c 'import sys; print(sys.platform)')" != win32 ]]; then

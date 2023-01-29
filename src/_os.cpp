@@ -18,9 +18,6 @@ namespace mplcairo::os {
 namespace py = pybind11;
 
 #if defined __linux__ || defined __APPLE__
-using library_t = void*;
-using symbol_t = void*;
-
 library_t dlopen(char const* filename)
 {
   return ::dlopen(filename, RTLD_LAZY);
@@ -42,6 +39,16 @@ void throw_dlerror()
   throw py::error_already_set{};
 }
 
+std::string dladdr_fname(symbol_t handle)
+{
+  auto dlinfo = Dl_info{};
+  return
+    ::dladdr(handle, &dlinfo)
+    ? py::module::import("os").attr("fsdecode")(
+        py::bytes(dlinfo.dli_fname)).cast<std::string>()
+    : "";
+}
+
 void install_abrt_handler()
 {
   signal(SIGABRT, [](int signal) {
@@ -54,9 +61,6 @@ void install_abrt_handler()
 }
 
 #elif defined _WIN32
-using library_t = HMODULE;
-using symbol_t = FARPROC;
-
 library_t dlopen(char const* filename)
 {
   // Respect os.add_dll_directory.
@@ -75,15 +79,15 @@ symbol_t dlsym(library_t handle, char const* symbol)
 
 symbol_t dlsym(char const* symbol)
 {
-  auto hProcess = GetCurrentProcess();
-  auto cbNeeded = DWORD{};
-  EnumProcessModules(hProcess, nullptr, 0, &cbNeeded);
-  auto n_modules = cbNeeded / sizeof(HMODULE);
-  auto lphModule = std::unique_ptr<HMODULE[]>{new HMODULE[n_modules]};
-  if (EnumProcessModules(hProcess, lphModule.get(), cbNeeded, &cbNeeded)) {
+  auto proc = GetCurrentProcess();
+  auto size = DWORD{};
+  EnumProcessModules(proc, nullptr, 0, &size);
+  auto n_modules = size / sizeof(HMODULE);
+  auto modules = std::unique_ptr<HMODULE[]>{new HMODULE[n_modules]};
+  if (EnumProcessModules(proc, modules.get(), size, &size)) {
     for (auto i = 0; i < n_modules; ++i) {
-      if (auto proc = GetProcAddress(lphModule[i], symbol)) {
-        return proc;
+      if (auto ptr = GetProcAddress(modules[i], symbol)) {
+        return ptr;
       }
     }
   }
@@ -94,6 +98,20 @@ void throw_dlerror()
 {
   PyErr_SetFromWindowsErr(0);
   throw py::error_already_set{};
+}
+
+std::string dladdr_fname(symbol_t handle)
+{
+  auto proc = GetCurrentProcess();
+  HMODULE mod;
+  wchar_t wpath[MAX_PATH];
+  if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                        GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                        handle, &mod)
+      && GetModuleFileNameEx(proc, mod, wpath, MAX_PATH)) {
+    return py::cast(wpath).cast<std::string>();
+  }
+  return "";
 }
 
 void install_abrt_handler()

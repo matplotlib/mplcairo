@@ -13,6 +13,9 @@
 
 #include "_macros.h"
 
+using namespace pybind11::literals;
+using namespace std::string_literals;
+
 P11X_DECLARE_ENUM(
   "antialias_t", "enum.Enum",
   {"DEFAULT", CAIRO_ANTIALIAS_DEFAULT},
@@ -103,8 +106,6 @@ P11X_DECLARE_ENUM(
 )
 
 namespace mplcairo {
-
-using namespace pybind11::literals;
 
 Region::Region(
     cairo_rectangle_int_t bbox, std::unique_ptr<uint8_t const[]> buffer) :
@@ -1952,7 +1953,7 @@ PYBIND11_MODULE(_mplcairo, m)
   auto const& ctypes = py::module::import("ctypes"),
             & _cairo = py::module::import("cairo._cairo");
   auto const& dll = ctypes.attr("CDLL")(_cairo.attr("__file__"));
-  auto const& load_ptr = [&](char const* name) -> uintptr_t {
+  auto const& load_ptr = [&](char const* name) -> os::symbol_t {
     return
       ctypes.attr("cast")(
         py::getattr(dll, name, py::int_(0)), ctypes.attr("c_void_p"))
@@ -1963,8 +1964,7 @@ PYBIND11_MODULE(_mplcairo, m)
     return os::dlsym(name);
   };
 #endif
-#define LOAD_API(name) \
-  detail::name = reinterpret_cast<decltype(detail::name)>(load_ptr(#name));
+#define LOAD_API(name) detail::name = load_ptr(#name);
   ITER_CAIRO_OPTIONAL_API(LOAD_API)
 #undef LOAD_API
 
@@ -2107,29 +2107,36 @@ straight RGBA8888.
 )__doc__");
   m.def(
     "get_versions", [] {
-      auto const& cairo_version = cairo_version_string();
+      auto const& cairo_version =
+        cairo_version_string() + " @ "s
+        + os::dladdr_fname(cairo_version_string);
       auto ft_major = 0, ft_minor = 0, ft_patch = 0;
       FT_Library_Version(detail::ft_library, &ft_major, &ft_minor, &ft_patch);
       auto const& freetype_version =
         std::to_string(ft_major) + "."
         + std::to_string(ft_minor) + "."
-        + std::to_string(ft_patch);
+        + std::to_string(ft_patch) + " @ "
+        + os::dladdr_fname(FT_Library_Version);
       auto const& pybind11_version =
         Py_STRINGIFY(PYBIND11_VERSION_MAJOR) "."
         Py_STRINGIFY(PYBIND11_VERSION_MINOR) "."
         Py_STRINGIFY(PYBIND11_VERSION_PATCH);
       auto const& raqm_version =
         has_raqm()
-        ? std::optional<std::string>{raqm::version_string()} : std::nullopt;
+        ? std::optional{raqm::version_string() + " @ "s
+        + os::dladdr_fname(raqm::version_string)}
+        : std::nullopt;
       auto const& hb_version =
         has_raqm() && hb::version_string
-        ? std::optional<std::string>{hb::version_string()} : std::nullopt;
+        ? std::optional{hb::version_string() + " @ "s
+        + os::dladdr_fname(hb::version_string)}
+      : std::nullopt;
       return py::dict(
         "cairo"_a=cairo_version,
         "freetype"_a=freetype_version,
         "pybind11"_a=pybind11_version,
         "raqm"_a=raqm_version,
-        "hb"_a=hb_version);
+        "harfbuzz"_a=hb_version);
     }, R"__doc__(
 Get library versions.
 

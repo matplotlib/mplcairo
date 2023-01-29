@@ -35,9 +35,7 @@ void load_raqm() {
       os::throw_dlerror();
     }
     #define LOAD_API(name) \
-      if (!(raqm::name = \
-              reinterpret_cast<decltype(raqm::name)>( \
-                os::dlsym(raqm::_handle, "raqm_" #name)))) { \
+      if (!(raqm::name = os::dlsym(raqm::_handle, "raqm_" #name))) { \
         os::dlclose(raqm::_handle); \
         raqm::_handle = nullptr; \
         os::throw_dlerror(); \
@@ -56,8 +54,7 @@ void load_raqm() {
     // Trying to retrieve hb_version_string from the raqm shared object
     // normally only works on POSIX, so we just allow this to be nullptr and
     // check that at the call site.
-    hb::version_string = reinterpret_cast<decltype(hb::version_string)>(
-      os::dlsym(raqm::_handle, "hb_version_string"));
+    hb::version_string = os::dlsym(raqm::_handle, "hb_version_string");
   }
 }
 
