@@ -79,7 +79,6 @@ As usual, install using pip:
 
 Note that wheels are not available for macOS<10.13, because the libc++ included
 with these versions is too old and vendoring of libc++ appears to be fragile.
-Help for packaging would be welcome.
 
 mplcairo can use Raqm_ (≥0.7.0; ≥0.7.2 is recommended as it provides better
 emoji support, especially in the presence of ligatures) for complex text layout
@@ -198,9 +197,6 @@ delocate-wheel_ (to vendor a recent version of libc++).  Currently, it can only
 be built from a Homebrew-clang wheel, not a conda-clang wheel (due to some path
 intricacies...).
 
-As I can personally only test the macOS build on CI, any help with the build
-and the packaging on that platform would be welcome.
-
 .. _delocate-wheel: https://github.com/matthew-brett/delocate
 
 Windows
@@ -286,10 +282,10 @@ specifically, the following backends are provided:
 - ``module://mplcairo.macosx`` (macOS widget, copying data from a cairo image
   surface).
 
-On macOS, **it is necessary to explicitly import mplcairo before importing
-Matplotlib** due to incompatibilities associated with the use of a recent
-libc++.  As such, the most practical option is to import mplcairo, then call
-e.g. ``matplotlib.use("module://mplcairo.macosx")``.
+On macOS, prior to Matplotlib 3.8, **it was necessary to explicitly import
+mplcairo before importing Matplotlib** (unless your Matplotlib is built with
+``system_freetype = True``).  A practical option was to import mplcairo, then
+call e.g. ``matplotlib.use("module://mplcairo.macosx")``.
 
 Jupyter is entirely unsupported (patches would be appreciated).  One
 possibility is to set the ``MPLCAIRO_PATCH_AGG`` environment variable to a
