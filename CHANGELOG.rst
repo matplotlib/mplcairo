@@ -3,6 +3,7 @@ next
 
 - Fixed support for macos backend on Matplotlib≥3.6.
 - Support pdf MaxVersion up to 1.7 (if the underlying cairo supports it).
+- `set_options` can now be used as a context manager.
 
 v0.5 (2022-08-18)
 =================
@@ -69,7 +70,7 @@ v0.1 (2018-07-22)
 
 - Integration with libraqm now occurs via dlopen() rather than being selected
   at compile-time.
-- Add `set_option`, `get_option` for controlling certain rendering parameters.
+- Add `set_options`, `get_options` for controlling some rendering parameters.
 - Various rendering and performance improvements.
 - On Travis, we now run Matplotlib's test suite with mplcairo patching the
   default Agg renderer.

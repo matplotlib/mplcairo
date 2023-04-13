@@ -30,7 +30,7 @@ from ._mplcairo import antialias_t, operator_t, get_options, set_options
 __all__ = [
     "antialias_t", "operator_t",
     "get_options", "set_options",
-    "get_raw_buffer",
+    "get_context", "get_raw_buffer",
 ]
 
 

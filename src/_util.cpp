@@ -108,6 +108,66 @@ bool py_eq(py::object obj1, py::object obj2) {
   return py::module::import("operator").attr("eq")(obj1, obj2).cast<bool>();
 }
 
+py::dict get_options()
+{
+  return py::dict(
+    "cairo_circles"_a=bool(detail::UNIT_CIRCLE),
+    "collection_threads"_a=detail::COLLECTION_THREADS,
+    "float_surface"_a=detail::FLOAT_SURFACE,
+    "miter_limit"_a=detail::MITER_LIMIT,
+    "raqm"_a=has_raqm(),
+    "_debug"_a=detail::DEBUG);
+}
+
+py::object set_options(py::kwargs kwargs)
+{
+  auto estack = py::module::import("contextlib").attr("ExitStack")();
+  estack.attr("callback")(py::cpp_function{set_options}, **get_options());
+  auto const& pop_option =
+    [&](std::string key, auto dummy) -> std::optional<decltype(dummy)> {
+      return
+        kwargs.attr("pop")(key, py::none())
+        .cast<std::optional<decltype(dummy)>>();
+  };
+  if (auto const& cairo_circles = pop_option("cairo_circles", bool{})) {
+    if (*cairo_circles) {
+      detail::UNIT_CIRCLE =
+        py::module::import("matplotlib.path").attr("Path")
+        .attr("unit_circle")();
+    } else {
+      Py_XDECREF(detail::UNIT_CIRCLE.release().ptr());
+    }
+  }
+  if (auto const& float_surface = pop_option("float_surface", bool{})) {
+    if (*float_surface && cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
+      throw std::invalid_argument{"float surfaces require cairo>=1.17.2"};
+    }
+    detail::FLOAT_SURFACE = *float_surface;
+  }
+  if (auto const& threads = pop_option("collection_threads", int{})) {
+    detail::COLLECTION_THREADS = *threads;
+  }
+  if (auto const& miter_limit = pop_option("miter_limit", double{})) {
+    detail::MITER_LIMIT = *miter_limit;
+  }
+  if (auto const& raqm = pop_option("raqm", bool{})) {
+    if (*raqm) {
+      load_raqm();
+    } else {
+      unload_raqm();
+    }
+  }
+  if (auto const& debug = pop_option("_debug", bool{})) {
+    detail::DEBUG = *debug;
+  }
+  if (py::bool_(kwargs)) {
+    throw std::runtime_error{
+      "unknown options passed to set_options: {}"_format(kwargs)
+      .cast<std::string>()};
+  }
+  return estack;
+}
+
 py::object rc_param(std::string key)
 {
   return py::reinterpret_borrow<py::object>(  // Use a faster path.

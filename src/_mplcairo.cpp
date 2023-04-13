@@ -1990,50 +1990,7 @@ PYBIND11_MODULE(_mplcairo, m)
 
   // Export functions.
   m.def(
-    "set_options", [](py::kwargs kwargs) -> void {
-      auto const& pop_option =
-        [&](std::string key, auto dummy) -> std::optional<decltype(dummy)> {
-          return
-            kwargs.attr("pop")(key, py::none())
-            .cast<std::optional<decltype(dummy)>>();
-      };
-      if (auto const& cairo_circles = pop_option("cairo_circles", bool{})) {
-        if (*cairo_circles) {
-          detail::UNIT_CIRCLE =
-            py::module::import("matplotlib.path").attr("Path")
-            .attr("unit_circle")();
-        } else {
-          Py_XDECREF(detail::UNIT_CIRCLE.release().ptr());
-        }
-      }
-      if (auto const& float_surface = pop_option("float_surface", bool{})) {
-        if (cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
-          throw std::invalid_argument{"float surfaces require cairo>=1.17.2"};
-        }
-        detail::FLOAT_SURFACE = *float_surface;
-      }
-      if (auto const& threads = pop_option("collection_threads", int{})) {
-        detail::COLLECTION_THREADS = *threads;
-      }
-      if (auto const& miter_limit = pop_option("miter_limit", double{})) {
-        detail::MITER_LIMIT = *miter_limit;
-      }
-      if (auto const& raqm = pop_option("raqm", bool{})) {
-        if (*raqm) {
-          load_raqm();
-        } else {
-          unload_raqm();
-        }
-      }
-      if (auto const& debug = pop_option("_debug", bool{})) {
-        detail::DEBUG = *debug;
-      }
-      if (py::bool_(kwargs)) {
-        throw std::runtime_error{
-          "unknown options passed to set_options: {}"_format(kwargs)
-          .cast<std::string>()};
-      }
-    }, R"__doc__(
+    "set_options", set_options, R"__doc__(
 Set mplcairo options.
 
 Note that the defaults below refer to the initial values of the options;
@@ -2042,6 +1999,10 @@ options not passed to `set_options` are left unchanged.
 At import time, mplcairo will set the initial values of the options from the
 ``MPLCAIRO_<OPTION_NAME>`` environment variables (loading them as Python
 literals), if any such variables are set.
+
+This function can also be used as a context manager
+(``with set_options(...): ...``).  In that case, the original values of the
+options will be restored when the context manager exits.
 
 Parameters
 ----------
@@ -2078,15 +2039,7 @@ to PostScript levels 2 or 3 -- default: 3), or ``"1.1"``/``"1.2"`` (to restrict
 to SVG 1.1 or 1.2 -- default: 1.1).
 )__doc__");
   m.def(
-    "get_options", [] {
-      return py::dict(
-        "cairo_circles"_a=bool(detail::UNIT_CIRCLE),
-        "collection_threads"_a=detail::COLLECTION_THREADS,
-        "float_surface"_a=detail::FLOAT_SURFACE,
-        "miter_limit"_a=detail::MITER_LIMIT,
-        "raqm"_a=has_raqm(),
-        "_debug"_a=detail::DEBUG);
-    }, R"__doc__(
+    "get_options", get_options, R"__doc__(
 Get current mplcairo options.  See `set_options` for a description of available
 options.
 )__doc__");

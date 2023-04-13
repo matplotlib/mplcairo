@@ -49,12 +49,12 @@ def main():
 Example usage:
 
 $ python %(prog)s plot \\
-    '{{"backend": "agg"}}' \\
-    '{{"backend": "agg", "agg.path.chunksize": 1000}}' \\
-    '{{"backend": "module://mplcairo.base", \\
-      "lines.antialiased": __import__("mplcairo").antialias_t.FAST}}' \\
-    '{{"backend": "module://mplcairo.base", \\
-      "lines.antialiased": __import__("mplcairo").antialias_t.BEST}}'
+    '{"backend": "agg"}' \\
+    '{"backend": "agg", "agg.path.chunksize": 1000}' \\
+    '{"backend": "module://mplcairo.base", \\
+      "lines.antialiased": __import__("mplcairo").antialias_t.FAST}' \\
+    '{"backend": "module://mplcairo.base", \\
+      "lines.antialiased": __import__("mplcairo").antialias_t.BEST}'
 """)
 
     parser.add_argument(

@@ -157,6 +157,8 @@ struct GlyphsAndClusters {
 
 py::object operator""_format(char const* fmt, std::size_t size);
 bool py_eq(py::object obj1, py::object obj2);
+py::dict get_options();
+py::object set_options(py::kwargs kwargs);
 py::object rc_param(std::string key);
 cairo_format_t get_cairo_format();
 rgba_t to_rgba(py::object color, std::optional<double> alpha = {});
