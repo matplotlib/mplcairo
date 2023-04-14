@@ -36,7 +36,7 @@ if sys.platform == "darwin":
 from setupext import Extension, build_ext, find_packages, setup
 
 
-MIN_CAIRO_VERSION = "1.11.4"  # Also in _feature_tests.cpp.
+MIN_CAIRO_VERSION = "1.13.1"  # Also in _feature_tests.cpp.
 MIN_RAQM_VERSION = "0.7.0"
 MANYLINUX = bool(os.environ.get("MPLCAIRO_MANYLINUX", ""))
 UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))

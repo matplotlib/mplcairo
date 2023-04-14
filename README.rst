@@ -61,7 +61,7 @@ mplcairo requires
 - Python≥3.7,
 - Matplotlib≥2.2 (declared as ``install_requires``),
 - on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as ``install_requires``),
-- on Windows, cairo≥1.11.4 [#]_ (shipped with the wheel).
+- on Windows, cairo≥1.13.1 [#]_ (shipped with the wheel).
 
 It is recommended to use cairo≥1.17.4.
 
@@ -93,16 +93,15 @@ path <add_dll_directory_>`_).
 
 .. [#] pycairo 1.16.0 added ``get_include()``.
 
-   We do not actually rely on pycairo's Python bindings.  Rather, specifying a
-   dependency on pycairo is a convenient way to specify a dependency on cairo
-   (≥1.13.1, for pycairo≥1.14.0) itself, and allows us to load cairo at
-   runtime instead of linking to it (simplifying the build of self-contained
-   wheels).
+   We do not actually rely on pycairo's Python bindings.  Rather, the
+   dependency on pycairo (≥1.16.0) conveniently specifies a dependency on
+   cairo (≥1.13.1) itself, and allows us to load cairo at runtime instead of
+   linking to it (simplifying the build of self-contained wheels).
 
    On Windows, this strategy is (AFAIK) not possible, so we explicitly link
    against the cairo DLL.
 
-.. [#] cairo 1.11.4 added mesh gradient support (used by ``draw_quad_mesh()``).
+.. [#] cairo 1.13.1 matches the oldest version supported by pycairo 1.16.0.
 
    cairo 1.15.4 added support for PDF metadata and links; the presence of this
    feature is detected at runtime.

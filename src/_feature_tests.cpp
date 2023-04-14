@@ -4,6 +4,6 @@
 #endif
 
 #include <cairo.h>
-#if CAIRO_VERSION < CAIRO_VERSION_ENCODE(1, 11, 4)
-  #error "Your versoin of cairo version is too old."
+#if CAIRO_VERSION < CAIRO_VERSION_ENCODE(1, 13, 1)
+  #error "Your version of cairo version is too old."
 #endif
