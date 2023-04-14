@@ -2,13 +2,13 @@
 
 # Ensure that the current Matplotlib install includes test data.
 
+import importlib
 from pathlib import Path
 import shutil
 from tempfile import TemporaryDirectory
 import urllib.request
 
 import matplotlib as mpl
-import mpl_toolkits
 
 
 try:
@@ -22,12 +22,13 @@ except Exception:  # ImportError if patched out, IOError by mpl itself.
              Path(tmpdir, "matplotlib.tar.gz").open("wb") as file:
             file.write(request.read())
         shutil.unpack_archive(file.name, tmpdir)
-        for pkg in [mpl, mpl_toolkits]:
-            shutil.rmtree(
-                Path(list(pkg.__path__)[0], "tests"), ignore_errors=True)
-            shutil.move(
-                str(Path(tmpdir, f"matplotlib-{mpl.__version__}",
-                         "lib", pkg.__name__, "tests")),  # bpo#32689 (Py<3.9).
-                list(pkg.__path__)[0])
+        libdir = Path(tmpdir, f"matplotlib-{mpl.__version__}", "lib")
+        for testdir in libdir.glob("**/tests"):
+            pkgdir = testdir.relative_to(libdir).parent  # Drop "tests".
+            pkgpath = list(
+                importlib.import_module(pkgdir.as_posix().replace("/", "."))
+                .__path__)[0]
+            shutil.rmtree(Path(pkgpath, "tests"), ignore_errors=True)
+            shutil.move(str(testdir), pkgpath)  # bpo#32689 (Py<3.9).
 else:
     print("Matplotlib test data already present.")

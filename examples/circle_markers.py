@@ -29,7 +29,8 @@ tstart = time.process_time()
 for i, phi in enumerate(np.linspace(0, 180. / np.pi, 100)):
     if not Gcf.get_num_fig_managers():
         break
-    ax.lines.clear()
+    for line in [*ax.lines]:
+        line.remove()
     Z = generate(X, Y, phi)
     ax.plot(X.flat, Z.flat, "ok")
     plt.pause(.001)

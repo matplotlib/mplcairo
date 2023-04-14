@@ -157,6 +157,8 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_pdf.py::test_savefig_metadata",
                 # cairo doesn't emit HiResBoundingBox.
                 "test_backend_ps.py::test_bbox",
+                # Different tight bbox.
+                "test_backend_ps.py::test_colorbar_shift[",
                 # cairo doesn't support setting fonttype.
                 "test_backend_ps.py::test_fonttype[",
                 # We're fine with partial usetex.
@@ -174,6 +176,7 @@ def pytest_collection_modifyitems(session, config, items):
                 # skips emitting clips that don't intersect paths).
                 "test_backend_svg.py::test_count_bitmaps",
                 # cairo doesn't support custom gids or metadata.
+                "test_backend_svg.py::test_annotationbbox_gid",
                 "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svg_clear_all_metadata",
                 "test_backend_svg.py::test_svg_clear_default_metadata",
@@ -195,6 +198,8 @@ def pytest_collection_modifyitems(session, config, items):
                 # cairo uses a different representation for ps images (but
                 # compositing is correct, see e.g. SVG output).
                 "test_image.py::test_composite[",
+                # Different legend positioning.
+                "test_legend.py::test_figure_legend_outside",
                 # Different tight bbox.
                 "test_polar.py::test_get_tightbbox_polar",
                 # cairo does not have an explicit rendering complexity limit.
