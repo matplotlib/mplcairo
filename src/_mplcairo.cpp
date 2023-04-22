@@ -2158,7 +2158,9 @@ Only intended for debugging purposes.
     .def("set_capstyle", &GraphicsContextRenderer::set_capstyle)
     .def("set_clip_rectangle", &GraphicsContextRenderer::set_clip_rectangle)
     .def("set_clip_path", &GraphicsContextRenderer::set_clip_path)
-    .def("set_dashes", &GraphicsContextRenderer::set_dashes)
+    .def("set_dashes", &GraphicsContextRenderer::set_dashes,
+         // AbstractPathEffect._update_gc calls set_dashes with kwargs.
+         "dash_offset"_a, "dash_list"_a)
     .def("set_foreground", &GraphicsContextRenderer::set_foreground,
          "fg"_a, "isRGBA"_a=false)
     .def("set_hatch", &GraphicsContextRenderer::set_hatch)
