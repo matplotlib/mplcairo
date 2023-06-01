@@ -1633,7 +1633,9 @@ GraphicsContextRenderer::get_text_width_height_descent(
     cairo_glyph_extents(cr_, gac.glyphs, gac.num_glyphs, &extents);
     cairo_restore(cr_);
     return {
-      extents.width + extents.x_bearing,
+      // Max of inked portion and of current point advance (to also take
+      // whitespace into account).
+      std::max(extents.width + extents.x_bearing, extents.x_advance),
       extents.height,
       extents.height + extents.y_bearing};
   }
