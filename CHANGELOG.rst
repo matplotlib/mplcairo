@@ -1,6 +1,7 @@
 next
 ====
 
+- Bumped dependencies to Python≥3.8.
 - Fixed support for macos backend on Matplotlib≥3.6.
 - Support pdf MaxVersion up to 1.7 (if the underlying cairo supports it).
 - `set_options` can now be used as a context manager.

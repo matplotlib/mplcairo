@@ -167,7 +167,7 @@ setup(
     packages=find_packages("lib"),
     package_dir={"": "lib"},
     ext_modules=[Extension("", [])],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=[
         "setuptools_scm",
         "pybind11>=2.8.0",

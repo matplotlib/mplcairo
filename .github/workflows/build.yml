@@ -8,7 +8,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, macos-11, windows-2019]
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -53,12 +53,7 @@ jobs:
         python -mpip install dist/*.whl &&
         python tools/ensure-mpl-test-data.py &&
         # pytest-{instafail,timeout} useful for hanging tests.
-        python -mpip install pytest pytest-instafail pytest-timeout &&
-        if [[ '${{ matrix.python-version }}' = 3.7 ]]; then
-          # Python 3.7 implies Matplotlib 3.5, which has some nose-style tests;
-          # support for such tests has been deprecated in pytest 7.2.
-          pip install 'pytest<7.2'
-        fi
+        python -mpip install pytest pytest-instafail pytest-timeout
     - name: Test
       shell: bash
       run: |
