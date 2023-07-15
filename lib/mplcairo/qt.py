@@ -49,6 +49,17 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # See above: we always repaint the full canvas.
         self.repaint(self.rect())
 
+    def print_figure(self, *args, **kwargs):
+        # Similar to matplotlib#26309: Qt may trigger a redraw after closing
+        # the file save dialog, in which case we don't want to redraw based on
+        # the savefig-generated renderer but the earlier, gui one.
+        lrc = self._last_renderer_call
+        self._last_renderer_call = None, None
+        try:
+            super().print_figure(*args, **kwargs)
+        finally:
+            self._last_renderer_call = lrc
+
 
 @_BackendQT.export
 class _BackendQTCairo(_BackendQT):
