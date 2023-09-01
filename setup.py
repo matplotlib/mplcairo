@@ -64,11 +64,6 @@ def paths_from_link_libpaths():
 class build_ext(build_ext):
 
     def finalize_options(self):
-        if not self.distribution.have_run.get("egg_info", 1):
-            # Just listing the MANIFEST; setup_requires are not available yet.
-            super().finalize_options()
-            return
-
         import cairo
         from pybind11.setup_helpers import Pybind11Extension
 
@@ -169,6 +164,7 @@ setup(
     ext_modules=[Extension("", [])],
     python_requires=">=3.8",
     setup_requires=[
+        "setuptools>=36.7",  # setup_requires early install.
         "setuptools_scm",
         "pybind11>=2.8.0",
         *(["pycairo>=1.16.0; os_name == 'posix'"] if not MANYLINUX else []),
