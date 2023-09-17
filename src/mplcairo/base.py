@@ -195,6 +195,12 @@ def _check_print_extra_kwargs(*,
     pass
 
 
+def _check_no_metadata(metadata):
+    if metadata is not None:
+        raise ValueError(  # Start of error string is forced by test.
+            "metadata not supported for the requested output format")
+
+
 class FigureCanvasCairo(FigureCanvasBase):
     # Although this attribute should semantically be set from __init__ (it is
     # purely an instance attribute), initializing it at the class level helps
@@ -314,7 +320,7 @@ class FigureCanvasCairo(FigureCanvasBase):
             f"%%Orientation: {orientation}"]
         if "Title" in metadata:
             dsc_comments.append("%%Title: {}".format(metadata.pop("Title")))
-        if not is_eps:
+        if not is_eps and papertype != "figure":
             dsc_comments.append(f"%%DocumentPaperSizes: {papertype}")
         print_method = partial(self._print_vector,
                                GraphicsContextRendererCairo._for_eps_output
@@ -351,6 +357,7 @@ class FigureCanvasCairo(FigureCanvasBase):
     def print_rgba(self, path_or_stream, *,
                    dryrun=False, metadata=None, **kwargs):
         _check_print_extra_kwargs(**kwargs)
+        _check_no_metadata(metadata)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
@@ -382,7 +389,9 @@ class FigureCanvasCairo(FigureCanvasBase):
             **(pil_kwargs if pil_kwargs is not None else {})})
 
     def print_jpeg(self, path_or_stream, *,
-                   dryrun=False, pil_kwargs=None, **kwargs):
+                   dryrun=False, metadata=None, pil_kwargs=None, **kwargs):
+        _check_print_extra_kwargs(**kwargs)
+        _check_no_metadata(metadata)
         # Remove transparency by alpha-blending on an assumed white background.
         r, g, b, a = mpl.colors.to_rgba(self.figure.get_facecolor())
         try:
@@ -392,7 +401,6 @@ class FigureCanvasCairo(FigureCanvasBase):
             self.figure.set_facecolor((r, g, b, a))
         if dryrun:
             return
-        _check_print_extra_kwargs(**kwargs)
         Image.fromarray(img).save(path_or_stream, format="jpeg", **{
             "dpi": (self.figure.dpi, self.figure.dpi),
             **(pil_kwargs if pil_kwargs is not None else {})})
@@ -400,8 +408,9 @@ class FigureCanvasCairo(FigureCanvasBase):
     print_jpg = print_jpeg
 
     def print_tiff(self, path_or_stream, *,
-                   dryrun=False, pil_kwargs=None, **kwargs):
+                   dryrun=False, metadata=None, pil_kwargs=None, **kwargs):
         _check_print_extra_kwargs(**kwargs)
+        _check_no_metadata(metadata)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return
@@ -412,8 +421,9 @@ class FigureCanvasCairo(FigureCanvasBase):
     print_tif = print_tiff
 
     def print_webp(self, path_or_stream, *,
-                   dryrun=False, pil_kwargs=None, **kwargs):
+                   dryrun=False, metadata=None, pil_kwargs=None, **kwargs):
         _check_print_extra_kwargs(**kwargs)
+        _check_no_metadata(metadata)
         img = self._get_fresh_straight_rgba8888()
         if dryrun:
             return

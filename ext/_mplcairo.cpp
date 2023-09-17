@@ -180,7 +180,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
   }, state.antialias);
   // Clip, if needed.  Cannot be done earlier as we need to be able to unclip.
   if (auto const& rectangle = state.clip_rectangle) {
-    auto const& [x, y, w, h] = *rectangle;
+    auto const& [x, y, w, h] = rectangle->attr("bounds").cast<rectangle_t>();
     cairo_save(cr);
     restore_init_matrix(cr);
     cairo_new_path(cr);
@@ -681,11 +681,7 @@ void GraphicsContextRenderer::set_capstyle(std::string capstyle)
 void GraphicsContextRenderer::set_clip_rectangle(
   std::optional<py::object> rectangle)
 {
-  get_additional_state().clip_rectangle =
-    rectangle
-    // A TransformedBbox or a tuple.
-    ? py::getattr(*rectangle, "bounds", *rectangle).cast<rectangle_t>()
-    : std::optional<rectangle_t>{};
+  get_additional_state().clip_rectangle = rectangle;
 }
 
 void GraphicsContextRenderer::set_clip_path(
@@ -2205,7 +2201,7 @@ Only intended for debugging purposes.
 
     .def(
       "get_clip_rectangle",
-      [](GraphicsContextRenderer& gcr) -> std::optional<rectangle_t> {
+      [](GraphicsContextRenderer& gcr) -> std::optional<py::object> {
         return gcr.get_additional_state().clip_rectangle;
       })
     .def(
