@@ -536,9 +536,13 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
           detail::cairo_pdf_surface_set_metadata(
             surface, detail::CAIRO_PDF_METADATA_MOD_DATE,
             it.second.attr("isoformat")().cast<std::string>().c_str());
+        } else if (detail::cairo_pdf_surface_set_custom_metadata) {
+          detail::cairo_pdf_surface_set_custom_metadata(
+            surface, key.c_str(), it.second.cast<std::string>().c_str());
         } else {
           py::module::import("warnings").attr("warn")(
-            "Unsupported PDF metadata entry: " + key);
+            "cairo_pdf_surface_set_custom_metadata requires cairo>=1.17.6; "
+            "unsupported PDF metadata entry: " + key);
         }
       }
       break;

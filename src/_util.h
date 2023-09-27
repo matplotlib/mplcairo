@@ -51,6 +51,8 @@ extern cairo_surface_t* (*cairo_pdf_surface_create_for_stream)(
   cairo_write_func_t, void*, double, double);
 extern void (*cairo_pdf_surface_restrict_to_version)(
   cairo_surface_t*, cairo_pdf_version_t);
+extern void (*cairo_pdf_surface_set_custom_metadata)(
+  cairo_surface_t*, char const*, char const*);
 extern void (*cairo_pdf_surface_set_metadata)(
   cairo_surface_t*, cairo_pdf_metadata_t, char const*);
 extern void (*cairo_pdf_surface_set_size)(cairo_surface_t*, double, double);
@@ -81,6 +83,7 @@ extern void (*cairo_svg_surface_restrict_to_version)(
   _(cairo_pdf_get_versions) \
   _(cairo_pdf_surface_create_for_stream) \
   _(cairo_pdf_surface_restrict_to_version) \
+  _(cairo_pdf_surface_set_custom_metadata) \
   _(cairo_pdf_surface_set_metadata) \
   _(cairo_pdf_surface_set_size) \
   _(cairo_ps_get_levels) \

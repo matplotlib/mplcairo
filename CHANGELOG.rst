@@ -5,6 +5,7 @@ next
 - Fixed support for macos backend on Matplotlib≥3.6.
 - Fixed compatibility with wheel≥0.41.
 - Support pdf MaxVersion up to 1.7 (if the underlying cairo supports it).
+- Support custom pdf metadata entries.
 - `set_options` can now be used as a context manager.
 
 v0.5 (2022-08-18)
