@@ -14,17 +14,20 @@ if [[ "$MPLCAIRO_MANYLINUX" != 1 ]]; then
     tmpdir="$(mktemp -d)"
     trap 'rm -rf "$tmpdir"' EXIT INT TERM
     git clone "$toplevel" "$tmpdir/mplcairo"
+    python -mvenv "$tmpdir/tmpenv"
+    "$tmpdir/tmpenv/bin/python" -mpip install --upgrade setuptools_scm
+    mplcairo_version="$("$tmpdir/tmpenv/bin/python" -msetuptools_scm)"
+    sed -i '/Removed for manylinux build/d' "$tmpdir/mplcairo/pyproject.toml"
     relpath="$(
         python -c 'import os, sys; print(os.path.relpath(*map(os.path.realpath, sys.argv[1:])))' \
             "$0" "$toplevel")"
     ${DOCKER:-docker} run \
-        -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.7 3.8 3.9 3.10 3.11}" \
+        -e MPLCAIRO_MANYLINUX=1 -e PY_VERS="${PY_VERS:-3.8 3.9 3.10 3.11 3.12}" \
+        -e mplcairo_version="$mplcairo_version" \
         --volume "$tmpdir/mplcairo":/io/mplcairo:Z \
         quay.io/pypa/manylinux2014_x86_64 \
         "/io/mplcairo/$relpath"
 
-    user="${SUDO_USER:-$USER}"
-    chown "$user:$(id -gn "$user")" -R "$tmpdir/mplcairo/build"
     mkdir -p "$toplevel/dist"
     mv "$tmpdir/mplcairo/dist/"*-manylinux*.whl "$toplevel/dist"
 
@@ -59,24 +62,19 @@ else
         mv "$(find python-cairo -name py3cairo.h)" /usr/include
     )
 
-    for py_ver in $PY_VERS; do
-        py_prefix=("/opt/python/cp${py_ver/./}-"*)
-        tags="$(basename "$py_prefix")"
-        echo "Building the wheel for Python $py_ver."
-        # Shim access to pycairo's header.
-        echo 'def get_include(): return "/dev/null"' \
-            >"$py_prefix/lib/python$py_ver/site-packages/cairo.py"
-        (
-            cd /io/mplcairo
-            # Force a rebuild of the extension.
-            CFLAGS="-static-libgcc -static-libstdc++ -I/usr/include/cairo -I/usr/include/freetype2" \
-                LDFLAGS="-static-libgcc -static-libstdc++" \
-                "$py_prefix/bin/python" setup.py bdist_wheel
-            mplcairo_version="$("$py_prefix/bin/python" setup.py --version)"
-            for wheel in "dist/mplcairo-$mplcairo_version-$tags-"*".whl"; do
-                auditwheel -v repair -wdist "$wheel"
-                rm "$wheel"
-            done
-        )
-    done
+    (
+        cd /io/mplcairo
+        for py_ver in $PY_VERS; do
+            py_prefix=("/opt/python/cp${py_ver/./}-"*)
+            echo "Building the wheel for Python $py_ver."
+                "$py_prefix/bin/python" -mpip install build
+                # Force a rebuild of the extension.
+                SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MPLCAIRO="$mplcairo_version" \
+                    MPLCAIRO_NO_PYCAIRO=1 \
+                    CFLAGS="-static-libgcc -static-libstdc++ -I/usr/include/cairo -I/usr/include/freetype2" \
+                    LDFLAGS="-static-libgcc -static-libstdc++" \
+                    "$py_prefix/bin/python" -mbuild
+        done
+        auditwheel -v repair -wdist dist/*.whl
+    )
 fi

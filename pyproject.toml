@@ -1,0 +1,44 @@
+[build-system]
+requires = [
+    "setuptools>=62",
+    "setuptools_scm[toml]>=6.2",
+    "pybind11>=2.8.0",
+    "pycairo>=1.16.0; os_name == 'posix'",  # Removed for manylinux build.
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mplcairo"
+description = "A (new) cairo backend for Matplotlib."
+readme = "README.rst"
+authors = [{name = "Antony Lee"}]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Matplotlib",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "matplotlib>=2.2",
+    "pillow",  # Already a dependency of mpl>=3.3.
+    "pycairo>=1.16.0; os_name == 'posix'",
+]
+dynamic = ["version"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+fallback_version = "0+unknown"
+
+[tool.coverage.run]
+branch = true
+source_pkgs = ["mplcairo"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "error::DeprecationWarning:mplcairo",
+]

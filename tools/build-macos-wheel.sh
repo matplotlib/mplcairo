@@ -8,19 +8,15 @@ set -x
 
 toplevel="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "$tmpdir"' EXIT INT TERM
-git clone "$toplevel" "$tmpdir/mplcairo"
-
 tmpenv="$(mktemp -d)"
 trap 'rm -rf "$tmpenv"' EXIT INT TERM
 python -mvenv "$tmpenv"
 
 (
     source "$tmpenv/bin/activate"
-    python -mpip install --upgrade pip setuptools wheel delocate
+    python -mpip install --upgrade pip build delocate setuptools_scm
 
     cd "$toplevel"
-    python setup.py bdist_wheel
-    delocate-wheel -v dist/*
+    python -mbuild
+    python -mdelocate.cmd.delocate_wheel -v dist/*.whl
 )

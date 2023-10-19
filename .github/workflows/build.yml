@@ -8,7 +8,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-20.04, macos-11, windows-2019]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -21,7 +21,7 @@ jobs:
         set -x &&
 
         export DISTUTILS_DEBUG=1 &&
-        python -mpip install --upgrade pip setuptools &&
+        python -mpip install --upgrade pip &&
 
         case "$(python -c 'import sys; print(sys.platform)')" in
         linux)
@@ -41,6 +41,7 @@ jobs:
         win32)
           # Don't install inkscape (see note in run-mpl-test-suite.py).
           # Skip known-bad version of numpy.
+          python -mpip install setuptools &&
           python tools/build-windows-wheel.py &&
           choco install --no-progress ghostscript &&
           pip install 'numpy!=1.19.4'

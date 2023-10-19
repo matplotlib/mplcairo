@@ -25,6 +25,7 @@ from packaging.version import parse as parse_version
 import pytest
 
 
+_UNUSED_XFAILS = []
 _IGNORED_FAILURES = {}
 
 
@@ -242,19 +243,19 @@ def pytest_collection_modifyitems(session, config, items):
             markers.append(item)
             item.add_marker(marker)
     if config.getoption("file_or_dir") == ["matplotlib"]:
-        invalid_markers = (
+        _UNUSED_XFAILS[:] = (
             ({*module_markers} - {item.module.__name__ for item in markers})
             | ({*nodeid_markers}
                - {item.nodeid for item in markers}
                - {item.nodeid.split("[")[0] + "[" for item in markers
                   if "[" in item.nodeid}))
-        if invalid_markers:
-            warnings.warn("Unused xfails:\n    {}"
-                          .format("\n    ".join(sorted(invalid_markers))))
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus):
     write = terminalreporter.write
+    if _UNUSED_XFAILS:
+        write("Unused xfails:\n    {}"
+              .format("\n    ".join(sorted(_UNUSED_XFAILS))))
     if _IGNORED_FAILURES:
         write("\n"
               "Ignored the following image comparison failures:\n"

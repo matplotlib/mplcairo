@@ -4,8 +4,9 @@ mplcairo build
 
 Environment variables:
 
-MPLCAIRO_MANYLINUX
-    If set, build a manylinux wheel: pycairo is not declared as setup_requires.
+MPLCAIRO_NO_PYCAIRO
+    If set, pycairo is not a build requirement; its include path is configured
+    externally.
 
 MPLCAIRO_NO_UNITY_BUILD
     If set, compile the various cpp files separately, instead of as a single
@@ -23,28 +24,82 @@ import shutil
 import subprocess
 from subprocess import CalledProcessError
 import sys
+from tempfile import TemporaryDirectory
+import tokenize
 import urllib.request
 
-if sys.platform == "darwin":
-    os.environ.setdefault("CC", "clang")
-    # Funnily enough, distutils uses $CC to compile c++ extensions but
-    # $CXX to *link* such extensions...  (Moreover, it does some funky
-    # changes to $CXX if either $CC or $CXX has multiple words -- see e.g.
-    # https://bugs.python.org/issue6863.)
-    os.environ.setdefault("CXX", "clang")
-
-from setupext import Extension, build_ext, find_packages, setup
+import setuptools
+from setuptools import Distribution
+from pybind11.setup_helpers import Pybind11Extension
+if os.environ.get("MPLCAIRO_NO_PYCAIRO", ""):
+    cairo = None
+else:
+    import cairo
 
 
 MIN_CAIRO_VERSION = "1.13.1"  # Also in _feature_tests.cpp.
 MIN_RAQM_VERSION = "0.7.0"
-MANYLINUX = bool(os.environ.get("MPLCAIRO_MANYLINUX", ""))
 UNITY_BUILD = not bool(os.environ.get("MPLCAIRO_NO_UNITY_BUILD"))
 
 
 def get_pkgconfig(*args):
-    return shlex.split(subprocess.check_output(["pkg-config", *args],
-                                               universal_newlines=True))
+    return shlex.split(
+        subprocess.check_output(["pkg-config", *args], text=True))
+
+
+def gen_extension(tmpdir):
+    ext = Pybind11Extension(
+        "mplcairo._mplcairo",
+        sources=(
+            ["ext/_unity_build.cpp"] if UNITY_BUILD else
+            sorted({*map(str, Path("ext").glob("*.cpp"))}
+                   - {"ext/_unity_build.cpp"})),
+        depends=[
+            "setup.py",
+            *map(str, Path("ext").glob("*.h")),
+            *map(str, Path("ext").glob("*.cpp")),
+        ],
+        cxx_std=17,
+        include_dirs=[cairo.get_include()] if cairo else [],
+    )
+
+    # NOTE: Versions <= 8.2 of Arch Linux's python-pillow package included
+    # *into a non-overridable distutils header directory* a ``raqm.h`` that
+    # is both invalid (https://bugs.archlinux.org/task/57492) and outdated
+    # (missing a declaration for `raqm_version_string`).  It is thus not
+    # possible to build mplcairo with such an old distro package installed.
+    try:
+        get_pkgconfig(f"raqm >= {MIN_RAQM_VERSION}")
+    except (FileNotFoundError, CalledProcessError):
+        (tmpdir / "raqm-version.h").write_text("")  # Touch it.
+        with urllib.request.urlopen(
+                f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
+                f"v{MIN_RAQM_VERSION}/src/raqm.h") as request:
+            (tmpdir / "raqm.h").write_bytes(request.read())
+        ext.include_dirs += [tmpdir]
+    else:
+        ext.extra_compile_args += get_pkgconfig("--cflags", "raqm")
+
+    if os.name == "posix":
+        get_pkgconfig(f"cairo >= {MIN_CAIRO_VERSION}")
+        ext.extra_compile_args += [
+            "-flto", "-Wall", "-Wextra", "-Wpedantic",
+            *get_pkgconfig("--cflags", "cairo"),
+        ]
+        ext.extra_link_args += ["-flto"]
+
+    elif os.name == "nt":
+        # Windows conda path for FreeType.
+        ext.include_dirs += [Path(sys.prefix, "Library/include")]
+        ext.extra_compile_args += [
+            "/experimental:preprocessor",
+            "/wd4244", "/wd4267",  # cf. gcc -Wconversion.
+        ]
+        ext.libraries += ["psapi", "cairo", "freetype"]
+        # Windows conda path for FreeType -- needs to be str, not Path.
+        ext.library_dirs += [str(Path(sys.prefix, "Library/lib"))]
+
+    return ext
 
 
 @functools.lru_cache(1)
@@ -61,69 +116,7 @@ def paths_from_link_libpaths():
     return paths
 
 
-class build_ext(build_ext):
-
-    def finalize_options(self):
-        import cairo
-        from pybind11.setup_helpers import Pybind11Extension
-
-        self.distribution.ext_modules[:] = ext, = [Pybind11Extension(
-            "mplcairo._mplcairo",
-            sources=(
-                ["src/_unity_build.cpp"] if UNITY_BUILD else
-                sorted({*map(str, Path("src").glob("*.cpp"))}
-                       - {"src/_unity_build.cpp"})),
-            depends=[
-                "setup.py",
-                *map(str, Path("src").glob("*.h")),
-                *map(str, Path("src").glob("*.cpp")),
-            ],
-            cxx_std=17,
-            include_dirs=[cairo.get_include()],
-        )]
-
-        # NOTE: Versions <= 8.2 of Arch Linux's python-pillow package included
-        # *into a non-overridable distutils header directory* a ``raqm.h`` that
-        # is both invalid (https://bugs.archlinux.org/task/57492) and outdated
-        # (missing a declaration for `raqm_version_string`).  It is thus not
-        # possible to build mplcairo with such an old distro package installed.
-        try:
-            get_pkgconfig(f"raqm >= {MIN_RAQM_VERSION}")
-        except (FileNotFoundError, CalledProcessError):
-            tmp_include_dir = Path(
-                self.get_finalized_command("build").build_base, "include")
-            tmp_include_dir.mkdir(parents=True, exist_ok=True)
-            (tmp_include_dir / "raqm-version.h").write_text("")  # Touch it.
-            with urllib.request.urlopen(
-                    f"https://raw.githubusercontent.com/HOST-Oman/libraqm/"
-                    f"v{MIN_RAQM_VERSION}/src/raqm.h") as request, \
-                 (tmp_include_dir / "raqm.h").open("wb") as file:
-                file.write(request.read())
-            ext.include_dirs += [tmp_include_dir]
-        else:
-            ext.extra_compile_args += get_pkgconfig("--cflags", "raqm")
-
-        if os.name == "posix":
-            get_pkgconfig(f"cairo >= {MIN_CAIRO_VERSION}")
-            ext.extra_compile_args += [
-                "-flto", "-Wall", "-Wextra", "-Wpedantic",
-                *get_pkgconfig("--cflags", "cairo"),
-            ]
-            ext.extra_link_args += ["-flto"]
-
-        elif os.name == "nt":
-            # Windows conda path for FreeType.
-            ext.include_dirs += [Path(sys.prefix, "Library/include")]
-            ext.extra_compile_args += [
-                "/experimental:preprocessor",
-                "/wd4244", "/wd4267",  # cf. gcc -Wconversion.
-            ]
-            ext.libraries += ["psapi", "cairo", "freetype"]
-            # Windows conda path for FreeType -- needs to be str, not Path.
-            ext.library_dirs += [str(Path(sys.prefix, "Library/lib"))]
-
-        super().finalize_options()
-
+class build_ext(setuptools.command.build_ext.build_ext):
     def _copy_dlls_to(self, dest):
         if os.name == "nt":
             for dll in ["cairo.dll", "freetype.dll"]:
@@ -142,41 +135,43 @@ class build_ext(build_ext):
             self.get_finalized_command("build_py").get_package_dir("mplcairo"))
 
 
-setup.register_pth_hook("setup_mplcairo_pth.py", "mplcairo.pth")
+def register_pth_hook(source_path, pth_name):
+    """
+    ::
+        setup.register_pth_hook("hook_source.py", "hook_name.pth")  # Add hook.
+    """
+    with tokenize.open(source_path) as file:
+        source = file.read()
+    _pth_hook_mixin._pth_hooks.append((pth_name, source))
 
 
-setup(
-    name="mplcairo",
-    description="A (new) cairo backend for Matplotlib.",
-    long_description=open("README.rst", encoding="utf-8").read(),
-    author="Antony Lee",
-    url="https://github.com/matplotlib/mplcairo",
-    license="MIT",
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Framework :: Matplotlib",
-        "License :: OSI Approved :: MIT License",
-        "Programming Language :: Python :: 3",
-    ],
-    cmdclass={"build_ext": build_ext},
-    packages=find_packages("lib"),
-    package_dir={"": "lib"},
-    ext_modules=[Extension("", [])],
-    python_requires=">=3.8",
-    setup_requires=[
-        "setuptools>=36.7",  # setup_requires early install.
-        "setuptools_scm",
-        "pybind11>=2.8.0",
-        *(["pycairo>=1.16.0; os_name == 'posix'"] if not MANYLINUX else []),
-    ],
-    use_scm_version={  # xref __init__.py
-        "version_scheme": "post-release",
-        "local_scheme": "node-and-date",
-        "write_to": "lib/mplcairo/_version.py",
-    },
-    install_requires=[
-        "matplotlib>=2.2",
-        "pillow",  # Already a dependency of mpl>=3.3.
-        "pycairo>=1.16.0; os_name == 'posix'",
-    ],
-)
+class _pth_hook_mixin:
+    _pth_hooks = []
+
+    def run(self):
+        super().run()
+        for pth_name, source in self._pth_hooks:
+            with Path(self.install_dir, pth_name).open("w") as file:
+                file.write(f"import os; exec({source!r})")
+
+    def get_outputs(self):
+        return (super().get_outputs()
+                + [str(Path(self.install_dir, pth_name))
+                   for pth_name, _ in self._pth_hooks])
+
+
+register_pth_hook("setup_mplcairo_pth.py", "mplcairo.pth")
+
+
+gcc = Distribution().get_command_class
+with TemporaryDirectory() as tmpdir:
+    setuptools.setup(
+        cmdclass={
+            "build_ext": build_ext,
+            "develop": type(
+                "develop_wph", (_pth_hook_mixin, gcc("develop")), {}),
+            "install_lib": type(
+                "install_lib_wph", (_pth_hook_mixin, gcc("install_lib")), {}),
+        },
+        ext_modules=[gen_extension(tmpdir=Path(tmpdir))],
+    )
