@@ -1395,7 +1395,7 @@ void GraphicsContextRenderer::draw_path_collection(
                fcs_raw(i_mod, 2), fcs_raw(i_mod, 3));
         cache.mask(ctx, path, mtx, draw_func_t::Fill, 0, {}, x, y);
       }
-      if (ecs_raw.size()) {
+      if (ecs_raw.shape(0)) {
         auto const& i_mod = i % ecs_raw.shape(0);
         cairo_set_source_rgba(
           ctx, ecs_raw(i_mod, 0), ecs_raw(i_mod, 1),
