@@ -26,10 +26,11 @@ if sys.platform != "win32":
 import matplotlib as mpl
 
 from . import _mplcairo
-from ._mplcairo import antialias_t, operator_t, get_options, set_options
+from ._mplcairo import (
+    antialias_t, dither_t, format_t, operator_t, get_options, set_options)
 
 __all__ = [
-    "antialias_t", "operator_t",
+    "antialias_t", "dither_t", "operator_t", "format_t",
     "get_options", "set_options",
     "get_context", "get_raw_buffer",
 ]
@@ -97,20 +98,34 @@ def get_raw_buffer(canvas):
     """
     Get the canvas' raw internal buffer.
 
-    This is normally a uint8 buffer of shape ``(m, n, 4)`` in
-    ARGB32 order, unless the canvas was created after calling
-    ``set_options(float_surface=True)`` in which case this is
-    a float32 buffer of shape ``(m, n, 4)`` in RGBA128F order.
+    The buffer's shape and dtype depend on the ``image_format`` passed to
+    `set_options`:
+    - ``ARGB32``: uint8 (h, w, 4), in ARGB32 order (the default);
+    - ``RGB24``: uint8 (h, w, 3), in RGB24 order;
+    - ``A8``: uint8 (h, w);
+    - ``A1``: [("V{w}", void)] (h), where w is the actual buffer width in
+      pixels (e.g. "V640"), and the void field is wide enough to contain the
+      data but is padded to a byte boundary;
+    - ``RGB16_565``: uint16 (h, w);
+    - ``RGB30``: uint32 (h, w);
+    - ``RGB96F``: float (h, w, 3);
+    - ``RGBA128F``: float (h, w, 4).
     """
     return canvas.renderer._get_buffer()
 
 
-def _operator_patch_artist(op, artist):
-    """Patch an artist to make it use this compositing operator for drawing."""
+def _patch_artist(op, artist):
+    """
+    Patch an artist so that it is drawn with this compositing operator or
+    dithering algorithm.
+    """
 
     def draw(renderer):
         gc = renderer.new_gc()
-        gc.set_mplcairo_operator(op)
+        if isinstance(op, operator_t):
+            gc.set_mplcairo_operator(op)
+        elif isinstance(op, dither_t):
+            gc.set_mplcairo_dither(op)
         _base_draw(renderer)
         gc.restore()
 
@@ -118,4 +133,5 @@ def _operator_patch_artist(op, artist):
     artist.draw = draw
 
 
-operator_t.patch_artist = _operator_patch_artist
+dither_t.patch_artist = _patch_artist
+operator_t.patch_artist = _patch_artist

@@ -1,4 +1,5 @@
 import ctypes
+import sys
 
 # This does support QT_API=pyqt6 on Matplotlib versions that can handle it.
 try:
@@ -8,8 +9,11 @@ except ImportError:
         _BackendQT5 as _BackendQT, FigureCanvasQT)
 from matplotlib.backends.qt_compat import QtCore, QtGui
 
-from . import _mplcairo
+from . import _mplcairo, _util
 from .base import FigureCanvasCairo
+
+
+_QT_VERSION = tuple(QtCore.QLibraryInfo.version().segments())
 
 
 class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
@@ -19,20 +23,45 @@ class FigureCanvasQTCairo(FigureCanvasCairo, FigureCanvasQT):
         # We always repaint the full canvas (doing otherwise would require an
         # additional copy of the buffer into a contiguous block, so it's not
         # clear it would be faster).
-        buf = _mplcairo.cairo_to_premultiplied_argb32(
-            self.get_renderer()._get_buffer())
-        height, width, _ = buf.shape
-        # The image buffer is not necessarily contiguous, but the padding
-        # in the ARGB32 case (each scanline is 32-bit aligned) happens to
-        # match what QImage requires; in the RGBA128F case the documented Qt
-        # requirement does not seem necessary?
-        if QtGui.__name__.startswith("PyQt6"):
-            from PyQt6 import sip
-            ptr = sip.voidptr(buf)
+        buf = self.get_renderer()._get_buffer()
+        fmt = _util.detect_buffer_format(buf)
+        if fmt == "argb32":
+            qfmt = 6  # ARGB32_Premultiplied
+        elif fmt == "rgb24":
+            assert buf.strides[1] == 4  # alpha channel as padding.
+            qfmt = 4  # RGB32
+        elif fmt == "a8":
+            qfmt = 24  # Grayscale8
+        elif fmt == "a1":
+            qfmt = {"big": 1, "little": 2}[sys.byteorder]  # Mono, Mono_LSB
+        elif fmt == "rgb16_565":
+            qfmt = 7  # RGB16
+        elif fmt == "rgb30":
+            qfmt = 21  # RGB30
+        elif fmt == "rgb96f":
+            raise ValueError(f"{fmt} is not supported by Qt")
+        elif fmt == "rgba128f":
+            if _QT_VERSION >= (6, 2):
+                qfmt = 35  # RGBA32FPx4_Premultiplied
+            else:
+                qfmt = 6
+                buf = _mplcairo.cairo_to_premultiplied_argb32(buf)
+        if fmt == "a1":
+            height, = buf.shape
+            fieldname, = buf.dtype.names
+            assert fieldname[0] == "V"
+            width = int(fieldname[1:])
         else:
-            ptr = buf
+            height, width = buf.shape[:2]
+        ptr = (
+            # Also supports non-contiguous (RGB24) data.
+            buf.ctypes.data if QtCore.__name__.startswith("PyQt") else
+            # Required by PySide, but fails for non-contiguous data.
+            buf)
         qimage = QtGui.QImage(
-            ptr, width, height, QtGui.QImage.Format(6))  # ARGB32_Premultiplied
+            ptr, width, height, buf.strides[0], QtGui.QImage.Format(qfmt))
+        if fmt == "a1":  # FIXME directly drawing Format_Mono segfaults?
+            qimage = qimage.convertedTo(QtGui.QImage.Format(6))
         getattr(qimage, "setDevicePixelRatio", lambda _: None)(
             self.device_pixel_ratio)
         # https://bugreports.qt.io/browse/PYSIDE-140

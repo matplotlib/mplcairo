@@ -4,8 +4,22 @@ import os
 import sys
 
 import matplotlib as mpl
+import numpy as np
 
 from . import _backports
+
+
+def detect_buffer_format(buf):
+    return {
+        (np.uint8, (4,)): "argb32",
+        (np.uint8, (3,)): "rgb24",
+        (np.uint8, ()): "a8",
+        (np.void, ()): "a1",
+        (np.uint16, ()): "rgb16_565",
+        (np.uint32, ()): "rgb30",
+        (np.float32, (3,)): "rgb96f",
+        (np.float32, (4,)): "rgba128f",
+    }[buf.dtype.type, buf.shape[2:]]
 
 
 @functools.lru_cache(1)

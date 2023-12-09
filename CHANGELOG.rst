@@ -1,3 +1,9 @@
+next
+====
+
+- Changed image format selection to ``set_options(image_format=...)``.
+- Added support for dithering control.
+
 v0.6.1 (2024-11-07)
 ===================
 

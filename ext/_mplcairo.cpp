@@ -27,6 +27,14 @@ P11X_DECLARE_ENUM(
   {"BEST", CAIRO_ANTIALIAS_BEST}
 )
 P11X_DECLARE_ENUM(
+  "dither_t", "enum.Enum",
+  {"NONE", mplcairo::detail::CAIRO_DITHER_NONE},
+  {"DEFAULT", mplcairo::detail::CAIRO_DITHER_DEFAULT},
+  {"FAST", mplcairo::detail::CAIRO_DITHER_FAST},
+  {"GOOD", mplcairo::detail::CAIRO_DITHER_GOOD},
+  {"BEST", mplcairo::detail::CAIRO_DITHER_BEST},
+)
+P11X_DECLARE_ENUM(
   "operator_t", "enum.Enum",
   {"CLEAR", CAIRO_OPERATOR_CLEAR},
   {"SOURCE", CAIRO_OPERATOR_SOURCE},
@@ -58,15 +66,17 @@ P11X_DECLARE_ENUM(
   {"HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR},
   {"HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY}
 )
-P11X_DECLARE_ENUM(  // Only for error messages.
-  "_format_t", "enum.Enum",
+P11X_DECLARE_ENUM(
+  "format_t", "enum.Enum",
   {"INVALID", CAIRO_FORMAT_INVALID},
   {"ARGB32", CAIRO_FORMAT_ARGB32},
   {"RGB24", CAIRO_FORMAT_RGB24},
   {"A8", CAIRO_FORMAT_A8},
   {"A1", CAIRO_FORMAT_A1},
   {"RGB16_565", CAIRO_FORMAT_RGB16_565},
-  {"RGB30", CAIRO_FORMAT_RGB30}
+  {"RGB30", CAIRO_FORMAT_RGB30},
+  {"RGB96F", static_cast<cairo_format_t>(6)},
+  {"RGBA128F", static_cast<cairo_format_t>(7)}
 )
 P11X_DECLARE_ENUM(  // Only for error messages.
   "_surface_type_t", "enum.Enum",
@@ -263,7 +273,8 @@ GraphicsContextRenderer::GraphicsContextRenderer(
       /* hatch_linewidth */ {},  // Lazily loaded by get_hatch_linewidth.
       /* sketch */          {},
       /* snap */            true,  // Defaults to None, i.e. True for us.
-      /* url */             {}
+      /* url */             {},
+      /* dither */          detail::CAIRO_DITHER_DEFAULT
     }}}));
 }
 
@@ -303,7 +314,7 @@ GraphicsContextRenderer::~GraphicsContextRenderer()
 cairo_t* GraphicsContextRenderer::cr_from_image_args(int width, int height)
 {
   auto const& surface =
-    cairo_image_surface_create(get_cairo_format(), width, height);
+    cairo_image_surface_create(detail::IMAGE_FORMAT, width, height);
   auto const& cr = cairo_create(surface);
   cairo_surface_destroy(surface);
   return cr;
@@ -953,6 +964,9 @@ void GraphicsContextRenderer::draw_image(
   auto const& mtx =
     cairo_matrix_t{1, 0, 0, -1, -x, -y + height_};
   cairo_pattern_set_matrix(pattern, &mtx);
+  if (detail::cairo_pattern_set_dither) {
+    detail::cairo_pattern_set_dither(pattern, get_additional_state().dither);
+  }
   cairo_set_source(cr_, pattern);
   cairo_pattern_destroy(pattern);
   cairo_paint(cr_);
@@ -1049,7 +1063,7 @@ void maybe_multithread(
     for (auto i = 0; i < detail::COLLECTION_THREADS; ++i) {
       auto const& surface =
         cairo_surface_create_similar_image(
-          cairo_get_target(cr), get_cairo_format(), width, height);
+          cairo_get_target(cr), detail::IMAGE_FORMAT, width, height);
       auto const& ctx = cairo_create(surface);
       cairo_surface_destroy(surface);
       ctxs.push_back(ctx);
@@ -1164,7 +1178,7 @@ void GraphicsContextRenderer::draw_markers(
     auto const& raster_gcr =
       make_pattern_gcr(
         cairo_surface_create_similar_image(
-          cairo_get_target(cr_), get_cairo_format(),
+          cairo_get_target(cr_), detail::IMAGE_FORMAT,
           std::ceil(x1 - x0 + 1), std::ceil(y1 - y0 + 1)));
     auto const& raster_cr = raster_gcr.cr_;
     cairo_set_antialias(raster_cr, cairo_get_antialias(cr_));
@@ -1669,7 +1683,8 @@ py::array GraphicsContextRenderer::_stop_filter_get_buffer()
   restore();
   auto const& pattern = cairo_pop_group(cr_);
   auto const& raster_surface =
-    cairo_image_surface_create(get_cairo_format(), int(width_), int(height_));
+    cairo_image_surface_create(
+      detail::IMAGE_FORMAT, int(width_), int(height_));
   auto const& raster_cr = cairo_create(raster_surface);
   cairo_set_source(raster_cr, pattern);
   cairo_pattern_destroy(pattern);
@@ -2012,8 +2027,8 @@ Note that the defaults below refer to the initial values of the options;
 options not passed to `set_options` are left unchanged.
 
 At import time, mplcairo will set the initial values of the options from the
-``MPLCAIRO_<OPTION_NAME>`` environment variables (loading them as Python
-literals), if any such variables are set.
+``MPLCAIRO_<OPTION_NAME>`` environment variables, if any such variables are
+set.  (They are loaded as Python literals, e.g. strings must be quoted.)
 
 This function can also be used as a context manager
 (``with set_options(...): ...``).  In that case, the original values of the
@@ -2028,9 +2043,11 @@ cairo_circles : bool, default: True
 collection_threads : int, default: 0
     Number of threads to use to render markers and collections, if nonzero.
 
-float_surface : bool, default: False
-    Whether to use a floating point surface (more accurate, but uses more
-    memory).
+image_format : format_t, default: ARGB32
+    The internal image format (either a `format_t`, or the corresponding name).
+    All backends can render ARGB32 and RGBA128F images.  Qt can additionally
+    render RGB24, A8, RGB16_565, RGB30, and (with an extra conversion) A1.  No
+    backend currently supports RGBA96F.
 
 miter_limit : float, default: 10
     Setting for cairo_set_miter_limit__.  If negative, use Matplotlib's (bad)
@@ -2048,7 +2065,7 @@ _debug: bool, default: False
 Notes
 -----
 An additional format-specific control knob is the ``MaxVersion`` entry in the
-*metadata* dict passed to ``savefig``.  It can take values ``"1.4"``/``"1.5``
+*metadata* dict passed to ``savefig``.  It can take values ``"1.4"``/``"1.5"``
 (to restrict to PDF 1.4 or 1.5 -- default: 1.5), ``"2"``/``"3"`` (to restrict
 to PostScript levels 2 or 3 -- default: 3), or ``"1.1"``/``"1.2"`` (to restrict
 to SVG 1.1 or 1.2 -- default: 1.1).
@@ -2186,11 +2203,20 @@ Only intended for debugging purposes.
     .def("set_snap", &GraphicsContextRenderer::set_snap)
     .def("set_url", &GraphicsContextRenderer::set_url)
 
-    // This one function is specific to mplcairo.
+    // mplcairo-specific methods.
     .def(
       "set_mplcairo_operator",
       [](GraphicsContextRenderer& gcr, cairo_operator_t op) -> void {
         cairo_set_operator(gcr.cr_, op);
+      })
+    .def(
+      "set_mplcairo_dither",
+      [](GraphicsContextRenderer& gcr, detail::cairo_dither_t dither) -> void {
+        if (!detail::cairo_pattern_set_dither) {
+          py::module::import("warnings").attr("warn")(
+            "cairo_pattern_set_dither requires cairo>=1.18.0");
+        }
+        gcr.get_additional_state().dither = dither;
       })
 
     .def(

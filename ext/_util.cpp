@@ -66,7 +66,7 @@ py::object RC_PARAMS{},
            PIXEL_MARKER{},
            UNIT_CIRCLE{};
 int COLLECTION_THREADS{};
-bool FLOAT_SURFACE{};
+cairo_format_t IMAGE_FORMAT{CAIRO_FORMAT_ARGB32};
 double MITER_LIMIT{10.};
 bool DEBUG{};
 MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{[] {
@@ -114,7 +114,7 @@ py::dict get_options()
   return py::dict(
     "cairo_circles"_a=bool(detail::UNIT_CIRCLE),
     "collection_threads"_a=detail::COLLECTION_THREADS,
-    "float_surface"_a=detail::FLOAT_SURFACE,
+    "image_format"_a=detail::IMAGE_FORMAT,
     "miter_limit"_a=detail::MITER_LIMIT,
     "raqm"_a=has_raqm(),
     "_debug"_a=detail::DEBUG);
@@ -139,11 +139,24 @@ py::object set_options(py::kwargs kwargs)
       Py_XDECREF(detail::UNIT_CIRCLE.release().ptr());
     }
   }
-  if (auto const& float_surface = pop_option("float_surface", bool{})) {
-    if (*float_surface && cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
+  if (auto const& image_format =
+      pop_option("image_format",
+                 std::variant<cairo_format_t, std::string>{})) {
+    auto fmt = std::visit(overloaded {
+      [](cairo_format_t fmt) {
+        return fmt;
+      },
+      [](std::string fmt) {  // operator[]() doesn't support std::string
+        return
+          py::module::import("mplcairo").attr("format_t")[fmt.c_str()]
+          .cast<cairo_format_t>();
+      }
+    }, *image_format);
+    if (fmt > CAIRO_FORMAT_RGB30
+        && cairo_version() < CAIRO_VERSION_ENCODE(1, 17, 2)) {
       throw std::invalid_argument{"float surfaces require cairo>=1.17.2"};
     }
-    detail::FLOAT_SURFACE = *float_surface;
+    detail::IMAGE_FORMAT = fmt;
   }
   if (auto const& threads = pop_option("collection_threads", int{})) {
     detail::COLLECTION_THREADS = *threads;
@@ -173,12 +186,6 @@ py::object rc_param(std::string key)
 {
   return py::reinterpret_borrow<py::object>(  // Use a faster path.
     PyDict_GetItemString(detail::RC_PARAMS.ptr(), key.data()));
-}
-
-cairo_format_t get_cairo_format() {
-  return
-    detail::FLOAT_SURFACE
-    ? static_cast<cairo_format_t>(7) : CAIRO_FORMAT_ARGB32;
 }
 
 rgba_t to_rgba(py::object color, std::optional<double> alpha)
@@ -679,6 +686,15 @@ void fill_and_stroke_exact(
 }
 
 py::array image_surface_to_buffer(cairo_surface_t* surface) {
+  // Possible outputs:
+  //   ARGB32    -> uint8, (h, w, 4)
+  //   RGB24     -> uint8, (h, w, 3) (non-contiguous)
+  //   A8        -> uint8, (h, w)
+  //   A1        -> ("V{w}", void(ceil(w/8))), (h,)
+  //   RGB16_565 -> uint16, (h, w)
+  //   RGB30     -> uint32, (h, w)
+  //   RGB96F    -> float, (h, w, 3)
+  //   RGB128F   -> float, (h, w, 4)
   if (auto const& type = cairo_surface_get_type(surface);
       type != CAIRO_SURFACE_TYPE_IMAGE) {
     throw std::runtime_error{
@@ -687,37 +703,47 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
   }
   cairo_surface_reference(surface);
   cairo_surface_flush(surface);
+  auto const& h = cairo_image_surface_get_height(surface),
+            & w = cairo_image_surface_get_width(surface),
+            & stride = cairo_image_surface_get_stride(surface);
+  auto const& data = cairo_image_surface_get_data(surface);
+  auto const& capsule = py::capsule(
+    surface,
+    [](void* surface) -> void {
+      cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
+    });
   switch (auto const& fmt = cairo_image_surface_get_format(surface);
           // Avoid "not in enumerated type" warning with CAIRO_FORMAT_RGBA_128F.
           static_cast<int>(fmt)) {
     case static_cast<int>(CAIRO_FORMAT_ARGB32):
-      return py::array_t<uint8_t>{
-        {cairo_image_surface_get_height(surface),
-         cairo_image_surface_get_width(surface),
-         4},
-        {cairo_image_surface_get_stride(surface), 4, 1},
-         cairo_image_surface_get_data(surface),
-         py::capsule(
-           surface,
-           [](void* surface) -> void {
-             cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
-           })};
-    case 7:  // CAIRO_FORMAT_RGBA_128F.
+      return py::array_t<uint8_t>{{h, w, 4}, {stride, 4, 1}, data, capsule};
+    case static_cast<int>(CAIRO_FORMAT_RGB24):
+      return py::array_t<uint8_t>{{h, w, 3}, {stride, 4, 1}, data, capsule};
+    case static_cast<int>(CAIRO_FORMAT_A8):
+      return py::array_t<uint8_t>{{h, w}, {stride, 1}, data, capsule};
+    case static_cast<int>(CAIRO_FORMAT_A1): {
+      auto dtype_args = py::list{};
+      dtype_args.append(py::make_tuple(
+        "V" + std::to_string(w), "V" + std::to_string((w + 7) / 8)));
+      return py::array{
+        py::dtype::from_args(dtype_args), {h}, {stride}, data, capsule};
+    }
+    case static_cast<int>(CAIRO_FORMAT_RGB16_565):
+      return py::array_t<uint16_t>{
+        {h, w}, {stride, 2}, reinterpret_cast<uint16_t*>(data), capsule};
+    case static_cast<int>(CAIRO_FORMAT_RGB30):
+      return py::array_t<uint32_t>{
+        {h, w}, {stride, 4}, reinterpret_cast<uint32_t*>(data), capsule};
+    case 6:  // CAIRO_FORMAT_RGB96F.
       return py::array_t<float>{
-        {cairo_image_surface_get_height(surface),
-         cairo_image_surface_get_width(surface),
-         4},
-        {cairo_image_surface_get_stride(surface), 16, 4},
-        reinterpret_cast<float*>(cairo_image_surface_get_data(surface)),
-        py::capsule(
-          surface,
-          [](void* surface) -> void {
-            cairo_surface_destroy(static_cast<cairo_surface_t*>(surface));
-          })};
+        {h, w, 3}, {stride, 12, 4}, reinterpret_cast<float*>(data), capsule};
+    case 7:  // CAIRO_FORMAT_RGBA128F.
+      return py::array_t<float>{
+        {h, w, 4}, {stride, 16, 4}, reinterpret_cast<float*>(data), capsule};
     default:
       throw std::invalid_argument{
-        "_get_buffer only supports images surfaces with ARGB32 and RGBA128F "
-        "formats, not {}"_format(fmt).cast<std::string>()};
+        "_get_buffer does not support image surfaces with format "
+        "{}"_format(fmt).cast<std::string>()};
   }
 }
 

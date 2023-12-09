@@ -26,15 +26,24 @@ extern std::array<uint8_t, 0x10000>
 
 // Optional parts of cairo.
 
-// Copy-pasted from cairo.h, backported from 1.15.
+// From cairo.h, backported from 1.15.
 #define CAIRO_TAG_DEST "cairo.dest"
 #define CAIRO_TAG_LINK "Link"
 extern void (*cairo_tag_begin)(cairo_t*, char const*, char const*);
 extern void (*cairo_tag_end)(cairo_t*, char const*);
-// Copy-pasted from cairo.h, backported from 1.16.
+// From cairo.h, backported from 1.16.
 extern void (*cairo_font_options_set_variations)(cairo_font_options_t *, const char *);
+// From cairo.h, backported from 1.18.
+typedef enum _cairo_dither {
+    CAIRO_DITHER_NONE,
+    CAIRO_DITHER_DEFAULT,
+    CAIRO_DITHER_FAST,
+    CAIRO_DITHER_GOOD,
+    CAIRO_DITHER_BEST
+} cairo_dither_t;
+extern void (*cairo_pattern_set_dither)(cairo_pattern_t *pattern, cairo_dither_t dither);
 
-// Modified from cairo-pdf.h.
+// From cairo-pdf.h.
 enum cairo_pdf_version_t {};
 typedef enum _cairo_pdf_metadata {
     CAIRO_PDF_METADATA_TITLE,
@@ -57,7 +66,7 @@ extern void (*cairo_pdf_surface_set_metadata)(
   cairo_surface_t*, cairo_pdf_metadata_t, char const*);
 extern void (*cairo_pdf_surface_set_size)(cairo_surface_t*, double, double);
 
-// Modified from cairo-ps.h.
+// From cairo-ps.h.
 enum cairo_ps_level_t {};
 extern void (*cairo_ps_get_levels)(cairo_ps_level_t const**, int*);
 extern cairo_surface_t* (*cairo_ps_surface_create_for_stream)(
@@ -68,7 +77,7 @@ extern void (*cairo_ps_surface_restrict_to_level)(
 extern void (*cairo_ps_surface_set_eps)(cairo_surface_t*, cairo_bool_t);
 extern void (*cairo_ps_surface_set_size)(cairo_surface_t*, double, double);
 
-// Modified from cairo-svg.h.
+// From cairo-svg.h.
 enum cairo_svg_version_t {};
 extern void (*cairo_svg_get_versions)(cairo_svg_version_t const**, int*);
 extern cairo_surface_t* (*cairo_svg_surface_create_for_stream)(
@@ -80,6 +89,7 @@ extern void (*cairo_svg_surface_restrict_to_version)(
   _(cairo_tag_begin) \
   _(cairo_tag_end) \
   _(cairo_font_options_set_variations) \
+  _(cairo_pattern_set_dither) \
   _(cairo_pdf_get_versions) \
   _(cairo_pdf_surface_create_for_stream) \
   _(cairo_pdf_surface_restrict_to_version) \
@@ -111,7 +121,7 @@ extern py::object RC_PARAMS;
 extern py::object PIXEL_MARKER;
 extern py::object UNIT_CIRCLE;
 extern int COLLECTION_THREADS;
-extern bool FLOAT_SURFACE;
+extern cairo_format_t IMAGE_FORMAT;
 extern double MITER_LIMIT;
 extern bool DEBUG;
 enum class MplcairoScriptSurface {
@@ -144,6 +154,8 @@ struct AdditionalState {
   bool snap;
   std::optional<std::string> url;
 
+  detail::cairo_dither_t dither;
+
   rgba_t get_hatch_color();
   double get_hatch_linewidth();
 };
@@ -163,7 +175,6 @@ bool py_eq(py::object obj1, py::object obj2);
 py::dict get_options();
 py::object set_options(py::kwargs kwargs);
 py::object rc_param(std::string key);
-cairo_format_t get_cairo_format();
 rgba_t to_rgba(py::object color, std::optional<double> alpha = {});
 cairo_matrix_t matrix_from_transform(py::object transform, double y0 = 0);
 cairo_matrix_t matrix_from_transform(

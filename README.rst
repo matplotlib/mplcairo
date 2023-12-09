@@ -110,10 +110,10 @@ path <add_dll_directory_>`_).
    is detected at runtime.
 
    cairo 1.17.2 added support for floating point surfaces, usable with
-   ``mplcairo.set_options(float_surface=True)``; the presence of this feature
-   is detected at runtime.  However, cairo 1.17.2 (and only that version) also
-   has a bug that causes (in particular) polar gridlines to be incorrectly
-   cropped.  This bug was fixed in 2d1a137.
+   ``mplcairo.set_options(image_format=mplcairo.format_t.RGBA128F)``; the
+   presence of this feature is detected at runtime.  However, cairo 1.17.2
+   (and only that version) also has a bug that causes (in particular) polar
+   gridlines to be incorrectly cropped.  This bug was fixed in 2d1a137.
 
    cairo 1.17.4 fixed a rare crash in rasterization (in dfe3aa6).
 
