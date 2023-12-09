@@ -102,18 +102,18 @@ def gen_extension(tmpdir):
     return ext
 
 
+# NOTE: Finding the dlls in libpath is not particularly correct as this really
+# specifies paths to .lib import libraries; instead we should use
+# ctypes.util.find_library and ask the caller to set PATH if desired.
 @functools.lru_cache(1)
 def paths_from_link_libpaths():
     # "Easy" way to call CommandLineToArgvW...
     argv = json.loads(subprocess.check_output(
         '"{}" -c "import json, sys; print(json.dumps(sys.argv[1:]))" {}'
         .format(sys.executable, os.environ.get("LINK", ""))))
-    paths = []
-    for arg in argv:
-        match = re.fullmatch("(?i)/LIBPATH:(.*)", arg)
-        if match:
-            paths.append(Path(match.group(1)))
-    return paths
+    return [Path(match[1])
+            for match in map(re.compile("(?i)/LIBPATH:(.*)").fullmatch, argv)
+            if match]
 
 
 class build_ext(setuptools.command.build_ext.build_ext):

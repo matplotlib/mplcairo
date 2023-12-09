@@ -5,5 +5,5 @@
 
 #include <cairo.h>
 #if CAIRO_VERSION < CAIRO_VERSION_ENCODE(1, 13, 1)
-  #error "Your version of cairo version is too old."
+  #error "cairo>=1.13.1 is required."
 #endif
