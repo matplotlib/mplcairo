@@ -1483,6 +1483,16 @@ void GraphicsContextRenderer::draw_quad_mesh(
   if (ecs_raw.shape(0)) {
     for (auto i = 0; i < mesh_height; ++i) {
       for (auto j = 0; j < mesh_width; ++j) {
+        if (!(std::isfinite(coords_raw(i, j, 0))
+              && std::isfinite(coords_raw(i, j, 1))
+              && std::isfinite(coords_raw(i, j + 1, 0))
+              && std::isfinite(coords_raw(i, j + 1, 1))
+              && std::isfinite(coords_raw(i + 1, j, 0))
+              && std::isfinite(coords_raw(i + 1, j, 1))
+              && std::isfinite(coords_raw(i + 1, j + 1, 0))
+              && std::isfinite(coords_raw(i + 1, j + 1, 1)))) {
+          continue;
+        }
         cairo_move_to(
           cr_, coords_raw(i, j, 0), coords_raw(i, j, 1));
         cairo_line_to(
@@ -1506,6 +1516,16 @@ void GraphicsContextRenderer::draw_quad_mesh(
     auto const& pattern = cairo_pattern_create_mesh();
     for (auto i = 0; i < mesh_height; ++i) {
       for (auto j = 0; j < mesh_width; ++j) {
+        if (!(std::isfinite(coords_raw(i, j, 0))
+              && std::isfinite(coords_raw(i, j, 1))
+              && std::isfinite(coords_raw(i, j + 1, 0))
+              && std::isfinite(coords_raw(i, j + 1, 1))
+              && std::isfinite(coords_raw(i + 1, j, 0))
+              && std::isfinite(coords_raw(i + 1, j, 1))
+              && std::isfinite(coords_raw(i + 1, j + 1, 0))
+              && std::isfinite(coords_raw(i + 1, j + 1, 1)))) {
+          continue;
+        }
         cairo_mesh_pattern_begin_patch(pattern);
         cairo_mesh_pattern_move_to(
           pattern, coords_raw(i, j, 0), coords_raw(i, j, 1));
