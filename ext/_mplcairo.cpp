@@ -1023,13 +1023,12 @@ void GraphicsContextRenderer::draw_path(
     fill_and_stroke_exact(
       hatch_cr, *hatch_path, &mtx, hatch_color, hatch_color);
     auto const& hatch_pattern =
-      cairo_pattern_create_for_surface(cairo_get_target(hatch_cr));
+      cairo_pattern_create_for_surface(hatch_surface);
     cairo_pattern_set_extend(hatch_pattern, CAIRO_EXTEND_REPEAT);
     cairo_set_source(cr_, hatch_pattern);
     cairo_pattern_destroy(hatch_pattern);
     load_path();
-    cairo_clip_preserve(cr_);
-    cairo_paint(cr_);
+    cairo_fill_preserve(cr_);
     cairo_restore(cr_);
   }
   auto const& chunksize = rc_param("agg.path.chunksize").cast<int>();
