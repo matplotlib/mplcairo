@@ -104,6 +104,8 @@ extern cairo_user_data_key_t const
   INIT_MATRIX_KEY,    // cairo_t -> cairo_matrix_t.
   FT_KEY,             // cairo_font_face_t -> FT_Face.
   FEATURES_KEY,       // cairo_font_face_t -> OpenType features.
+  LANGS_KEY,          // cairo_font_face_t -> languages.
+  VARIATIONS_KEY,     // cairo_font_face_t -> OpenType variations.
   IS_COLOR_FONT_KEY;  // cairo_font_face_t -> non-null if a color font.
 extern py::object RC_PARAMS;
 extern py::object PIXEL_MARKER;
@@ -182,7 +184,7 @@ void fill_and_stroke_exact(
 py::array image_surface_to_buffer(cairo_surface_t* surface);
 cairo_font_face_t* font_face_from_path(std::string path);
 cairo_font_face_t* font_face_from_path(py::object path);
-cairo_font_face_t* font_face_from_prop(py::object prop);
+std::vector<cairo_font_face_t*> font_faces_from_prop(py::object prop);
 long get_hinting_flag();
 void adjust_font_options(cairo_t* cr);
 void warn_on_missing_glyph(std::string s);

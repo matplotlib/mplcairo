@@ -59,6 +59,7 @@ cairo_user_data_key_t const REFS_KEY{},
                             INIT_MATRIX_KEY{},
                             FT_KEY{},
                             FEATURES_KEY{},
+                            LANGS_KEY{},
                             VARIATIONS_KEY{},
                             IS_COLOR_FONT_KEY{};
 py::object RC_PARAMS{},
@@ -720,26 +721,64 @@ py::array image_surface_to_buffer(cairo_surface_t* surface) {
   }
 }
 
-cairo_font_face_t* font_face_from_path(std::string pathspec)
+auto parse_pathspec(std::string pathspec)
 {
-  auto& font_face = detail::FONT_CACHE[pathspec];
-  if (!font_face) {
+    struct parse_t {
+      std::string path;
+      int face_index;
+      std::vector<std::string> features;
+      std::vector<std::tuple<std::string, int, int>> langs;
+      std::string variations;
+    };
     auto match = std::smatch{};
     if (!std::regex_match(pathspec, match,
                           std::regex{"(.*?)(#(\\d+))?(\\|([^|]*))?(\\|(.*))?"})) {
       throw std::runtime_error{
         "Failed to parse pathspec {}"_format(pathspec).cast<std::string>()};
     }
-    auto const& path = match.str(1);
-    auto const& face_index = std::atoi(match.str(3).c_str());  // 0 if absent.
+    auto parse = parse_t{
+      match.str(1),
+      std::atoi(match.str(3).c_str()),  // 0 if absent.
+      {}, {},  // Fill below.
+      match.str(7)
+    };
     auto const& features_s = match.str(5);
-    auto const& variations = match.str(7);
+    if (features_s.size()) {
+      auto const& comma = std::regex{","};
+      auto toks = std::sregex_token_iterator{
+        features_s.begin(), features_s.end(), comma, -1};
+      while (toks != std::sregex_token_iterator{}) {
+        auto const& tok = std::string{toks->str()};
+        if (std::regex_match(
+              tok,
+              match,
+              std::regex{"^language(?:\\[(\\d+)?(?::(\\d+))?\\])?=(.*)$"})) {
+          auto const& start = std::atoi(match.str(1).c_str());  // 0 if absent.
+          auto const& stop =
+            match[2].matched ? std::atoi(match.str(2).c_str()) : -1;
+          auto const& lang = match.str(3);
+          parse.langs.emplace_back(lang, start, stop);
+        } else {
+          parse.features.emplace_back(tok);
+        }
+        ++toks;
+      }
+    }
+    return parse;
+}
+
+cairo_font_face_t* font_face_from_path(std::string pathspec)
+{
+  auto& font_face = detail::FONT_CACHE[pathspec];
+  if (!font_face) {
+    auto parsed = parse_pathspec(pathspec);
     FT_Face ft_face;
     if (auto const& error =
-        FT_New_Face(detail::ft_library, path.c_str(), face_index, &ft_face)) {
+        FT_New_Face(
+          detail::ft_library, parsed.path.c_str(), parsed.face_index, &ft_face)) {
       if (error == FT_Err_Cannot_Open_Resource) {
         // Throw the exception that Python would throw...
-        py::module::import("builtins").attr("open")(path);
+        py::module::import("builtins").attr("open")(parsed.path);
         if (PyErr_Occurred()) {  // ... if possible.
           throw py::error_already_set{};
         }
@@ -755,28 +794,16 @@ cairo_font_face_t* font_face_from_path(std::string pathspec)
           font_face, cairo_font_face_destroy};
     CAIRO_CHECK_SET_USER_DATA(
       cairo_font_face_set_user_data, font_face, &detail::FT_KEY, ft_face,
-      [](void* ptr) -> void {
-        FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr));
-      });
-    auto const& comma = std::regex{","};
-    auto const& features = new std::vector<std::string>(
-      features_s.size()
-      ? std::sregex_token_iterator{
-          features_s.begin(), features_s.end(), comma, -1}
-      : std::sregex_token_iterator{},
-      std::sregex_token_iterator{});
-    CAIRO_CHECK_SET_USER_DATA(
-      cairo_font_face_set_user_data,
-      font_face, &detail::FEATURES_KEY, features,
-      [](void* ptr) -> void {
-        delete static_cast<std::vector<std::string>*>(ptr);
-      });
-    CAIRO_CHECK_SET_USER_DATA(
-      cairo_font_face_set_user_data,
-      font_face, &detail::VARIATIONS_KEY, new std::string(variations),
-      [](void* ptr) -> void {
-        delete static_cast<std::string*>(ptr);
-      });
+      [](void* ptr) { FT_CHECK(FT_Done_Face, reinterpret_cast<FT_Face>(ptr)); });
+    CAIRO_CHECK_SET_USER_DATA_NEW(
+      cairo_font_face_set_user_data, font_face, &detail::FEATURES_KEY,
+      parsed.features);
+    CAIRO_CHECK_SET_USER_DATA_NEW(
+      cairo_font_face_set_user_data, font_face, &detail::LANGS_KEY,
+      parsed.langs);
+    CAIRO_CHECK_SET_USER_DATA_NEW(
+      cairo_font_face_set_user_data, font_face, &detail::VARIATIONS_KEY,
+      parsed.variations);
     // Color fonts need special handling due to cairo#404 and raqm#123; see
     // corresponding sections of the code.
     if (FT_IS_SFNT(ft_face)) {
@@ -811,14 +838,25 @@ cairo_font_face_t* font_face_from_path(py::object path) {
       .cast<std::string>());
 }
 
-cairo_font_face_t* font_face_from_prop(py::object prop)
+std::vector<cairo_font_face_t*> font_faces_from_prop(py::object prop)
 {
   // It is probably not worth implementing an additional layer of caching here
   // as findfont already has its cache and object equality needs would also
   // need to go through Python anyways.
-  auto const& path =
-    py::module::import("matplotlib.font_manager").attr("findfont")(prop);
-  return font_face_from_path(path);
+  auto const& fm =
+    py::module::import("matplotlib.font_manager").attr("fontManager");
+  if (py::hasattr(fm, "_find_fonts_by_props")) {
+    auto const& paths =
+      fm.attr("_find_fonts_by_props")(prop).cast<std::vector<std::string>>();
+    auto fonts = std::vector<cairo_font_face_t*>{};
+    for (auto const& path: paths) {
+      fonts.push_back(font_face_from_path(path));
+    }
+    return fonts;
+  } else {
+    auto const& path = fm.attr("findfont")(prop);
+    return {font_face_from_path(path)};
+  }
 }
 
 long get_hinting_flag()
@@ -869,6 +907,9 @@ void warn_on_missing_glyph(std::string s)
     1);
 }
 
+// TODO: Implement font fallback per
+// https://www.mail-archive.com/harfbuzz@lists.freedesktop.org/msg04131.html
+// https://tex.stackexchange.com/questions/520034/fallback-for-harfbuzz-fonts#comment1315285_520048
 GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
 {
   auto const& scaled_font = cairo_get_scaled_font(cr);
@@ -893,18 +934,13 @@ GlyphsAndClusters text_to_glyphs_and_clusters(cairo_t* cr, std::string s)
          *static_cast<std::vector<std::string>*>(
            cairo_font_face_get_user_data(
              cairo_get_font_face(cr), &detail::FEATURES_KEY))) {
-      auto match = std::smatch{};
-      if (std::regex_match(
-            feature, match,
-            std::regex{"^language(?:\\[(\\d+)?(?::(\\d+))?\\])?=(.*)$"})) {
-        auto const& start = std::atoi(match.str(1).c_str());  // 0 if absent.
-        auto const& stop = match[2].matched
-                           ? std::atoi(match.str(2).c_str()) : s.size();
-        auto const& lang = match.str(3);
-        TRUE_CHECK(raqm::set_language, rq, lang.c_str(), start, stop - start);
-      } else {
-        TRUE_CHECK(raqm::add_font_feature, rq, feature.c_str(), -1);
-      }
+      TRUE_CHECK(raqm::add_font_feature, rq, feature.c_str(), -1);
+    }
+    for (auto const& [lang, start, stop]:
+         *static_cast<std::vector<std::tuple<std::string, int, int>>*>(
+           cairo_font_face_get_user_data(
+             cairo_get_font_face(cr), &detail::LANGS_KEY))) {
+      TRUE_CHECK(raqm::set_language, rq, lang.c_str(), start, stop);
     }
     TRUE_CHECK(raqm::layout, rq);
     auto num_glyphs = size_t{};
