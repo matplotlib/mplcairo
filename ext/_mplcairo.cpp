@@ -246,16 +246,14 @@ GraphicsContextRenderer::GraphicsContextRenderer(
   cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
   // May already have been set by cr_from_fileformat_args.
   if (!cairo_get_user_data(cr, &detail::REFS_KEY)) {
-    CAIRO_CHECK_SET_USER_DATA(
-      cairo_set_user_data, cr, &detail::REFS_KEY,
-      new std::vector<py::object>{},
-      [](void* data) -> void {
-        delete static_cast<std::vector<py::object>*>(data);
-      });
+    CAIRO_CHECK_SET_USER_DATA_NEW(
+      cairo_set_user_data, cr, &detail::REFS_KEY, std::vector<py::object>{});
   }
-  CAIRO_CHECK_SET_USER_DATA(
+  CAIRO_CHECK_SET_USER_DATA_NEW(
     cairo_set_user_data, cr, &detail::STATE_KEY,
-    (new std::stack<AdditionalState>{{{
+    // Unfortunately cairo_set_user_data doesn't have stack semantics wrt.
+    // cairo_save/cairo_restore, so we must take care of that ourselves.
+    (std::stack<AdditionalState>{{{
       /* width */           width,
       /* height */          height,
       /* dpi */             dpi,
@@ -269,19 +267,15 @@ GraphicsContextRenderer::GraphicsContextRenderer(
       /* sketch */          {},
       /* snap */            true,  // Defaults to None, i.e. True for us.
       /* url */             {}
-    }}}),
-    [](void* data) -> void {
-      // Just calling operator delete would not invoke the destructor.
-      delete static_cast<std::stack<AdditionalState>*>(data);
-    });
+    }}}));
 }
 
 GraphicsContextRenderer::~GraphicsContextRenderer()
 {
   if (detail::FONT_CACHE.size() > 64) {  // font_manager._get_font cache size.
-    for (auto& [pathspec, font_face]: detail::FONT_CACHE) {
+    for (auto& [pathspec, face]: detail::FONT_CACHE) {
       (void)pathspec;
-      cairo_font_face_destroy(font_face);
+      cairo_font_face_destroy(face);
     }
     detail::FONT_CACHE.clear();  // Naive cache mechanism.
   }
@@ -342,13 +336,12 @@ cairo_t* GraphicsContextRenderer::cr_from_pycairo_ctx(
   // With native Gtk3, the context may have a nonzero initial translation (if
   // the drawn area is not at the top left of the window); this needs to be
   // taken into account by the path loader (which works in absolute coords).
-  auto mtx = new cairo_matrix_t{};
-  cairo_get_matrix(cr, mtx);
+  auto mtx = cairo_matrix_t{};
+  cairo_get_matrix(cr, &mtx);
   auto const& [sx, sy] = device_scales;
-  mtx->x0 *= sx; mtx->y0 *= sy;
-  CAIRO_CHECK_SET_USER_DATA(
-    cairo_set_user_data, cr, &detail::INIT_MATRIX_KEY, mtx,
-    [](void* data) -> void { delete static_cast<cairo_matrix_t*>(data); });
+  mtx.x0 *= sx; mtx.y0 *= sy;
+  CAIRO_CHECK_SET_USER_DATA_NEW(
+    cairo_set_user_data, cr, &detail::INIT_MATRIX_KEY, mtx);
   return cr;
 }
 
@@ -415,12 +408,9 @@ cairo_t* GraphicsContextRenderer::cr_from_fileformat_args(
   cairo_surface_set_fallback_resolution(surface, dpi, dpi);
   auto const& cr = cairo_create(surface);
   cairo_surface_destroy(surface);
-  CAIRO_CHECK_SET_USER_DATA(
+  CAIRO_CHECK_SET_USER_DATA_NEW(
     cairo_set_user_data, cr, &detail::REFS_KEY,
-    new std::vector<py::object>{{write}},
-    [](void* data) -> void {
-      delete static_cast<std::vector<py::object>*>(data);
-    });
+    std::vector<py::object>{{write}});
   if (type == StreamSurfaceType::EPS) {
     // If cairo was built without PS support, we'd already have errored above.
     detail::cairo_ps_surface_set_eps(surface, true);
@@ -1365,13 +1355,9 @@ void GraphicsContextRenderer::draw_path_collection(
 
   maybe_multithread(cr_, n, [&](cairo_t* ctx, int start, int stop) {
     if (ctx != cr_) {
-      CAIRO_CHECK_SET_USER_DATA(
+      CAIRO_CHECK_SET_USER_DATA_NEW(
         cairo_set_user_data, ctx, &detail::STATE_KEY,
-        (new std::stack<AdditionalState>{{get_additional_state()}}),
-        [](void* data) -> void {
-          // Just calling operator delete would not invoke the destructor.
-          delete static_cast<std::stack<AdditionalState>*>(data);
-        });
+        std::stack<AdditionalState>{{get_additional_state()}});
     }
     auto cache = PatternCache{simplify_threshold};
     for (auto i = start; i < stop; ++i) {
@@ -1582,9 +1568,8 @@ void GraphicsContextRenderer::draw_text(
     }
     mb.draw(*this, x, y, angle);
   } else {
-    auto const& font_face = font_face_from_prop(prop);
-    cairo_set_font_face(cr_, font_face);
-    cairo_font_face_destroy(font_face);
+    auto const& faces = font_faces_from_prop(prop);
+    cairo_set_font_face(cr_, faces[0]);
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
@@ -1621,6 +1606,9 @@ void GraphicsContextRenderer::draw_text(
       cr_, s.c_str(), s.size(),
       gac.glyphs, gac.num_glyphs,
       gac.clusters, gac.num_clusters, gac.cluster_flags);
+    for (auto const& face: faces) {
+      cairo_font_face_destroy(face);
+    }
   }
 }
 
@@ -1640,9 +1628,8 @@ GraphicsContextRenderer::get_text_width_height_descent(
       .cast<std::tuple<double, double, double>>();
   } else {
     cairo_save(cr_);
-    auto const& font_face = font_face_from_prop(prop);
-    cairo_set_font_face(cr_, font_face);
-    cairo_font_face_destroy(font_face);
+    auto const& faces = font_faces_from_prop(prop);
+    cairo_set_font_face(cr_, faces[0]);
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
@@ -1651,6 +1638,9 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto const& gac = text_to_glyphs_and_clusters(cr_, s);
     cairo_glyph_extents(cr_, gac.glyphs, gac.num_glyphs, &extents);
     cairo_restore(cr_);
+    for (auto const& face: faces) {
+      cairo_font_face_destroy(face);
+    }
     return {
       // Max of inked portion and of current point advance (to also take
       // whitespace into account).
@@ -1808,9 +1798,9 @@ void MathtextBackend::draw(
   cairo_translate(cr, x, y);
   cairo_rotate(cr, -angle * std::acos(-1) / 180);
   for (auto const& glyph: glyphs_) {
-    auto const& font_face = font_face_from_path(glyph.path);
-    cairo_set_font_face(cr, font_face);
-    cairo_font_face_destroy(font_face);
+    auto const& face = font_face_from_path(glyph.path);
+    cairo_set_font_face(cr, face);
+    cairo_font_face_destroy(face);
     auto const& size = glyph.size * dpi / 72;
     auto const& mtx = cairo_matrix_t{
       size * glyph.extend, 0, -size * glyph.slant * glyph.extend, size, 0, 0};
@@ -1818,7 +1808,7 @@ void MathtextBackend::draw(
     adjust_font_options(cr);
     auto ft_face =
       static_cast<FT_Face>(
-        cairo_font_face_get_user_data(font_face, &detail::FT_KEY));
+        cairo_font_face_get_user_data(face, &detail::FT_KEY));
     auto index = FT_UInt{};
     std::visit(overloaded {
       [&](char32_t codepoint) {
