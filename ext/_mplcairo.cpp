@@ -449,6 +449,10 @@ GraphicsContextRenderer::_additional_context()
   return {this};
 }
 
+void GraphicsContextRenderer::_set_subpixel_antialiased_text_allowed(bool b) {
+  subpixel_antialiased_text_allowed_ = b;
+}
+
 void GraphicsContextRenderer::_set_path(std::optional<std::string> path) {
   path_ = path;
 }
@@ -1573,7 +1577,7 @@ void GraphicsContextRenderer::draw_text(
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
-    adjust_font_options(cr_);
+    adjust_font_options(cr_, subpixel_antialiased_text_allowed_);
     auto const& gac = text_to_glyphs_and_clusters(cr_, s);
     // While the warning below perhaps belongs logically to
     // text_to_glyphs_and_clusters, we don't want to also emit the warning in
@@ -1633,7 +1637,7 @@ GraphicsContextRenderer::get_text_width_height_descent(
     auto const& font_size =
       points_to_pixels(prop.attr("get_size_in_points")().cast<double>());
     cairo_set_font_size(cr_, font_size);
-    adjust_font_options(cr_);  // Needed for correct aa.
+    adjust_font_options(cr_, subpixel_antialiased_text_allowed_);  // For correct aa.
     cairo_text_extents_t extents;
     auto const& gac = text_to_glyphs_and_clusters(cr_, s);
     cairo_glyph_extents(cr_, gac.glyphs, gac.num_glyphs, &extents);
@@ -1789,7 +1793,7 @@ void MathtextBackend::draw(
 {
   if (!std::isfinite(x) || !std::isfinite(y)) {
     // This happens e.g. with empty strings, and would put cr in an invalid
-    // state. even though nothing is written.
+    // state, even though nothing is written.
     return;
   }
   [[maybe_unused]] auto const& ac = gcr._additional_context();
@@ -1805,7 +1809,7 @@ void MathtextBackend::draw(
     auto const& mtx = cairo_matrix_t{
       size * glyph.extend, 0, -size * glyph.slant * glyph.extend, size, 0, 0};
     cairo_set_font_matrix(cr, &mtx);
-    adjust_font_options(cr);
+    adjust_font_options(cr, gcr.subpixel_antialiased_text_allowed_);
     auto ft_face =
       static_cast<FT_Face>(
         cairo_font_face_get_user_data(face, &detail::FT_KEY));
@@ -2155,6 +2159,8 @@ Only intended for debugging purposes.
       [](GraphicsContextRenderer& gcr) -> bool {
         return has_vector_surface(gcr.cr_);
       })
+    .def("_set_subpixel_antialiased_text_allowed",
+         &GraphicsContextRenderer::_set_subpixel_antialiased_text_allowed)
     .def("_set_path", &GraphicsContextRenderer::_set_path)
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
     .def("_set_size", &GraphicsContextRenderer::_set_size)

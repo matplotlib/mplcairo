@@ -24,6 +24,7 @@ py::object renderer_base(std::string meth_name);
 class GraphicsContextRenderer {
   public:
   cairo_t* const cr_;
+  bool subpixel_antialiased_text_allowed_ = true;
 
   private:
   std::optional<std::string> path_ = {};
@@ -70,6 +71,7 @@ class GraphicsContextRenderer {
 
   AdditionalContext _additional_context();
 
+  void _set_subpixel_antialiased_text_allowed(bool b);
   void _set_path(std::optional<std::string> path);
   void _set_metadata(std::optional<py::dict> metadata);
   void _set_size(double width, double height, double dpi);

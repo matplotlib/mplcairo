@@ -7,6 +7,7 @@ next
 - Support pdf MaxVersion up to 1.7 (if the underlying cairo supports it).
 - Support custom pdf metadata entries.
 - `set_options` can now be used as a context manager.
+- Improve rendering of antialiased non-black text on transparent background.
 
 v0.5 (2022-08-18)
 =================
