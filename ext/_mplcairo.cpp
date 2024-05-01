@@ -184,7 +184,7 @@ GraphicsContextRenderer::AdditionalContext::AdditionalContext(
     cairo_save(cr);
     restore_init_matrix(cr);
     cairo_new_path(cr);
-    cairo_rectangle(cr, x, state.height - h - y, w, h);
+    cairo_rectangle(cr, x, gcr->height_ - h - y, w, h);
     cairo_restore(cr);
     cairo_clip(cr);
   }
@@ -216,7 +216,7 @@ GraphicsContextRenderer::AdditionalContext::~AdditionalContext()
 
 double GraphicsContextRenderer::pixels_to_points(double pixels)
 {
-  return pixels / (get_additional_state().dpi / 72);
+  return pixels / (dpi_ / 72);
 }
 
 rgba_t GraphicsContextRenderer::get_rgba()
@@ -232,7 +232,7 @@ rgba_t GraphicsContextRenderer::get_rgba()
 GraphicsContextRenderer::GraphicsContextRenderer(
   cairo_t* cr, double width, double height, double dpi) :
   // This does *not* incref the cairo_t, but the destructor *will* decref it.
-  cr_{cr}
+  cr_{cr}, width_{width}, height_{height}, dpi_{dpi}
 {
   if (auto const& status = cairo_status(cr);
       status == CAIRO_STATUS_INVALID_SIZE) {
@@ -254,9 +254,6 @@ GraphicsContextRenderer::GraphicsContextRenderer(
     // Unfortunately cairo_set_user_data doesn't have stack semantics wrt.
     // cairo_save/cairo_restore, so we must take care of that ourselves.
     (std::stack<AdditionalState>{{{
-      /* width */           width,
-      /* height */          height,
-      /* dpi */             dpi,
       /* alpha */           {},
       /* antialias */       {true},
       /* clip_rectangle */  {},
@@ -603,10 +600,9 @@ void GraphicsContextRenderer::_set_metadata(std::optional<py::dict> metadata)
 void GraphicsContextRenderer::_set_size(
   double width, double height, double dpi)
 {
-  auto& state = get_additional_state();
-  state.width = width;
-  state.height = height;
-  state.dpi = dpi;
+  width_ = width;
+  height_ = height;
+  dpi_ = dpi;
   auto const& surface = cairo_get_target(cr_);
   switch (auto const& type = cairo_surface_get_type(surface)) {
     case CAIRO_SURFACE_TYPE_PDF:
@@ -685,8 +681,7 @@ void GraphicsContextRenderer::set_clip_path(
     auto const& [path, transform] =
       transformed_path->attr("get_transformed_path_and_affine")()
       .cast<std::tuple<py::object, py::object>>();
-    auto const& mtx =
-      matrix_from_transform(transform, get_additional_state().height);
+    auto const& mtx = matrix_from_transform(transform, height_);
     load_path_exact(cr_, path, &mtx);
     get_additional_state().clip_path =
       {transformed_path, {cairo_copy_path(cr_), cairo_path_destroy}};
@@ -837,7 +832,7 @@ void GraphicsContextRenderer::restore()
 
 double GraphicsContextRenderer::points_to_pixels(double points)
 {
-  return points * get_additional_state().dpi / 72;
+  return points * dpi_ / 72;
 }
 
 void GraphicsContextRenderer::draw_gouraud_triangles(
@@ -850,7 +845,7 @@ void GraphicsContextRenderer::draw_gouraud_triangles(
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
   [[maybe_unused]] auto const& ac = _additional_context();
-  auto mtx = matrix_from_transform(transform, get_additional_state().height);
+  auto mtx = matrix_from_transform(transform, height_);
   auto const& tri_raw = triangles.unchecked<3>();
   auto const& col_raw = colors.unchecked<3>();
   auto const& n = tri_raw.shape(0);
@@ -953,7 +948,7 @@ void GraphicsContextRenderer::draw_image(
   auto const& pattern = cairo_pattern_create_for_surface(surface);
   cairo_surface_destroy(surface);
   auto const& mtx =
-    cairo_matrix_t{1, 0, 0, -1, -x, -y + get_additional_state().height};
+    cairo_matrix_t{1, 0, 0, -1, -x, -y + height_};
   cairo_pattern_set_matrix(pattern, &mtx);
   cairo_set_source(cr_, pattern);
   cairo_pattern_destroy(pattern);
@@ -971,7 +966,7 @@ void GraphicsContextRenderer::draw_path(
   }
   [[maybe_unused]] auto const& ac = _additional_context();
   auto path_loaded = false;
-  auto mtx = matrix_from_transform(transform, get_additional_state().height);
+  auto mtx = matrix_from_transform(transform, height_);
   auto const& load_path = [&] {
     if (!path_loaded) {
       load_path_exact(cr_, path, &mtx);
@@ -989,7 +984,7 @@ void GraphicsContextRenderer::draw_path(
     path = path.attr("cleaned")(
       "transform"_a=transform, "simplify"_a=simplify, "curves"_a=true,
       "sketch"_a=sketch);
-    mtx = cairo_matrix_t{1, 0, 0, -1, 0, get_additional_state().height};
+    mtx = cairo_matrix_t{1, 0, 0, -1, 0, height_};
   }
   if (fc) {
     load_path();
@@ -1001,7 +996,7 @@ void GraphicsContextRenderer::draw_path(
   }
   if (hatch_path) {
     cairo_save(cr_);
-    auto const& dpi = int(get_additional_state().dpi);  // Truncating is good enough.
+    auto const& dpi = int(dpi_);  // Truncating is good enough.
     auto const& hatch_surface =
       cairo_surface_create_similar(
         cairo_get_target(cr_), CAIRO_CONTENT_COLOR_ALPHA, dpi, dpi);
@@ -1040,7 +1035,9 @@ void GraphicsContextRenderer::draw_path(
 }
 
 template<typename T>
-void maybe_multithread(cairo_t* cr, int n, T /* lambda */ worker) {
+void maybe_multithread(
+  cairo_t* cr, double width, double height, int n, T /* lambda */ worker)
+{
   if (detail::COLLECTION_THREADS) {
     auto const& chunk_size =
       int(std::ceil(double(n) / detail::COLLECTION_THREADS));
@@ -1049,8 +1046,7 @@ void maybe_multithread(cairo_t* cr, int n, T /* lambda */ worker) {
     for (auto i = 0; i < detail::COLLECTION_THREADS; ++i) {
       auto const& surface =
         cairo_surface_create_similar_image(
-          cairo_get_target(cr), get_cairo_format(),
-          get_additional_state(cr).width, get_additional_state(cr).height);
+          cairo_get_target(cr), get_cairo_format(), width, height);
       auto const& ctx = cairo_create(surface);
       cairo_surface_destroy(surface);
       ctxs.push_back(ctx);
@@ -1107,8 +1103,7 @@ void GraphicsContextRenderer::draw_markers(
   }
 
   auto const& marker_matrix = matrix_from_transform(marker_transform);
-  auto const& mtx =
-    matrix_from_transform(transform, get_additional_state().height);
+  auto const& mtx = matrix_from_transform(transform, height_);
 
   auto const& fc_raw_opt =
     fc ? to_rgba(*fc, get_additional_state().alpha) : std::optional<rgba_t>{};
@@ -1193,30 +1188,32 @@ void GraphicsContextRenderer::draw_markers(
       }
     }
 
-    maybe_multithread(cr_, n_vertices, [&](cairo_t* ctx, int start, int stop) {
-      for (auto i = start; i < stop; ++i) {
-        auto x = vertices(i, 0), y = vertices(i, 1);
-        cairo_matrix_transform_point(&mtx, &x, &y);
-        auto const& target_x = x + x0,
-                  & target_y = y + y0;
-        if (!(std::isfinite(target_x) && std::isfinite(target_y))) {
-          continue;
+    maybe_multithread(
+      cr_, width_, height_, n_vertices,
+      [&](cairo_t* ctx, int start, int stop) {
+        for (auto i = start; i < stop; ++i) {
+          auto x = vertices(i, 0), y = vertices(i, 1);
+          cairo_matrix_transform_point(&mtx, &x, &y);
+          auto const& target_x = x + x0,
+                    & target_y = y + y0;
+          if (!(std::isfinite(target_x) && std::isfinite(target_y))) {
+            continue;
+          }
+          auto const& i_target_x = std::floor(target_x),
+                    & i_target_y = std::floor(target_y);
+          auto const& f_target_x = target_x - i_target_x,
+                    & f_target_y = target_y - i_target_y;
+          auto const& idx =
+            int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
+          auto const& pattern = patterns[idx];
+          // Offsetting by height is already taken care of by mtx.
+          auto const& pattern_matrix =
+            cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
+          cairo_pattern_set_matrix(pattern, &pattern_matrix);
+          cairo_set_source(ctx, pattern);
+          cairo_paint(ctx);
         }
-        auto const& i_target_x = std::floor(target_x),
-                  & i_target_y = std::floor(target_y);
-        auto const& f_target_x = target_x - i_target_x,
-                  & f_target_y = target_y - i_target_y;
-        auto const& idx =
-          int(n_subpix * f_target_x) * n_subpix + int(n_subpix * f_target_y);
-        auto const& pattern = patterns[idx];
-        // Offsetting by height is already taken care of by mtx.
-        auto const& pattern_matrix =
-          cairo_matrix_t{1, 0, 0, 1, -i_target_x, -i_target_y};
-        cairo_pattern_set_matrix(pattern, &pattern_matrix);
-        cairo_set_source(ctx, pattern);
-        cairo_paint(ctx);
-      }
-    });
+      });
 
     // Cleanup.
     for (auto i = 0; i < n_subpix * n_subpix; ++i) {
@@ -1309,7 +1306,7 @@ void GraphicsContextRenderer::draw_path_collection(
     return;
   }
   auto const& master_matrix =
-    matrix_from_transform(master_transform, get_additional_state().height);
+    matrix_from_transform(master_transform, height_);
   auto const& matrices = std::unique_ptr<cairo_matrix_t[]>{
     new cairo_matrix_t[n_transforms ? n_transforms : 1]};
   if (n_transforms) {
@@ -1355,47 +1352,50 @@ void GraphicsContextRenderer::draw_path_collection(
   auto const& simplify_threshold =
     has_vector_surface(cr_)
     ? 0 : rc_param("path.simplify_threshold").cast<double>();
-  auto points_to_pixels_factor = get_additional_state().dpi / 72;
 
-  maybe_multithread(cr_, n, [&](cairo_t* ctx, int start, int stop) {
-    if (ctx != cr_) {
-      CAIRO_CHECK_SET_USER_DATA_NEW(
-        cairo_set_user_data, ctx, &detail::STATE_KEY,
-        std::stack<AdditionalState>{{get_additional_state()}});
-    }
-    auto cache = PatternCache{simplify_threshold};
-    for (auto i = start; i < stop; ++i) {
-      auto const& path = paths[i % n_paths];
-      auto const& mtx = matrices[i % n_transforms];
-      auto x = offsets_raw(i % n_offsets, 0),
-           y = offsets_raw(i % n_offsets, 1);
-      cairo_matrix_transform_point(&offset_matrix, &x, &y);
-      if (!(std::isfinite(x) && std::isfinite(y))) {
-        continue;
+  maybe_multithread(
+    cr_, width_, height_, n, [&](cairo_t* ctx, int start, int stop) {
+      if (ctx != cr_) {
+        CAIRO_CHECK_SET_USER_DATA_NEW(
+          cairo_set_user_data, ctx, &detail::STATE_KEY,
+          std::stack<AdditionalState>{{get_additional_state()}});
       }
-      if (fcs_raw.shape(0)) {
-        auto const& i_mod = i % fcs_raw.shape(0);
-        cairo_set_source_rgba(
-          ctx, fcs_raw(i_mod, 0), fcs_raw(i_mod, 1),
-               fcs_raw(i_mod, 2), fcs_raw(i_mod, 3));
-        cache.mask(ctx, path, mtx, draw_func_t::Fill, 0, {}, x, y);
+      auto cache = PatternCache{simplify_threshold};
+      for (auto i = start; i < stop; ++i) {
+        auto const& path = paths[i % n_paths];
+        auto const& mtx = matrices[i % n_transforms];
+        auto x = offsets_raw(i % n_offsets, 0),
+             y = offsets_raw(i % n_offsets, 1);
+        cairo_matrix_transform_point(&offset_matrix, &x, &y);
+        if (!(std::isfinite(x) && std::isfinite(y))) {
+          continue;
+        }
+        if (fcs_raw.shape(0)) {
+          auto const& i_mod = i % fcs_raw.shape(0);
+          cairo_set_source_rgba(
+            ctx, fcs_raw(i_mod, 0), fcs_raw(i_mod, 1),
+                 fcs_raw(i_mod, 2), fcs_raw(i_mod, 3));
+          cache.mask(
+            ctx, width_, height_, path, mtx, draw_func_t::Fill, 0, {}, x, y);
+        }
+        if (ecs_raw.shape(0)) {
+          auto const& i_mod = i % ecs_raw.shape(0);
+          cairo_set_source_rgba(
+            ctx, ecs_raw(i_mod, 0), ecs_raw(i_mod, 1),
+                 ecs_raw(i_mod, 2), ecs_raw(i_mod, 3));
+          auto const& lw = lws_raw.size()
+            ? points_to_pixels(lws_raw[i % lws_raw.size()])
+            : cairo_get_line_width(ctx);
+          auto const& dash = dashes_raw[i % n_dashes];
+          cache.mask(
+            ctx, width_, height_,
+            path, mtx, draw_func_t::Stroke, lw, dash, x, y);
+        }
+        // NOTE: We drop antialiaseds because that just seems silly.
+        // We drop urls as they should be handled in a post-processing step
+        // anyways (cairo doesn't seem to support them?).
       }
-      if (ecs_raw.shape(0)) {
-        auto const& i_mod = i % ecs_raw.shape(0);
-        cairo_set_source_rgba(
-          ctx, ecs_raw(i_mod, 0), ecs_raw(i_mod, 1),
-               ecs_raw(i_mod, 2), ecs_raw(i_mod, 3));
-        auto const& lw = lws_raw.size()
-          ? points_to_pixels_factor * lws_raw[i % lws_raw.size()]
-          : cairo_get_line_width(ctx);
-        auto const& dash = dashes_raw[i % n_dashes];
-        cache.mask(ctx, path, mtx, draw_func_t::Stroke, lw, dash, x, y);
-      }
-      // NOTE: We drop antialiaseds because that just seems silly.
-      // We drop urls as they should be handled in a post-processing step
-      // anyways (cairo doesn't seem to support them?).
-    }
-  });
+    });
 
   get_additional_state().snap = old_snap;
 }
@@ -1424,8 +1424,7 @@ void GraphicsContextRenderer::draw_quad_mesh(
     throw std::invalid_argument{"non-matching GraphicsContext"};
   }
   [[maybe_unused]] auto const& ac = _additional_context();
-  auto mtx =
-    matrix_from_transform(master_transform, get_additional_state().height);
+  auto mtx = matrix_from_transform(master_transform, height_);
   auto const& fcs_raw = fcs.unchecked<2>(),
             & ecs_raw = ecs.unchecked<2>();
   if (coordinates.shape(0) != mesh_height + 1
@@ -1551,7 +1550,7 @@ void GraphicsContextRenderer::draw_text(
     // hinting for rendering, not sure whether this is a problem...
     auto const& parse =
       py::cast(this).attr("_text2path").attr("mathtext_parser").attr("parse")(
-        s, get_additional_state().dpi, prop);
+        s, dpi_, prop);
     auto mb = MathtextBackend{};
     for (auto const& spec: parse.attr("glyphs")) {
       // We must use the character's unicode index rather than the symbol name,
@@ -1664,10 +1663,8 @@ py::array GraphicsContextRenderer::_stop_filter_get_buffer()
 {
   restore();
   auto const& pattern = cairo_pop_group(cr_);
-  auto const& state = get_additional_state();
   auto const& raster_surface =
-    cairo_image_surface_create(
-      get_cairo_format(), int(state.width), int(state.height));
+    cairo_image_surface_create(get_cairo_format(), int(width_), int(height_));
   auto const& raster_cr = cairo_create(raster_surface);
   cairo_set_source(raster_cr, pattern);
   cairo_pattern_destroy(pattern);
@@ -1680,12 +1677,11 @@ py::array GraphicsContextRenderer::_stop_filter_get_buffer()
 
 Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
 {
-  auto const& state = get_additional_state();
   auto const& x0o = bbox.attr("x0").cast<double>(),
             & x1o = bbox.attr("x1").cast<double>(),
             // Invert y-axis.
-            & y0o = state.height - bbox.attr("y1").cast<double>(),
-            & y1o = state.height - bbox.attr("y0").cast<double>();
+            & y0o = height_ - bbox.attr("y1").cast<double>(),
+            & y1o = height_ - bbox.attr("y0").cast<double>();
   // Use ints to avoid a bunch of warnings below.
   // auto const& x0 = int(std::ceil(x0o)),
   //           & x1 = int(std::floor(x1o)),
@@ -1694,17 +1690,17 @@ Region GraphicsContextRenderer::copy_from_bbox(py::object bbox)
   // If using floor/ceil, we must additionally clip because of the possibility
   // of floating point inaccuracies.
   auto const& x0 = int(std::max(std::floor(x0o), 0.)),
-            & x1 = int(std::min(std::ceil(x1o), state.width - 1.)),
+            & x1 = int(std::min(std::ceil(x1o), width_ - 1.)),
             & y0 = int(std::max(std::floor(y0o), 0.)),
-            & y1 = int(std::min(std::ceil(y1o), state.height - 1.));
+            & y1 = int(std::min(std::ceil(y1o), height_ - 1.));
   // With e.g. collapsed axes, Matplotlib can try to copy e.g. from x0 = 1.1 to
   // x1 = 1.9, in which case x1 < x0 after clipping, hence the x0o <= x1o test
   // and the max(x1 - x0, 0) below.
-  if (!(0 <= x0 && x0o <= x1o && x1 <= state.width
-        && 0 <= y0 && y0o <= y1o && y1 <= state.height)) {
+  if (!(0 <= x0 && x0o <= x1o && x1 <= width_
+        && 0 <= y0 && y0o <= y1o && y1 <= height_)) {
     throw std::invalid_argument{
       "cannot copy\n{}\ni.e.\n{}\nout of canvas of width {} and height {}"_format(
-        bbox, bbox.attr("frozen")(), state.width, state.height)
+        bbox, bbox.attr("frozen")(), width_, height_)
       .cast<std::string>()};
   }
   auto const width = std::max(x1 - x0, 0),
@@ -1798,14 +1794,13 @@ void MathtextBackend::draw(
   }
   [[maybe_unused]] auto const& ac = gcr._additional_context();
   auto const& cr = gcr.cr_;
-  auto const& dpi = get_additional_state(cr).dpi;
   cairo_translate(cr, x, y);
   cairo_rotate(cr, -angle * std::acos(-1) / 180);
   for (auto const& glyph: glyphs_) {
     auto const& face = font_face_from_path(glyph.path);
     cairo_set_font_face(cr, face);
     cairo_font_face_destroy(face);
-    auto const& size = glyph.size * dpi / 72;
+    auto const& size = glyph.size * gcr.dpi_ / 72;
     auto const& mtx = cairo_matrix_t{
       size * glyph.extend, 0, -size * glyph.slant * glyph.extend, size, 0, 0};
     cairo_set_font_matrix(cr, &mtx);
@@ -2143,8 +2138,7 @@ Only intended for debugging purposes.
               "only renderers to image (not {}) surfaces are picklable"_format(
                 type).cast<std::string>()};
           }
-          auto const& state = gcr.get_additional_state();
-          return py::make_tuple(state.width, state.height, state.dpi);
+          return py::make_tuple(gcr.width_, gcr.height_, gcr.dpi_);
         },
         [](py::tuple t) -> GraphicsContextRenderer* {
           auto width = t[0].cast<double>(),
@@ -2255,13 +2249,12 @@ Only intended for debugging purposes.
     .def_property_readonly(
       "dpi",
       [](GraphicsContextRenderer& gcr) -> double {
-        return gcr.get_additional_state().dpi;
+        return gcr.dpi_;
       })
     .def(
       "get_canvas_width_height",
       [](GraphicsContextRenderer& gcr) -> std::tuple<double, double> {
-        auto const& state = gcr.get_additional_state();
-        return {state.width, state.height};
+        return {gcr.width_, gcr.height_};
       })
     // FIXME[matplotlib]: Needed for patheffects and webagg_core, which should
     // use get_canvas_width_height().  Moreover webagg_core wants integers.
@@ -2270,16 +2263,16 @@ Only intended for debugging purposes.
       [](GraphicsContextRenderer& gcr) -> py::object {
         return
           has_vector_surface(gcr.cr_)
-          ? py::cast(gcr.get_additional_state().width)
-          : py::cast(int(gcr.get_additional_state().width));
+          ? py::cast(gcr.width_)
+          : py::cast(int(gcr.width_));
       })
     .def_property_readonly(
       "height",
       [](GraphicsContextRenderer& gcr) -> py::object {
         return
           has_vector_surface(gcr.cr_)
-          ? py::cast(gcr.get_additional_state().height)
-          : py::cast(int(gcr.get_additional_state().height));
+          ? py::cast(gcr.height_)
+          : py::cast(int(gcr.height_));
       })
 
     .def("points_to_pixels", &GraphicsContextRenderer::points_to_pixels)

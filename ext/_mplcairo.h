@@ -24,6 +24,8 @@ py::object renderer_base(std::string meth_name);
 class GraphicsContextRenderer {
   public:
   cairo_t* const cr_;
+  // Extents cannot be easily recovered from PDF/SVG surfaces, so record them.
+  double width_, height_, dpi_;
   bool subpixel_antialiased_text_allowed_ = true;
 
   private:
