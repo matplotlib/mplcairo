@@ -129,8 +129,6 @@ enum class PathCode {
 };
 
 struct AdditionalState {
-  // Extents cannot be easily recovered from PDF/SVG surfaces, so record them.
-  double width, height, dpi;
   std::optional<double> alpha;
   std::variant<cairo_antialias_t, bool> antialias;
   std::optional<py::object> clip_rectangle;

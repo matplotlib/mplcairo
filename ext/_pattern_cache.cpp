@@ -113,7 +113,7 @@ PatternCache::~PatternCache()
 }
 
 void PatternCache::mask(
-  cairo_t* cr,
+  cairo_t* cr, double cr_width, double cr_height,
   py::handle path,
   cairo_matrix_t matrix,
   draw_func_t draw_func,
@@ -204,8 +204,7 @@ void PatternCache::mask(
         break;
     }
     // If the pattern is huge, caching it can blow up the memory.
-    if (x1 - x0 > get_additional_state(cr).width
-        || y1 - y0 > get_additional_state(cr).height) {
+    if (x1 - x0 > cr_width || y1 - y0 > cr_height) {
       draw_direct();
       return;
     }
