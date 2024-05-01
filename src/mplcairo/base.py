@@ -232,11 +232,23 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     renderer = property(get_renderer)  # NOTE: Needed for FigureCanvasAgg.
 
-    def draw(self):
+    def _draw_without_supercall(self):
         renderer = self.get_renderer()
         renderer.clear()
         with _LOCK:
+            # Subpixel (LCD) antialiasing of non-black text looks bad on
+            # transparent backgrounds, so interpret True as GRAY antialiasing
+            # in that case (it is still possible to force SUBPIXEL antialiasing
+            # by actually using that antialias_t value).  For black text we
+            # could actually keep it, but get_text_width_height_descent()
+            # doesn't know the text color.
+            if mpl.colors.to_rgba(self.figure.patch.get_facecolor())[3] == 0:
+                renderer._set_subpixel_antialiased_text_allowed(False)
             self.figure.draw(renderer)
+            renderer._set_subpixel_antialiased_text_allowed(True)
+
+    def draw(self):
+        self._draw_without_supercall()
         super().draw()
 
     def buffer_rgba(self):  # NOTE: Needed for tests.
@@ -348,11 +360,9 @@ class FigureCanvasCairo(FigureCanvasBase):
     print_eps = partialmethod(_print_ps_impl, True)
 
     def _get_fresh_straight_rgba8888(self):
-        renderer = self.get_renderer()
-        renderer.clear()
-        with _LOCK:
-            self.figure.draw(renderer)
-        return _mplcairo.cairo_to_straight_rgba8888(renderer._get_buffer())
+        self._draw_without_supercall()
+        return _mplcairo.cairo_to_straight_rgba8888(
+            self.get_renderer()._get_buffer())
 
     def print_rgba(self, path_or_stream, *,
                    dryrun=False, metadata=None, **kwargs):

@@ -867,7 +867,7 @@ long get_hinting_flag()
     .attr("get_hinting_flag")().cast<long>();
 }
 
-void adjust_font_options(cairo_t* cr)
+void adjust_font_options(cairo_t* cr, bool subpixel_antialiased_text_allowed)
 {
   auto const& font_face = cairo_get_font_face(cr);
   auto const& options = cairo_font_options_create();
@@ -877,7 +877,9 @@ void adjust_font_options(cairo_t* cr)
     auto aa = rc_param("text.antialiased");  // Normally *exactly* a bool.
     cairo_font_options_set_antialias(
       options,
-      aa.ptr() == Py_True ? CAIRO_ANTIALIAS_SUBPIXEL
+      aa.ptr() == Py_True
+      ? (subpixel_antialiased_text_allowed
+         ? CAIRO_ANTIALIAS_SUBPIXEL : CAIRO_ANTIALIAS_GRAY)
       : aa.ptr() == Py_False ? CAIRO_ANTIALIAS_NONE
       : aa.cast<cairo_antialias_t>());
   }
