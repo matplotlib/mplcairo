@@ -618,6 +618,14 @@ void GraphicsContextRenderer::_set_size(
   }
 }
 
+void GraphicsContextRenderer::_set_init_translation(double x, double y)
+{
+  auto mtx = cairo_matrix_t{1, 0, 0, 1, x, y};
+  cairo_set_matrix(cr_, &mtx);
+  CAIRO_CHECK_SET_USER_DATA_NEW(
+    cairo_set_user_data, cr_, &detail::INIT_MATRIX_KEY, mtx);
+}
+
 void GraphicsContextRenderer::_show_page()
 {
   cairo_show_page(cr_);
@@ -1588,10 +1596,12 @@ void GraphicsContextRenderer::draw_text(
                   next_glyphs_pos = glyphs_pos + cluster.num_glyphs;
       for (auto j = glyphs_pos; j < next_glyphs_pos; ++j) {
         if (!gac.glyphs[j].index) {
-          auto missing =
-            py::cast(s.substr(bytes_pos, cluster.num_bytes))
-            .attr("encode")("ascii", "namereplace");
-          warn_on_missing_glyph(missing.cast<std::string>());
+          auto missing = py::cast(s.substr(bytes_pos, cluster.num_bytes));
+          warn_on_missing_glyph(  // Format forced by test_mathtext_ticks.
+            "{} ({})"_format(
+              py::module::import("builtins").attr("ord")(missing),
+              missing.attr("encode")("ascii", "namereplace").attr("decode")())
+            .cast<std::string>());
         }
       }
       bytes_pos = next_bytes_pos;
@@ -2158,6 +2168,7 @@ Only intended for debugging purposes.
     .def("_set_path", &GraphicsContextRenderer::_set_path)
     .def("_set_metadata", &GraphicsContextRenderer::_set_metadata)
     .def("_set_size", &GraphicsContextRenderer::_set_size)
+    .def("_set_init_translation", &GraphicsContextRenderer::_set_init_translation)
     .def("_show_page", &GraphicsContextRenderer::_show_page)
     .def("_get_context", &GraphicsContextRenderer::_get_context)
     .def("_get_buffer", &GraphicsContextRenderer::_get_buffer)
