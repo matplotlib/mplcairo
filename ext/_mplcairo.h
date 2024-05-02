@@ -77,6 +77,7 @@ class GraphicsContextRenderer {
   void _set_path(std::optional<std::string> path);
   void _set_metadata(std::optional<py::dict> metadata);
   void _set_size(double width, double height, double dpi);
+  void _set_init_translation(double x, double y);
   void _show_page();
   py::object _get_context();
   py::array _get_buffer();

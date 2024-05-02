@@ -264,7 +264,7 @@ class FigureCanvasCairo(FigureCanvasBase):
 
     def _print_vector(self, renderer_factory,
                       path_or_stream, *, metadata=None,
-                      _fixed_72dpi=True,
+                      _fixed_72dpi=True, _forced_size=None, _offset=None,
                       **kwargs):
         _check_print_extra_kwargs(**kwargs)
         dpi = self.figure.get_dpi()
@@ -273,6 +273,10 @@ class FigureCanvasCairo(FigureCanvasBase):
         draw_raises_done = False
         with cbook.open_file_cm(path_or_stream, "wb") as stream:
             renderer = renderer_factory(stream, *self.figure.bbox.size, dpi)
+            if _forced_size is not None:
+                renderer._set_size(*_forced_size, dpi)
+            if _offset is not None:
+                renderer._set_init_translation(*_offset)
             try:
                 # Setting invalid metadata can also throw, in which case the
                 # rendered needs to be _finish()ed (to avoid later writing to a
@@ -332,21 +336,33 @@ class FigureCanvasCairo(FigureCanvasBase):
             f"%%Orientation: {orientation}"]
         if "Title" in metadata:
             dsc_comments.append("%%Title: {}".format(metadata.pop("Title")))
+        fig_wh = self.figure.get_size_inches() * np.array(72)
         if not is_eps and papertype != "figure":
             dsc_comments.append(f"%%DocumentPaperSizes: {papertype}")
-        print_method = partial(self._print_vector,
-                               GraphicsContextRendererCairo._for_eps_output
-                               if is_eps else
-                               GraphicsContextRendererCairo._for_ps_output)
+            paper_wh = backend_ps.papersize[papertype] * np.array(72)
+            if orientation == "landscape":
+                paper_wh = paper_wh[::-1]
+                fig_wh = fig_wh[::-1]
+            offset = (paper_wh - fig_wh) / 2 * [1, -1]
+            # FIXME: We should set the init transform, including the rotation
+            # for landscape orientation, instead of just the offset.
+        else:
+            paper_wh = offset = None
+        print_method = partial(
+            self._print_vector,
+            GraphicsContextRendererCairo._for_eps_output if is_eps else
+            GraphicsContextRendererCairo._for_ps_output,
+            _forced_size=paper_wh, _offset=offset)
         if mpl.rcParams["ps.usedistiller"]:
             with TemporaryDirectory() as tmp_dirname:
                 tmp_name = Path(tmp_dirname, "tmp")
                 print_method(tmp_name, metadata=metadata, **kwargs)
-                # Assume we can get away without passing the bbox.
                 {"ghostscript": backend_ps.gs_distill,
                  "xpdf": backend_ps.xpdf_distill}[
                      mpl.rcParams["ps.usedistiller"]](
-                         str(tmp_name), is_eps, ptype=papertype)
+                         str(tmp_name), is_eps, ptype=papertype,
+                        # Assume we can get away with just bbox width/height.
+                         bbox=(None, None, *fig_wh))
                 # If path_or_stream is *already* a text-mode stream then
                 # tmp_name needs to be opened in text-mode too.
                 with cbook.open_file_cm(path_or_stream, "wb") as stream, \
