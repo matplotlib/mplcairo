@@ -33,6 +33,16 @@ from setuptools import Distribution
 from pybind11.setup_helpers import Pybind11Extension
 if os.environ.get("MPLCAIRO_NO_PYCAIRO", ""):
     cairo = None
+elif os.name == "nt":
+    sys.exit("""\
+===============================================================================
+On Windows, please use the tools/build-windows-wheel.py tool to build an
+installable wheel.  Directly installing from a source tree is not supported.
+You may set the MPLCAIRO_NO_PYCAIRO environment variable to clear this message,
+if all necessary dependencies have been manually installed as described in the
+README.
+===============================================================================
+""")
 else:
     import cairo
 
