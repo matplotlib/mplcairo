@@ -30,15 +30,15 @@ VARIABLE_AXES = {
 
 path = Path(__file__).with_name(f"{DEFAULT_FONT}.ttf")
 if not path.exists():
-    url = f"https://fonts.google.com/download?family={quote(DEFAULT_FONT)}"
+    url = ("https://github.com/googlefonts/roboto-flex/"
+           "releases/download/3.200/roboto-flex-fonts.zip")
+    member = (
+        "roboto-flex-fonts/fonts/variable/"
+        "RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf")
     print(f"Downloading {url} to {path}")
     tmpfile, _ = urlretrieve(url)
     with ZipFile(tmpfile) as zfd:
-        for member in zfd.namelist():
-            if (member.startswith(DEFAULT_FONT.replace(" ", "")) and
-                    member.endswith(".ttf")):
-                path.write_bytes(zfd.read(member))
-                break
+        path.write_bytes(zfd.read(member))
 
 
 def generate_font(family, size, axes):
