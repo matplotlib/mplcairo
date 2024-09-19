@@ -69,9 +69,11 @@ else
             echo "Building the wheel for Python $py_ver."
                 "$py_prefix/bin/python" -mpip install build
                 # Force a rebuild of the extension.
+                # setuptools<72.2 reads CFLAGS, >=72.2 reads CXXFLAGS.
                 SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MPLCAIRO="$mplcairo_version" \
                     MPLCAIRO_NO_PYCAIRO=1 \
                     CFLAGS="-static-libgcc -static-libstdc++ -I/usr/include/cairo -I/usr/include/freetype2" \
+                    CXXFLAGS="-static-libgcc -static-libstdc++ -I/usr/include/cairo -I/usr/include/freetype2" \
                     LDFLAGS="-static-libgcc -static-libstdc++" \
                     "$py_prefix/bin/python" -mbuild
         done
