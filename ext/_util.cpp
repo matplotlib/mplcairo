@@ -862,9 +862,11 @@ std::vector<cairo_font_face_t*> font_faces_from_prop(py::object prop)
 long get_hinting_flag()
 {
   // FIXME[matplotlib]: Should be moved out of backend_agg.
-  return
+  auto const& hf =
     py::module::import("matplotlib.backends.backend_agg")
-    .attr("get_hinting_flag")().cast<long>();
+    .attr("get_hinting_flag")();
+  // Matplotlib 3.10 changed the flag from int to enum.Flag.
+  return (py::hasattr(hf, "value") ? hf.attr("value") : hf).cast<long>();
 }
 
 void adjust_font_options(cairo_t* cr, bool subpixel_antialiased_text_allowed)

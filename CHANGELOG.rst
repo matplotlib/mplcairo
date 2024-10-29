@@ -2,6 +2,7 @@ next
 ====
 
 - Bumped dependencies to Python≥3.8.
+- Fixed compatibility with Matplotlib≥3.10.
 - Fixed support for macos backend on Matplotlib≥3.6.
 - Fixed compatibility with wheel≥0.41.
 - Support pdf MaxVersion up to 1.7 (if the underlying cairo supports it).
