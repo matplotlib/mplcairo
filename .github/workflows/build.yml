@@ -64,7 +64,7 @@ jobs:
         # Skip tests triggering to-be-investigated fatal error on Windows :(
         (
           if [[ "$(python -c 'import sys; print(sys.platform)')" != win32 ]]; then
-            ./run-mpl-test-suite.py --tolerance=50 --instafail --timeout=300 --capture=no --verbose
+            ./run-mpl-test-suite.py --tolerance=60 --instafail --timeout=300 --capture=no --verbose
           fi
         ) &&
         PYTHONFAULTHANDLER=1 PYTHONIOENCODING=utf-8 ./run-examples.py

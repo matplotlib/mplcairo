@@ -321,6 +321,9 @@ class FigureCanvasCairo(FigureCanvasBase):
                        **kwargs):
         if papertype is None:
             papertype = mpl.rcParams["ps.papersize"]
+        if papertype == "auto" and not hasattr(backend_ps, "_get_papertype"):
+            with mpl.rc_context({"ps.papersize": "auto"}):
+                pass  # Trigger ValueError in mpl>=3.10.
         if orientation == "portrait":
             if papertype == "auto":
                 width, height = self.figure.get_size_inches()
@@ -337,12 +340,13 @@ class FigureCanvasCairo(FigureCanvasBase):
         if "Title" in metadata:
             dsc_comments.append("%%Title: {}".format(metadata.pop("Title")))
         fig_wh = self.figure.get_size_inches() * np.array(72)
+        if orientation == "landscape":
+            fig_wh = fig_wh[::-1]
         if not is_eps and papertype != "figure":
             dsc_comments.append(f"%%DocumentPaperSizes: {papertype}")
             paper_wh = backend_ps.papersize[papertype] * np.array(72)
             if orientation == "landscape":
                 paper_wh = paper_wh[::-1]
-                fig_wh = fig_wh[::-1]
             offset = (paper_wh - fig_wh) / 2 * [1, -1]
             # FIXME: We should set the init transform, including the rotation
             # for landscape orientation, instead of just the offset.
@@ -361,7 +365,7 @@ class FigureCanvasCairo(FigureCanvasBase):
                  "xpdf": backend_ps.xpdf_distill}[
                      mpl.rcParams["ps.usedistiller"]](
                          str(tmp_name), is_eps, ptype=papertype,
-                        # Assume we can get away with just bbox width/height.
+                         # Assume we can get away with just bbox width/height.
                          bbox=(None, None, *fig_wh))
                 # If path_or_stream is *already* a text-mode stream then
                 # tmp_name needs to be opened in text-mode too.

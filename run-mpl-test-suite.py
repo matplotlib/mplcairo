@@ -122,6 +122,9 @@ def pytest_collection_modifyitems(session, config, items):
         "matplotlib/tests/" + nodeid: marker
         for marker, nodeids in [
             (knownfail, [
+                # Unclear why xpdf doesn't output DocumentMedia: Letter ... for us.
+                "test_backend_ps.py::test_savefig_to_stringio[ps with distiller=xpdf-landscape-letter]",
+                "test_ft2font.py::test_fallback_missing[",
                 "test_image.py::test_jpeg_alpha",
                 "test_image.py::test_figimage[pdf-False]",
                 "test_image.py::test_figimage[pdf-True]",
@@ -171,6 +174,11 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_ps.py::test_savefig_to_stringio[eps-portrait]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-landscape]",
                 "test_backend_ps.py::test_savefig_to_stringio[eps afm-portrait]",
+                # We don't need to distill (unless requested) for PS+usetex.
+                "test_backend_ps.py::test_savefig_to_stringio[ps with usetex-landscape-figure]",
+                "test_backend_ps.py::test_savefig_to_stringio[ps with usetex-landscape-letter]",
+                "test_backend_ps.py::test_savefig_to_stringio[ps with usetex-portrait-figure]",
+                "test_backend_ps.py::test_savefig_to_stringio[ps with usetex-portrait-letter]",
                 # cairo doesn't support SOURCE_DATE_EPOCH.
                 "test_backend_ps.py::test_source_date_epoch",
                 # Useful, but the tag structure is too different (e.g. cairo
@@ -194,6 +202,8 @@ def pytest_collection_modifyitems(session, config, items):
                 # Different tight bbox.
                 "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[",
                 "test_bbox_tight.py::test_bbox_inches_tight_suptitle_non_default[",
+                # Labels placed differently due to different label size.
+                "test_contour.py::test_label_contour_start",
                 # We already raise on invalid savefig kwargs.
                 "test_figure.py::test_savefig_warns",
                 # cairo uses a different representation for ps images (but

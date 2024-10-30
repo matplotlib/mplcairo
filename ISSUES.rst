@@ -3,6 +3,14 @@ There is a significant performance regression on the wire3d_animation example.
 Fix needed
 ==========
 
+test_backend_ps
+   test_savefig_to_stringio[ps with distiller=xpdf-landscape-letter]
+      xpdf output differences?
+
+test_ft2font
+   test_fallback_missing
+      Font fallback is not implemented.
+
 test_image
    test_figimage[pdf], test_figimage0[pdf], test_figimage1[pdf], test_interp_nearest_vs_none[pdf,svg], test_rasterize_dpi[pdf,svg]
       Invalid dpi manipulations in vector output.
