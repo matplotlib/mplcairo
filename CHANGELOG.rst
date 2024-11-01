@@ -1,5 +1,5 @@
-next
-====
+v0.6 (2024-11-01)
+=================
 
 - Bumped dependencies to Python≥3.8.
 - Fixed compatibility with Matplotlib≥3.10.
