@@ -2,13 +2,14 @@
 
 import ast
 import functools
+import importlib.metadata
 import os
 import sys
 import warnings
 
 
 try:
-    from ._version import version as __version__
+    __version__ = importlib.metadata.version("mplcairo")
 except ImportError:
     __version__ = "(unknown version)"
 
