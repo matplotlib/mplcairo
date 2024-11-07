@@ -1,3 +1,9 @@
+next
+====
+
+- Fix packaging.
+- Fix renderers beind finalized too early.
+
 v0.6 (2024-11-01)
 =================
 

@@ -2,6 +2,7 @@ import codecs
 import contextlib
 from functools import partial, partialmethod
 from gzip import GzipFile
+from io import BytesIO
 import logging
 import os
 from pathlib import Path
@@ -75,7 +76,7 @@ class GraphicsContextRendererCairo(
 
     @classmethod
     def _for_fmt_output(cls, fmt, stream, width, height, dpi):
-        if stream is not None and cbook.file_requires_unicode(stream):
+        if cbook.file_requires_unicode(stream):
             if fmt in [_StreamSurfaceType.PS, _StreamSurfaceType.EPS]:
                 # PS is (typically) ASCII -- Language Reference, section 3.2.
                 stream = _BytesWritingWrapper(stream, "ascii")
@@ -286,7 +287,8 @@ class FigureCanvasCairo(FigureCanvasBase):
                     self.figure.draw(renderer)
             except Exception as exc:
                 draw_raises_done = type(exc).__name__ == "Done"
-                raise
+                if not draw_raises_done:  # Else, will be re-raised below.
+                    raise
             finally:
                 # _finish() corresponds finalize() in Matplotlib's PDF and SVG
                 # backends; it is inlined in Matplotlib's PS backend.  It must
@@ -295,14 +297,14 @@ class FigureCanvasCairo(FigureCanvasBase):
                 # to be done before closing the stream.
                 renderer._finish()
         # ... but sometimes, Matplotlib *wants* a renderer to outlast the
-        # stream's lifetime, specifically to measure text extents.  This
-        # is done on Matplotlib's side by making Figure.draw throw a Done
-        # exception.  We catch that exception and swap in a no-write renderer
-        # (stream = None) in that case.
+        # stream's lifetime, specifically to measure text extents.  To do so,
+        # Matplotlib makes Figure.draw throw a Done exception.  We catch that
+        # exception and swap in a dummy renderer (stream = BytesIO()) in that
+        # case (no actual writing will be performed).
         if draw_raises_done:
-            renderer = renderer_factory(None, *self.figure.bbox.size, dpi)
+            renderer = renderer_factory(BytesIO(), *self.figure.bbox.size, dpi)
             with _LOCK:
-                self.figure.draw(renderer)
+                self.figure.draw(renderer)  # Should raise Done().
 
     print_pdf = partialmethod(
         _print_vector, GraphicsContextRendererCairo._for_pdf_output)

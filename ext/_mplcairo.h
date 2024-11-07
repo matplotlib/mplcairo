@@ -63,10 +63,10 @@ class GraphicsContextRenderer {
     double width, double height, double dpi,
     std::tuple<double, double> device_scales);
   static cairo_t* cr_from_fileformat_args(
-    StreamSurfaceType type, std::optional<py::object> file,
+    StreamSurfaceType type, py::object file,
     double width, double height, double dpi);
   GraphicsContextRenderer(
-    StreamSurfaceType type, std::optional<py::object> file,
+    StreamSurfaceType type, py::object file,
     double width, double height, double dpi);
 
   static GraphicsContextRenderer make_pattern_gcr(cairo_surface_t* cr);
