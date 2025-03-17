@@ -184,7 +184,7 @@ def pytest_collection_modifyitems(session, config, items):
                 # Useful, but the tag structure is too different (e.g. cairo
                 # skips emitting clips that don't intersect paths).
                 "test_backend_svg.py::test_count_bitmaps",
-                # cairo doesn't support custom gids or metadata.
+                # cairo doesn't support custom id, gids, or metadata.
                 "test_backend_svg.py::test_annotationbbox_gid",
                 "test_backend_svg.py::test_gid",
                 "test_backend_svg.py::test_svg_clear_all_metadata",
@@ -193,6 +193,7 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_svg.py::test_svg_escape",
                 "test_backend_svg.py::test_svg_incorrect_metadata[",
                 "test_backend_svg.py::test_svg_metadata",
+                "test_backend_svg.py::test_svgid",
                 # cairo always emits text as glyph paths.
                 "test_backend_svg.py::test_svgnone_with_data_coordinates",
                 # cairo can't emit urls in SVG.

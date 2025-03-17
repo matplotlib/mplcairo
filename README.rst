@@ -541,7 +541,7 @@ Due to missing support from cairo:
   - ``ps.useafm`` (effectively always ``False``),
   - ``svg.fonttype`` (effectively always ``"path"``, see `cairo issue #253
     <cairo-253_>`_),
-  - ``svg.hashsalt``.
+  - ``svg.hashsalt``, ``svg.id``.
 
 Additionally, the ``quality``, ``optimize``, and ``progressive`` parameters to
 ``savefig``, which have been removed in Matplotlib 3.5, are not supported.
