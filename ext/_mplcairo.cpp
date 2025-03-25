@@ -1828,8 +1828,7 @@ void MathtextBackend::draw(
     auto ft_face =
       static_cast<FT_Face>(
         cairo_font_face_get_user_data(face, &detail::FT_KEY));
-    auto index = FT_UInt{};
-    std::visit(overloaded {
+    auto index = std::visit(overloaded {
       [&](char32_t codepoint) {
         // The last unicode charmap is the FreeType-synthesized one.
         auto i = ft_face->num_charmaps - 1;
@@ -1842,41 +1841,41 @@ void MathtextBackend::draw(
         if (i < 0) {
           throw std::runtime_error{"no unicode charmap found"};
         }
-        index = FT_Get_Char_Index(ft_face, codepoint);
-        if (!index) {
-          warn_on_missing_glyph("#" + std::to_string(index));
-        }
+        return FT_Get_Char_Index(ft_face, codepoint);
       },
       [&](std::string name) {
-        index = FT_Get_Name_Index(ft_face, name.data());
-        if (!index) {
-          warn_on_missing_glyph(name);
-        }
+        return FT_Get_Name_Index(ft_face, name.data());
       },
       [&](FT_ULong idx) {
-        // For the usetex case, look up the "native" font charmap,
-        // which typically has a TT_ENCODING_ADOBE_STANDARD or
-        // TT_ENCODING_ADOBE_CUSTOM encoding, unlike the FreeType-synthesized
-        // one which has a TT_ENCODING_UNICODE encoding.
+        // For classic fonts, the index maps to the "native" font charmap,
+        // which typically has an ADOBE_STANDARD or ADOBE_CUSTOM encoding,
+        // unlike the FreeType-synthesized one which has a UNICODE encoding.
         auto found = false;
         for (auto i = 0; i < ft_face->num_charmaps; ++i) {
-          if (ft_face->charmaps[i]->encoding != FT_ENCODING_UNICODE) {
+          auto const& cmap = ft_face->charmaps[i];
+          if (cmap->encoding == FT_ENCODING_ADOBE_STANDARD
+              || cmap->encoding == FT_ENCODING_ADOBE_CUSTOM) {
             if (found) {
-              throw std::runtime_error{"multiple non-unicode charmaps found"};
+              throw std::runtime_error{"multiple Adobe charmaps found"};
             }
-            FT_CHECK(FT_Set_Charmap, ft_face, ft_face->charmaps[i]);
+            FT_CHECK(FT_Set_Charmap, ft_face, cmap);
             found = true;
           }
         }
         if (!found) {
           throw std::runtime_error{"no builtin charmap found"};
         }
-        index = FT_Get_Char_Index(ft_face, idx);
-        if (!index) {
-          warn_on_missing_glyph("#" + std::to_string(index));
-        }
+        return FT_Get_Char_Index(ft_face, idx);
       }
     }, glyph.codepoint_or_name_or_index);
+    if (!index) {
+      auto glyph_ref = std::visit(overloaded {
+        [&](char32_t codepoint) { return "#" + std::to_string(codepoint); },
+        [&](std::string name) { return name; },
+        [&](FT_ULong idx) { return "#" + std::to_string(idx); }
+      }, glyph.codepoint_or_name_or_index);
+      warn_on_missing_glyph(glyph_ref);
+    }
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};
     cairo_show_glyphs(cr, &raw_glyph, 1);
   }
