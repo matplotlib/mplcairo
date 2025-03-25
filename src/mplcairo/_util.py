@@ -6,8 +6,6 @@ import sys
 import matplotlib as mpl
 import numpy as np
 
-from . import _backports
-
 
 def detect_buffer_format(buf):
     return {
@@ -20,17 +18,6 @@ def detect_buffer_format(buf):
         (np.float32, (3,)): "rgb96f",
         (np.float32, (4,)): "rgba128f",
     }[buf.dtype.type, buf.shape[2:]]
-
-
-@functools.lru_cache(1)
-def get_tex_font_map():
-    return mpl.dviread.PsfontsMap(mpl.dviread.find_tex_file("pdftex.map"))
-
-
-def get_glyph_name(dvitext):
-    ps_font = get_tex_font_map()[dvitext.font.texname]
-    return (_backports._parse_enc(ps_font.encoding)[dvitext.glyph]
-            if ps_font.encoding is not None else None)
 
 
 def get_matplotlib_gtk_backend():
