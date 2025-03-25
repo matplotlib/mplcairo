@@ -175,7 +175,7 @@ class MathtextBackend {
     // that will wait for the ft2 rewrite in Matplotlib itself.
     std::string path;
     double size;
-    std::variant<char32_t, std::string, FT_ULong> codepoint_or_name_or_index;
+    std::variant<char32_t, FT_ULong> codepoint_or_index;
     double x, y;
     double slant;
     double extend;
@@ -183,7 +183,7 @@ class MathtextBackend {
     Glyph(
       std::string path,
       double size,
-      std::variant<char32_t, std::string, FT_ULong> codepoint_or_name_or_index,
+      std::variant<char32_t, FT_ULong> codepoint_or_index,
       double x, double y,
       double slant = 0, double extend = 1);
   };
@@ -200,8 +200,7 @@ class MathtextBackend {
     char32_t codepoint);
   void add_usetex_glyph(
     double ox, double oy, std::string filename, double size,
-    std::variant<std::string, FT_ULong> name_or_index,
-    double slant, double extend);
+    FT_ULong index, double slant, double extend);
   void add_rect(double x1, double y1, double x2, double y2);
   void draw(
     GraphicsContextRenderer& gcr, double x, double y, double angle) const;

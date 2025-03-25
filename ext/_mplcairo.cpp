@@ -1670,11 +1670,11 @@ void GraphicsContextRenderer::restore_region(Region& region)
 
 MathtextBackend::Glyph::Glyph(
   std::string path, double size,
-  std::variant<char32_t, std::string, FT_ULong> codepoint_or_name_or_index,
+  std::variant<char32_t, FT_ULong> codepoint_or_index,
   double x, double y,
   double slant, double extend) :
   path{path}, size{size},
-  codepoint_or_name_or_index{codepoint_or_name_or_index},
+  codepoint_or_index{codepoint_or_index},
   x{x}, y{y},
   slant{slant}, extend{extend}
 {}
@@ -1689,16 +1689,9 @@ void MathtextBackend::add_glyph(
 
 void MathtextBackend::add_usetex_glyph(
   double ox, double oy, std::string filename, double size,
-  std::variant<std::string, FT_ULong> name_or_index,
-  double slant, double extend)
+  FT_ULong index, double slant, double extend)
 {
-  auto codepoint_or_name_or_index =
-    std::variant<char32_t, std::string, FT_ULong>{};
-  std::visit(
-    [&](auto name_or_index) { codepoint_or_name_or_index = name_or_index; },
-    name_or_index);
-  glyphs_.emplace_back(
-    filename, size, codepoint_or_name_or_index, ox, oy, slant, extend);
+  glyphs_.emplace_back(filename, size, index, ox, oy, slant, extend);
 }
 
 void MathtextBackend::add_rect(
@@ -1746,37 +1739,16 @@ void MathtextBackend::draw(
         }
         return FT_Get_Char_Index(ft_face, codepoint);
       },
-      [&](std::string name) {
-        return FT_Get_Name_Index(ft_face, name.data());
-      },
       [&](FT_ULong idx) {
-        // For classic fonts, the index maps to the "native" font charmap,
-        // which typically has an ADOBE_STANDARD or ADOBE_CUSTOM encoding,
-        // unlike the FreeType-synthesized one which has a UNICODE encoding.
-        auto found = false;
-        for (auto i = 0; i < ft_face->num_charmaps; ++i) {
-          auto const& cmap = ft_face->charmaps[i];
-          if (cmap->encoding == FT_ENCODING_ADOBE_STANDARD
-              || cmap->encoding == FT_ENCODING_ADOBE_CUSTOM) {
-            if (found) {
-              throw std::runtime_error{"multiple Adobe charmaps found"};
-            }
-            FT_CHECK(FT_Set_Charmap, ft_face, cmap);
-            found = true;
-          }
-        }
-        if (!found) {
-          throw std::runtime_error{"no builtin charmap found"};
-        }
-        return FT_Get_Char_Index(ft_face, idx);
+        return FT_UInt(idx);
       }
-    }, glyph.codepoint_or_name_or_index);
+    }, glyph.codepoint_or_index);
     if (!index) {
       auto glyph_ref = std::visit(overloaded {
         [&](char32_t codepoint) { return "#" + std::to_string(codepoint); },
         [&](std::string name) { return name; },
         [&](FT_ULong idx) { return "#" + std::to_string(idx); }
-      }, glyph.codepoint_or_name_or_index);
+      }, glyph.codepoint_or_index);
       warn_on_missing_glyph(glyph_ref);
     }
     auto const& raw_glyph = cairo_glyph_t{index, glyph.x, glyph.y};

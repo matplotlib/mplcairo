@@ -142,18 +142,10 @@ class GraphicsContextRendererCairo(
             page = next(iter(dvi))
         mb = _mplcairo.MathtextBackendCairo()
         for text in page.text:
-            texfont = _util.get_tex_font_map()[text.font.texname]
-            if texfont.filename is None:
-                # Not TypeError:
-                # :mpltest:`test_backend_svg.test_missing_psfont`.
-                raise ValueError(f"No font file found for {texfont.psname} "
-                                 f"({texfont.texname!a})")
             mb.add_usetex_glyph(
-                text.x, -text.y,
-                texfont.filename, text.font.size,
-                _util.get_glyph_name(text) or text.glyph,
-                texfont.effects.get("slant", 0),
-                texfont.effects.get("extend", 1))
+                text.x, -text.y, text.font.path, text.font.size, text.index,
+                text.font.effects.get("slant", 0),
+                text.font.effects.get("extend", 1))
         for x1, y1, h, w in page.boxes:
             mb.add_rect(x1, -y1, x1 + w, -(y1 + h))
         mb.draw(self, x, y, angle)
