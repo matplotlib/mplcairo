@@ -1847,25 +1847,30 @@ void MathtextBackend::draw(
         return FT_Get_Name_Index(ft_face, name.data());
       },
       [&](FT_ULong idx) {
-        // For classic fonts, the index maps to the "native" font charmap,
-        // which typically has an ADOBE_STANDARD or ADOBE_CUSTOM encoding,
-        // unlike the FreeType-synthesized one which has a UNICODE encoding.
-        auto found = false;
-        for (auto i = 0; i < ft_face->num_charmaps; ++i) {
-          auto const& cmap = ft_face->charmaps[i];
-          if (cmap->encoding == FT_ENCODING_ADOBE_STANDARD
-              || cmap->encoding == FT_ENCODING_ADOBE_CUSTOM) {
-            if (found) {
-              throw std::runtime_error{"multiple Adobe charmaps found"};
+        if (FT_IS_SFNT(ft_face)) {
+          // For OpenType fonts, luatex directly outputs glyph indices.
+          return FT_UInt(idx);
+        } else {
+          // For classic fonts, the index maps to the "native" font charmap,
+          // which typically has an ADOBE_STANDARD or ADOBE_CUSTOM encoding,
+          // unlike the FreeType-synthesized one which has a UNICODE encoding.
+          auto found = false;
+          for (auto i = 0; i < ft_face->num_charmaps; ++i) {
+            auto const& cmap = ft_face->charmaps[i];
+            if (cmap->encoding == FT_ENCODING_ADOBE_STANDARD
+                || cmap->encoding == FT_ENCODING_ADOBE_CUSTOM) {
+              if (found) {
+                throw std::runtime_error{"multiple Adobe charmaps found"};
+              }
+              FT_CHECK(FT_Set_Charmap, ft_face, cmap);
+              found = true;
             }
-            FT_CHECK(FT_Set_Charmap, ft_face, cmap);
-            found = true;
           }
+          if (!found) {
+            throw std::runtime_error{"no Adobe charmap found"};
+          }
+          return FT_Get_Char_Index(ft_face, idx);
         }
-        if (!found) {
-          throw std::runtime_error{"no builtin charmap found"};
-        }
-        return FT_Get_Char_Index(ft_face, idx);
       }
     }, glyph.codepoint_or_name_or_index);
     if (!index) {
