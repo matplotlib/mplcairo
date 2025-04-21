@@ -1932,6 +1932,10 @@ miter_limit : float, default: 10
 raqm : bool, default: if available
     Whether to use Raqm for text rendering.
 
+tex_engine : "latex" or "xelatex" or "lualatex"
+    The TeX engine used in usetex mode.  This option is experimental and may be
+    removed once support is merged into Matplotlib itself.
+
 _debug: bool, default: False
     Whether to print debugging information.  This option is only intended for
     debugging and is not part of the stable API.

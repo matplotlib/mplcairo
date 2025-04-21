@@ -37,6 +37,7 @@ Noteworthy points include:
   (see `examples/opentype_variations.py`_) (requires cairo≥1.16.0), and partial
   support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm
   depends by default on Fribidi, which is licensed under the LGPLv2.1+.
+- Support for compiling usetex strings with xelatex or lualatex.
 - Support for embedding URLs in PDF (but not SVG) output (requires
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
@@ -466,6 +467,18 @@ tags are **experimental** and may change, especially if such features are
 implemented in Matplotlib itself.
 
 Color fonts (e.g. emojis) are handled.
+
+Alternate TeX engines
+---------------------
+The XeTeX and LuaTeX engines are supported; they can be selected
+with ``mplcairo.set_options(tex_engine="xelatex")`` and
+``mplcairo.set_options(tex_engine="lualatex)``, respectively (the default
+engine remains ``"latex"``).
+
+To select arbitrary system-wide-installed fonts, add e.g.
+``\usepackage{fontspec}\setmainfont{...}`` to
+``rcParams["text.latex.preamble"]``.  Refer to the ``fontspec`` docs for
+details on its usage.
 
 Multi-page output
 -----------------

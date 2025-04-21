@@ -123,6 +123,7 @@ extern py::object UNIT_CIRCLE;
 extern int COLLECTION_THREADS;
 extern cairo_format_t IMAGE_FORMAT;
 extern double MITER_LIMIT;
+extern std::string TEX_ENGINE;
 extern bool DEBUG;
 enum class MplcairoScriptSurface {
   None, Raster, Vector
