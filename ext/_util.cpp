@@ -68,6 +68,7 @@ py::object RC_PARAMS{},
 int COLLECTION_THREADS{};
 cairo_format_t IMAGE_FORMAT{CAIRO_FORMAT_ARGB32};
 double MITER_LIMIT{10.};
+std::string TEX_ENGINE{"latex"};
 bool DEBUG{};
 MplcairoScriptSurface MPLCAIRO_SCRIPT_SURFACE{[] {
   if (auto script_surface = std::getenv("MPLCAIRO_SCRIPT_SURFACE")) {
@@ -117,6 +118,7 @@ py::dict get_options()
     "image_format"_a=detail::IMAGE_FORMAT,
     "miter_limit"_a=detail::MITER_LIMIT,
     "raqm"_a=has_raqm(),
+    "tex_engine"_a=detail::TEX_ENGINE,
     "_debug"_a=detail::DEBUG);
 }
 
@@ -169,6 +171,14 @@ py::object set_options(py::kwargs kwargs)
       load_raqm();
     } else {
       unload_raqm();
+    }
+  }
+  if (auto const& t_e = pop_option("tex_engine", std::string{})) {
+    if (*t_e == "latex" || *t_e == "xelatex" || *t_e == "lualatex") {
+      detail::TEX_ENGINE = *t_e;
+    } else {
+      throw std::runtime_error{
+        "not a valid tex_engine: {}"_format(*t_e).cast<std::string>()};
     }
   }
   if (auto const& debug = pop_option("_debug", bool{})) {

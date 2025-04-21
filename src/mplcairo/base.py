@@ -23,6 +23,7 @@ from matplotlib.backends import backend_ps
 
 from . import _mplcairo, _util, get_versions
 from ._mplcairo import _StreamSurfaceType
+from ._texmanager import TexManager
 
 
 _log = logging.getLogger()
@@ -134,16 +135,20 @@ class GraphicsContextRendererCairo(
         return (not mpl.rcParams["image.composite_image"]
                 if self._has_vector_surface() else True)
 
+    def get_texmanager(self):
+        return TexManager()
+
     # Based on the backend_pdf implementation.
     def draw_tex(self, gc, x, y, s, prop, angle, ismath="TeX!", mtext=None):
         fontsize = prop.get_size_in_points()
-        dvifile = self.get_texmanager().make_dvi(s, fontsize)
+        dvifile = TexManager.make_dvi(s, fontsize)
         with dviread.Dvi(dvifile, self.dpi) as dvi:
             page = next(iter(dvi))
         mb = _mplcairo.MathtextBackendCairo()
         for text in page.text:
             mb.add_usetex_glyph(
-                text.x, -text.y, text.font.path, text.font.size, text.index,
+                text.x, -text.y, str(text.font.path), text.font.size,
+                text.index,
                 text.font.effects.get("slant", 0),
                 text.font.effects.get("extend", 1))
         for x1, y1, h, w in page.boxes:
