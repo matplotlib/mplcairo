@@ -58,17 +58,12 @@ Installation
 
 mplcairo requires
 
-- Python≥3.7,
-- Matplotlib≥2.2 (declared as ``install_requires``),
-- on Linux and macOS, pycairo≥1.16.0 [#]_ (declared as ``install_requires``),
+- Python≥3.8,
+- Matplotlib≥2.2,
+- on Linux and macOS, pycairo≥1.16.0 [#]_,
 - on Windows, cairo≥1.13.1 [#]_ (shipped with the wheel).
 
 It is recommended to use cairo≥1.17.4.
-
-Additionally, building mplcairo from source requires
-
-- pybind11≥2.6.0 [#]_ (declared as ``setup_requires``),
-- pycairo≥1.16.0 (declared as ``setup_requires``).
 
 As usual, install using pip:
 
@@ -119,8 +114,6 @@ path <add_dll_directory_>`_).
 
    cairo 1.17.8 fixed a crash when outputting in the cairo-script format (in
    6a81bf8).
-
-.. [#] pybind11 2.6.0 is needed to support Python 3.9.
 
 On Fedora, the package is available as `python-mplcairo <fedora-package_>`_.
 

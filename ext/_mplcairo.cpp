@@ -8,6 +8,8 @@
 #include <py3cairo.h>
 #include <cairo-script.h>
 
+#include <pybind11/native_enum.h>
+
 #include <stack>
 #include <thread>
 
@@ -15,105 +17,6 @@
 
 using namespace pybind11::literals;
 using namespace std::string_literals;
-
-P11X_DECLARE_ENUM(
-  "antialias_t", "enum.Enum",
-  {"DEFAULT", CAIRO_ANTIALIAS_DEFAULT},
-  {"NONE", CAIRO_ANTIALIAS_NONE},
-  {"GRAY", CAIRO_ANTIALIAS_GRAY},
-  {"SUBPIXEL", CAIRO_ANTIALIAS_SUBPIXEL},
-  {"FAST", CAIRO_ANTIALIAS_FAST},
-  {"GOOD", CAIRO_ANTIALIAS_GOOD},
-  {"BEST", CAIRO_ANTIALIAS_BEST}
-)
-P11X_DECLARE_ENUM(
-  "dither_t", "enum.Enum",
-  {"NONE", mplcairo::detail::CAIRO_DITHER_NONE},
-  {"DEFAULT", mplcairo::detail::CAIRO_DITHER_DEFAULT},
-  {"FAST", mplcairo::detail::CAIRO_DITHER_FAST},
-  {"GOOD", mplcairo::detail::CAIRO_DITHER_GOOD},
-  {"BEST", mplcairo::detail::CAIRO_DITHER_BEST},
-)
-P11X_DECLARE_ENUM(
-  "operator_t", "enum.Enum",
-  {"CLEAR", CAIRO_OPERATOR_CLEAR},
-  {"SOURCE", CAIRO_OPERATOR_SOURCE},
-  {"OVER", CAIRO_OPERATOR_OVER},
-  {"IN", CAIRO_OPERATOR_IN},
-  {"OUT", CAIRO_OPERATOR_OUT},
-  {"ATOP", CAIRO_OPERATOR_ATOP},
-  {"DEST", CAIRO_OPERATOR_DEST},
-  {"DEST_OVER", CAIRO_OPERATOR_DEST_OVER},
-  {"DEST_IN", CAIRO_OPERATOR_DEST_IN},
-  {"DEST_OUT", CAIRO_OPERATOR_DEST_OUT},
-  {"DEST_ATOP", CAIRO_OPERATOR_DEST_ATOP},
-  {"XOR", CAIRO_OPERATOR_XOR},
-  {"ADD", CAIRO_OPERATOR_ADD},
-  {"SATURATE", CAIRO_OPERATOR_SATURATE},
-  {"MULTIPLY", CAIRO_OPERATOR_MULTIPLY},
-  {"SCREEN", CAIRO_OPERATOR_SCREEN},
-  {"OVERLAY", CAIRO_OPERATOR_OVERLAY},
-  {"DARKEN", CAIRO_OPERATOR_DARKEN},
-  {"LIGHTEN", CAIRO_OPERATOR_LIGHTEN},
-  {"COLOR_DODGE", CAIRO_OPERATOR_COLOR_DODGE},
-  {"COLOR_BURN", CAIRO_OPERATOR_COLOR_BURN},
-  {"HARD_LIGHT", CAIRO_OPERATOR_HARD_LIGHT},
-  {"SOFT_LIGHT", CAIRO_OPERATOR_SOFT_LIGHT},
-  {"DIFFERENCE", CAIRO_OPERATOR_DIFFERENCE},
-  {"EXCLUSION", CAIRO_OPERATOR_EXCLUSION},
-  {"HSL_HUE", CAIRO_OPERATOR_HSL_HUE},
-  {"HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION},
-  {"HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR},
-  {"HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY}
-)
-P11X_DECLARE_ENUM(
-  "format_t", "enum.Enum",
-  {"INVALID", CAIRO_FORMAT_INVALID},
-  {"ARGB32", CAIRO_FORMAT_ARGB32},
-  {"RGB24", CAIRO_FORMAT_RGB24},
-  {"A8", CAIRO_FORMAT_A8},
-  {"A1", CAIRO_FORMAT_A1},
-  {"RGB16_565", CAIRO_FORMAT_RGB16_565},
-  {"RGB30", CAIRO_FORMAT_RGB30},
-  {"RGB96F", static_cast<cairo_format_t>(6)},
-  {"RGBA128F", static_cast<cairo_format_t>(7)}
-)
-P11X_DECLARE_ENUM(  // Only for error messages.
-  "_surface_type_t", "enum.Enum",
-  {"IMAGE", CAIRO_SURFACE_TYPE_IMAGE},
-  {"PDF", CAIRO_SURFACE_TYPE_PDF},
-  {"PS", CAIRO_SURFACE_TYPE_PS},
-  {"XLIB", CAIRO_SURFACE_TYPE_XLIB},
-  {"XCB", CAIRO_SURFACE_TYPE_XCB},
-  {"GLITZ", CAIRO_SURFACE_TYPE_GLITZ},
-  {"QUARTZ", CAIRO_SURFACE_TYPE_QUARTZ},
-  {"WIN32", CAIRO_SURFACE_TYPE_WIN32},
-  {"BEOS", CAIRO_SURFACE_TYPE_BEOS},
-  {"DIRECTFB", CAIRO_SURFACE_TYPE_DIRECTFB},
-  {"SVG", CAIRO_SURFACE_TYPE_SVG},
-  {"OS2", CAIRO_SURFACE_TYPE_OS2},
-  {"WIN32_PRINTING", CAIRO_SURFACE_TYPE_WIN32_PRINTING},
-  {"QUARTZ_IMAGE", CAIRO_SURFACE_TYPE_QUARTZ_IMAGE},
-  {"SCRIPT", CAIRO_SURFACE_TYPE_SCRIPT},
-  {"QT", CAIRO_SURFACE_TYPE_QT},
-  {"RECORDING", CAIRO_SURFACE_TYPE_RECORDING},
-  {"VG", CAIRO_SURFACE_TYPE_VG},
-  {"GL", CAIRO_SURFACE_TYPE_GL},
-  {"DRM", CAIRO_SURFACE_TYPE_DRM},
-  {"TEE", CAIRO_SURFACE_TYPE_TEE},
-  {"XML", CAIRO_SURFACE_TYPE_XML},
-  {"SKIA", CAIRO_SURFACE_TYPE_SKIA},
-  {"SUBSURFACE", CAIRO_SURFACE_TYPE_SUBSURFACE},
-  {"COGL", CAIRO_SURFACE_TYPE_COGL}
-)
-P11X_DECLARE_ENUM(
-  "_StreamSurfaceType", "enum.Enum",
-  {"PDF", mplcairo::StreamSurfaceType::PDF},
-  {"PS", mplcairo::StreamSurfaceType::PS},
-  {"EPS", mplcairo::StreamSurfaceType::EPS},
-  {"SVG", mplcairo::StreamSurfaceType::SVG},
-  {"Script", mplcairo::StreamSurfaceType::Script}
-)
 
 namespace mplcairo {
 
@@ -2134,7 +2037,99 @@ Only intended for debugging purposes.
 )__doc__");
 
   // Export classes.
-  p11x::bind_enums(m);
+  py::native_enum<cairo_antialias_t>(m, "antialias_t", "enum.Enum")
+    .value("DEFAULT", CAIRO_ANTIALIAS_DEFAULT)
+    .value("NONE", CAIRO_ANTIALIAS_NONE)
+    .value("GRAY", CAIRO_ANTIALIAS_GRAY)
+    .value("SUBPIXEL", CAIRO_ANTIALIAS_SUBPIXEL)
+    .value("FAST", CAIRO_ANTIALIAS_FAST)
+    .value("GOOD", CAIRO_ANTIALIAS_GOOD)
+    .value("BEST", CAIRO_ANTIALIAS_BEST)
+    .finalize();
+  py::native_enum<detail::cairo_dither_t>(m, "dither_t", "enum.Enum")
+    .value("NONE", detail::CAIRO_DITHER_NONE)
+    .value("DEFAULT", detail::CAIRO_DITHER_DEFAULT)
+    .value("FAST", detail::CAIRO_DITHER_FAST)
+    .value("GOOD", detail::CAIRO_DITHER_GOOD)
+    .value("BEST", detail::CAIRO_DITHER_BEST)
+    .finalize();
+  py::native_enum<cairo_operator_t>(m, "operator_t", "enum.Enum")
+    .value("CLEAR", CAIRO_OPERATOR_CLEAR)
+    .value("SOURCE", CAIRO_OPERATOR_SOURCE)
+    .value("OVER", CAIRO_OPERATOR_OVER)
+    .value("IN", CAIRO_OPERATOR_IN)
+    .value("OUT", CAIRO_OPERATOR_OUT)
+    .value("ATOP", CAIRO_OPERATOR_ATOP)
+    .value("DEST", CAIRO_OPERATOR_DEST)
+    .value("DEST_OVER", CAIRO_OPERATOR_DEST_OVER)
+    .value("DEST_IN", CAIRO_OPERATOR_DEST_IN)
+    .value("DEST_OUT", CAIRO_OPERATOR_DEST_OUT)
+    .value("DEST_ATOP", CAIRO_OPERATOR_DEST_ATOP)
+    .value("XOR", CAIRO_OPERATOR_XOR)
+    .value("ADD", CAIRO_OPERATOR_ADD)
+    .value("SATURATE", CAIRO_OPERATOR_SATURATE)
+    .value("MULTIPLY", CAIRO_OPERATOR_MULTIPLY)
+    .value("SCREEN", CAIRO_OPERATOR_SCREEN)
+    .value("OVERLAY", CAIRO_OPERATOR_OVERLAY)
+    .value("DARKEN", CAIRO_OPERATOR_DARKEN)
+    .value("LIGHTEN", CAIRO_OPERATOR_LIGHTEN)
+    .value("COLOR_DODGE", CAIRO_OPERATOR_COLOR_DODGE)
+    .value("COLOR_BURN", CAIRO_OPERATOR_COLOR_BURN)
+    .value("HARD_LIGHT", CAIRO_OPERATOR_HARD_LIGHT)
+    .value("SOFT_LIGHT", CAIRO_OPERATOR_SOFT_LIGHT)
+    .value("DIFFERENCE", CAIRO_OPERATOR_DIFFERENCE)
+    .value("EXCLUSION", CAIRO_OPERATOR_EXCLUSION)
+    .value("HSL_HUE", CAIRO_OPERATOR_HSL_HUE)
+    .value("HSL_SATURATION", CAIRO_OPERATOR_HSL_SATURATION)
+    .value("HSL_COLOR", CAIRO_OPERATOR_HSL_COLOR)
+    .value("HSL_LUMINOSITY", CAIRO_OPERATOR_HSL_LUMINOSITY)
+    .finalize();
+  py::native_enum<cairo_format_t>(m, "format_t", "enum.Enum")
+    .value("INVALID", CAIRO_FORMAT_INVALID)
+    .value("ARGB32", CAIRO_FORMAT_ARGB32)
+    .value("RGB24", CAIRO_FORMAT_RGB24)
+    .value("A8", CAIRO_FORMAT_A8)
+    .value("A1", CAIRO_FORMAT_A1)
+    .value("RGB16_565", CAIRO_FORMAT_RGB16_565)
+    .value("RGB30", CAIRO_FORMAT_RGB30)
+    .value("RGB96F", static_cast<cairo_format_t>(6))
+    .value("RGBA128F", static_cast<cairo_format_t>(7))
+    .finalize();
+  py::native_enum<cairo_surface_type_t>(m, "_surface_type_t", "enum.Enum")
+    // Only for error messages.
+    .value("IMAGE", CAIRO_SURFACE_TYPE_IMAGE)
+    .value("PDF", CAIRO_SURFACE_TYPE_PDF)
+    .value("PS", CAIRO_SURFACE_TYPE_PS)
+    .value("XLIB", CAIRO_SURFACE_TYPE_XLIB)
+    .value("XCB", CAIRO_SURFACE_TYPE_XCB)
+    .value("GLITZ", CAIRO_SURFACE_TYPE_GLITZ)
+    .value("QUARTZ", CAIRO_SURFACE_TYPE_QUARTZ)
+    .value("WIN32", CAIRO_SURFACE_TYPE_WIN32)
+    .value("BEOS", CAIRO_SURFACE_TYPE_BEOS)
+    .value("DIRECTFB", CAIRO_SURFACE_TYPE_DIRECTFB)
+    .value("SVG", CAIRO_SURFACE_TYPE_SVG)
+    .value("OS2", CAIRO_SURFACE_TYPE_OS2)
+    .value("WIN32_PRINTING", CAIRO_SURFACE_TYPE_WIN32_PRINTING)
+    .value("QUARTZ_IMAGE", CAIRO_SURFACE_TYPE_QUARTZ_IMAGE)
+    .value("SCRIPT", CAIRO_SURFACE_TYPE_SCRIPT)
+    .value("QT", CAIRO_SURFACE_TYPE_QT)
+    .value("RECORDING", CAIRO_SURFACE_TYPE_RECORDING)
+    .value("VG", CAIRO_SURFACE_TYPE_VG)
+    .value("GL", CAIRO_SURFACE_TYPE_GL)
+    .value("DRM", CAIRO_SURFACE_TYPE_DRM)
+    .value("TEE", CAIRO_SURFACE_TYPE_TEE)
+    .value("XML", CAIRO_SURFACE_TYPE_XML)
+    .value("SKIA", CAIRO_SURFACE_TYPE_SKIA)
+    .value("SUBSURFACE", CAIRO_SURFACE_TYPE_SUBSURFACE)
+    .value("COGL", CAIRO_SURFACE_TYPE_COGL)
+    .finalize();
+  py::native_enum<StreamSurfaceType>(m, "_StreamSurfaceType", "enum.Enum")
+    .value("PDF", mplcairo::StreamSurfaceType::PDF)
+    .value("PS", mplcairo::StreamSurfaceType::PS)
+    .value("EPS", mplcairo::StreamSurfaceType::EPS)
+    .value("SVG", mplcairo::StreamSurfaceType::SVG)
+    .value("Script", mplcairo::StreamSurfaceType::Script)
+    .finalize();
 
   py::class_<Region>(m, "_Region", py::buffer_protocol())
     // Only for patching Agg...

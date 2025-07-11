@@ -2,7 +2,7 @@
 requires = [
     "setuptools>=62",
     "setuptools_scm[toml]>=6.2",
-    "pybind11>=2.8.0",
+    "pybind11>=3.0",  # Native enum support.
     "pycairo>=1.16.0; os_name == 'posix'",  # Removed for manylinux build.
 ]
 build-backend = "setuptools.build_meta"
