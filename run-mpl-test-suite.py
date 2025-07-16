@@ -76,6 +76,8 @@ To specify a single test module, use ``--pyargs matplotlib.tests.test_foo``.
         mplcairo.base.GraphicsContextRendererCairo
     mpl.backends.backend_agg = \
         sys.modules["matplotlib.backends.backend_agg"] = mplcairo.base
+    mpl.backend_bases._default_backends = {
+        k: "mplcairo.base" for k in mpl.backend_bases._default_backends}
 
     with warnings.catch_warnings(record=True):  # mpl 3.0
         mpl.use("agg", force=True)
@@ -165,6 +167,9 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_ps.py::test_colorbar_shift[",
                 # cairo doesn't support setting fonttype.
                 "test_backend_ps.py::test_fonttype[",
+                # FIXME[Upstream]: Test is not precise enough re: name reuse
+                # due to cairo's font subsetting approach.
+                "test_backend_ps.py::test_no_duplicate_definition",
                 # We're fine with partial usetex.
                 "test_backend_ps.py::test_partial_usetex",
                 # We do not support writing PS to text-mode streams.
@@ -194,12 +199,17 @@ def pytest_collection_modifyitems(session, config, items):
                 "test_backend_svg.py::test_svg_incorrect_metadata[",
                 "test_backend_svg.py::test_svg_metadata",
                 "test_backend_svg.py::test_svgid",
+                "test_figure.py::test_not_visible_figure",
                 # cairo always emits text as glyph paths.
                 "test_backend_svg.py::test_svgnone_with_data_coordinates",
+                "test_backend_svg.py::test_unicode_won",
                 # cairo can't emit urls in SVG.
                 "test_backend_svg.py::test_text_urls",
                 "test_backend_svg.py::test_url",
                 "test_backend_svg.py::test_url_tick",
+                # cairo elides fully-clipped artists
+                # FIXME[Upstream]: clip paths in test should be fixed.
+                "test_backend_svg.py::test_clip_path_ids_reuse",
                 # Different tight bbox.
                 "test_bbox_tight.py::test_bbox_inches_tight_suptile_legend[",
                 "test_bbox_tight.py::test_bbox_inches_tight_suptitle_non_default[",
