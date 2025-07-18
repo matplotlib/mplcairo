@@ -1,4 +1,6 @@
 name: build
+permissions:
+  contents: read
 
 on: [push, pull_request]
 
@@ -12,6 +14,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
