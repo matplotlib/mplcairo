@@ -1469,8 +1469,8 @@ void GraphicsContextRenderer::draw_text(
     // NOTE: This uses unhinted metrics for parsing/positioning but normal
     // hinting for rendering, not sure whether this is a problem...
     auto const& parse =
-      py::cast(this).attr("_text2path").attr("mathtext_parser").attr("parse")(
-        s, dpi_, prop);
+      py::module::import("matplotlib.mathtext").attr("MathTextParser")("path")
+      .attr("parse")(s, dpi_, prop);
     auto mb = MathtextBackend{};
     for (auto const& spec: parse.attr("glyphs")) {
       // We must use the character's unicode index rather than the symbol name,
