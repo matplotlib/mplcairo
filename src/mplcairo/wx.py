@@ -28,6 +28,7 @@ class FigureCanvasWxCairo(FigureCanvasCairo, _FigureCanvasWxBase):
             self.get_renderer()._get_buffer())
         height, width, _ = buf.shape
         self.bitmap = wx.Bitmap.FromBufferRGBA(width, height, buf)
+        self.bitmap.SetScaleFactor(self.GetDPIScaleFactor())
         self._isDrawn = True
         self.gui_repaint(drawDC=drawDC)
 
