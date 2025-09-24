@@ -286,10 +286,10 @@ void restore_init_matrix(cairo_t* cr)
 //
 // TODO: Path clipping in the general case (with codes present), and snapping
 // in the presence of CLOSEPOLY (likely the correct solution is to preload the
-// whole path and adjust for snapping).  Fortunately, in the most common case
-// where everything is axis-aligned, the first and last points are already
-// snapped due to being aligned with the second and next-to-last points
-// already, so the bug is hidden.
+// whole path and adjust for snapping), matplotlib#30576.  Fortunately, in the
+// most common case where everything is axis-aligned, the first and last points
+// are already snapped due to being aligned with the second and next-to-last
+// points already, so the bug is hidden.
 // NOTE: Matplotlib also *rounds* the linewidth in some cases (see
 // RendererAgg::_draw_path), which helps with snappiness.  We do not provide
 // this behavior; instead, one should set the default linewidths appropriately
