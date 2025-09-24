@@ -1,5 +1,7 @@
 #include "_os.h"
 
+#include <pybind11/pybind11.h>
+
 #if defined __linux__ || defined __APPLE__
   #include <dlfcn.h>
   #include <execinfo.h>
@@ -10,8 +12,6 @@
   #include <psapi.h>
   #include <Windows.h>
 #endif
-
-#include <pybind11/pybind11.h>
 
 namespace mplcairo::os {
 
