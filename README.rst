@@ -18,9 +18,9 @@ A (new) cairo backend for Matplotlib
 
 .. contents:: :local:
 
-This is a new, essentially complete implementation of a cairo_ backend for
-Matplotlib_.  It can be used in combination with a Qt, GTK, Tk, wx, or macOS
-UI, or non-interactively (i.e., to save figure to various file formats).
+This cairo_ backend for Matplotlib_ can be used in combination with a Qt, GTK,
+Tk, wx, or macOS UI, or non-interactively (i.e., to save figure to various file
+formats).
 
 Noteworthy points include:
 
@@ -32,19 +32,25 @@ Noteworthy points include:
 - Improved accuracy (e.g., with marker positioning, quad meshes, and text
   kerning; floating point surfaces are supported with cairo≥1.17.2).
 - Optional multithreaded drawing of markers and path collections.
-- Optional support for complex text layout (right-to-left languages, etc.) and
-  OpenType font features (see `examples/opentype_features.py`_) and variations
-  (see `examples/opentype_variations.py`_) (requires cairo≥1.16.0), and partial
-  support for color fonts (e.g., emojis), using Raqm_.  **Note** that Raqm
-  depends by default on Fribidi, which is licensed under the LGPLv2.1+.
 - Support for embedding URLs in PDF (but not SVG) output (requires
   cairo≥1.15.4).
 - Support for multi-page output both for PDF and PS (Matplotlib only supports
   multi-page PDF).
 - Support for custom blend modes (see `examples/operators.py`_).
-- Improved font embedding in vector formats: fonts are typically subsetted and
-  embedded in their native format (Matplotlib≥3.5 also provides improved font
-  embedding).
+
+mplcairo has also pioneered some features that have since then been implemented
+in Matplotlib:
+
+- Support for complex text layout (right-to-left languages, etc.) and OpenType
+  font features (see `examples/opentype_features.py`_) and variations (see
+  `examples/opentype_variations.py`_) (requires cairo≥1.16.0), and partial
+  support for color fonts (e.g., emojis), using Raqm_ (implemented in
+  Matplotlib 3.11).  **Note** that Raqm is optional for mplcairo, and depends
+  by default on the LGPLv2.1+-licensed Fribidi.
+- Font subsetting and embedding in their native formats, for vector output
+  (partially implemented in Matplotlib 3.5 (type 42 font subsetting)
+  and further in Matplotlib 3.11 (Unicode charmaps for pdf, type 1 font
+  subsetting)).
 
 .. _cairo: https://www.cairographics.org/
 .. _Matplotlib: http://matplotlib.org/
