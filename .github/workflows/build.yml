@@ -72,12 +72,12 @@ jobs:
           fi
         ) &&
         PYTHONFAULTHANDLER=1 PYTHONIOENCODING=utf-8 ./run-examples.py
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: wheel-${{ matrix.os }}-${{ matrix.python-version }}
         path: dist/*.whl
       if: ${{ always() }}
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         name: result_images-${{ matrix.os }}-py${{ matrix.python-version }}
         path: result_images/
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-    - uses: actions/upload-artifact/merge@v4
+    - uses: actions/upload-artifact/merge@v5
       with:
         name: wheels
         pattern: wheel-*
