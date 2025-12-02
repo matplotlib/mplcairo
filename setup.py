@@ -71,6 +71,7 @@ def gen_extension(tmpdir):
         ],
         cxx_std=17,
         include_dirs=[cairo.get_include()] if cairo else [],
+        define_macros=[("PYBIND11_DETAILED_ERROR_MESSAGES", None)],
     )
 
     # NOTE: Versions <= 8.2 of Arch Linux's python-pillow package included
