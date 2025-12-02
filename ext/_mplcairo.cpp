@@ -1477,9 +1477,13 @@ void GraphicsContextRenderer::draw_text(
       // because the symbol may have been synthesized by
       // FT2Font::get_glyph_name for a font without FT_FACE_FLAG_GLYPH_NAMES
       // (e.g. arial.ttf), which FT_Get_Name_Index can't know about.
-      auto const& [font, size, codepoint, ox, oy] =
-        spec.cast<
-          std::tuple<py::object, double, unsigned long, double, double>>();
+      // Support both pre and post Matplotlib 3.11 formats.
+      auto const& glyph = spec.cast<py::tuple>();
+      auto const& font = glyph[0].cast<py::object>();
+      auto const& size = glyph[1].cast<double>();
+      auto const& codepoint = glyph[2].cast<uint32_t>();
+      auto const& ox = glyph[glyph.size() - 2].cast<double>(),
+                & oy = glyph[glyph.size() - 1].cast<double>();
       mb.add_glyph(ox, -oy,
                    font.attr("fname").cast<std::string>(), size,
                    codepoint);
