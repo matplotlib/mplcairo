@@ -414,7 +414,8 @@ class FigureCanvasCairo(FigureCanvasBase):
         # semantics of duplicate keys in pnginfo is unclear.
         pnginfo = PngInfo()
         for k, v in metadata.items():
-            pnginfo.add_text(k, v)
+            if v is not None:
+                pnginfo.add_text(k, v)
         Image.fromarray(img).save(path_or_stream, format="png", **{
             "pnginfo": pnginfo,
             "dpi": (self.figure.dpi, self.figure.dpi),
